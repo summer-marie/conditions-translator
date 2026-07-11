@@ -321,6 +321,34 @@ A Copilot-specific bridge may exist at `.github/copilot-instructions.md` and mus
 
 ---
 
+## Model Routing Guide
+
+Use this table to decide which model to assign a task to. The current agent should
+flag a handoff recommendation in `OPEN_QUESTIONS.md` when the active task crosses
+into another model's strength zone.
+
+| Task Type | Best Model | Why |
+|---|---|---|
+| Schema design, ownership logic, auth flow | Claude Opus 4.8 | Complex multi-file reasoning, fewer architectural mistakes |
+| API routes, Prisma queries, migrations, tests | Claude Sonnet 4.6 | Fast, reliable daily implementation driver |
+| React components, Tailwind UI, loading/empty states | GLM-4.7 (via Cline/Cerebras) | ~17x faster, strong UI output, lower cost |
+| Multi-file refactors, repo-wide sweep, PR review | OpenAI Codex | Parallel task execution across the whole codebase |
+| AI safety system prompt, grounding rules (Phase 6) | Claude Opus 4.8 | Critical correctness required |
+| Phase 1–2 foundation and config | Claude Sonnet 4.6 | Routine but must be exact |
+| Phase 3 document intake UI | GLM-4.7 | Fast React/Tailwind iteration |
+| Phase 7 ownership transfer (atomic) | Claude Opus 4.8 | High-risk, complex transactional logic |
+
+### Handoff Signal
+
+If you are mid-task and recognize the next logical step belongs to a different model,
+do not attempt it. Instead:
+
+1. Complete your current atomic unit of work and commit it.
+2. Add a note to `OPEN_QUESTIONS.md`: `[MODEL SWITCH NEEDED] — suggest switching to <model> for <reason>`
+3. Report it in your Change Summary under "What should happen next?"
+
+---
+
 ## Change Summary
 
 For meaningful changes, report:
