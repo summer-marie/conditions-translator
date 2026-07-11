@@ -9,5 +9,9 @@ export default defineConfig({
   },
   test: {
     environment: "node",
+    setupFiles: ["tests/setup/loadEnv.ts"],
+    // DB integration tests (tests/schema) can be slower than the pooled-connection default.
+    testTimeout: 30000,
+    hookTimeout: 30000,
   },
 });
