@@ -44,3 +44,5 @@ Thumbs.db
 
 # personal notes
 /notes
+# Claude local session memory
+.claude/
