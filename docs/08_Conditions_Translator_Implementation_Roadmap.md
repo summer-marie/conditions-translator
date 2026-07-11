@@ -250,6 +250,25 @@ Suggested checks:
 
 Convert uploaded page images into accepted source text using the approved page-level review flow.
 
+## Prerequisites — Blob Credentials for Local Development
+
+This phase requires Vercel Blob to store uploaded page images. The Blob store was
+created with **private access** during Phase 1 setup. As of Vercel Blob GA (June 2026),
+private stores use OIDC authentication — no static `BLOB_READ_WRITE_TOKEN` is generated.
+
+**Before writing any Blob integration code, run:**
+
+```powershell
+vercel env pull .env.local
+```
+
+This populates `.env.local` with the correct `BLOB_STORE_ID` and related credentials
+tied to your private store. Re-run if credentials appear to have rotated.
+
+- Do NOT hardcode `BLOB_READ_WRITE_TOKEN` — it is not used for private stores.
+- Do NOT commit the values pulled into `.env.local`.
+- On Vercel infrastructure (production/preview), authentication is automatic via OIDC.
+
 ## Build
 
 - Create a secure server-side OCR route.
