@@ -29,6 +29,10 @@ pnpm-debug.log*
 
 # TypeScript generated files
 *.tsbuildinfo
+next-env.d.ts
+
+# Generated Prisma client
+/generated
 
 # OS/editor artifacts
 .DS_Store
@@ -37,3 +41,6 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+
+# personal notes
+/notes
