@@ -94,6 +94,12 @@ Claude must not:
 
 The user will push and merge through GitHub.
 
+## Staging Discipline
+
+- Stage files individually by name (`git add <file> <file> ...`). Never use `git add -A` or `git add .`.
+- Only stage files that are actually in scope for the current task.
+- After each commit, report which touched files were included and which untracked/modified files were deliberately left out, so leftover changes in the working tree are never mistaken for a staging failure.
+
 ---
 
 # 4. Commit Rules
