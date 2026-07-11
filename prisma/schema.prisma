@@ -1,5 +1,12 @@
-// Phase 1: no models yet. Data models are added in Phase 2
-// (Schema, ORM, and Ownership) per docs/08_Conditions_Translator_Implementation_Roadmap.md.
+// Conditions Translator — core data model (Phase 2: Schema, ORM, and Ownership).
+//
+// Invariants enforced here and by the accompanying migration's CHECK constraints
+// (see prisma/migrations/*/migration.sql and docs/04_Schema_Architecture.md):
+//   - Every Document has exactly ONE owner: userId XOR temporarySessionId.
+//   - Temporary Documents require expiresAt; saved (user-owned) Documents never expire.
+//   - Pages belong to exactly one Document.
+// Operational limits (max pages, docs-per-chat, etc.) live in lib/constants.ts and are
+// enforced in the service layer, not the schema.
 
 generator client {
   provider = "prisma-client"
@@ -8,4 +15,267 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+// Document lifecycle. Only READY Documents are available to AI.
+// PROCESSING_FAILED is a terminal-until-retry state used by section generation (Phase 5).
+enum DocumentStatus {
+  IN_PROGRESS
+  COMPLETED
+  PROCESSING
+  READY
+  PROCESSING_FAILED
+}
+
+// Deletion lifecycle, independent of DocumentStatus. Access is removed at DELETE_PENDING;
+// storage/child cleanup completes the move to DELETED (Phase 8).
+enum DeletionState {
+  ACTIVE
+  DELETE_PENDING
+  DELETED
+}
+
+enum ChatRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+// ---------------------------------------------------------------------------
+// Ownership roots
+// ---------------------------------------------------------------------------
+
+model User {
+  id            String   @id @default(cuid())
+  email         String?  @unique
+  username      String?  @unique
+  passwordHash  String?
+  recoveryEmail String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  authSessions AuthSession[]
+  documents    Document[]
+  chatSessions ChatSession[]
+
+  @@map("users")
+}
+
+model AuthSession {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("auth_sessions")
+}
+
+// Anonymous, server-side workspace. Always temporary — expiresAt is required.
+model TemporarySession {
+  id               String    @id @default(cuid())
+  token            String    @unique
+  noticeAcceptedAt DateTime?
+  expiresAt        DateTime
+  createdAt        DateTime  @default(now())
+
+  documents    Document[]
+  chatSessions ChatSession[]
+
+  @@index([expiresAt])
+  @@map("temporary_sessions")
+}
+
+// ---------------------------------------------------------------------------
+// Document and content
+// ---------------------------------------------------------------------------
+
+model Document {
+  id            String         @id @default(cuid())
+  title         String
+  status        DocumentStatus @default(IN_PROGRESS)
+  deletionState DeletionState  @default(ACTIVE)
+
+  // Exactly one of the two owner columns is non-null (enforced by a CHECK constraint
+  // in the migration). Both nullable at the schema level so either kind can be created.
+  userId             String?
+  temporarySessionId String?
+
+  // Required for temporary Documents, must be null for saved Documents (CHECK constraint).
+  expiresAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user             User?             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  temporarySession TemporarySession? @relation(fields: [temporarySessionId], references: [id], onDelete: Cascade)
+
+  pages                Page[]
+  sections             Section[]
+  chatSessionDocuments ChatSessionDocument[]
+  chatMessageSources   ChatMessageSource[]
+
+  @@index([userId])
+  @@index([temporarySessionId])
+  @@index([status])
+  @@map("documents")
+}
+
+model Page {
+  id         String   @id @default(cuid())
+  documentId String
+  order      Int
+  accepted   Boolean  @default(false)
+  blobPath   String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  document       Document        @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  ocr            OcrResult?
+  sectionSources SectionSource[]
+
+  // Page order is unique within a Document, preserving intake order.
+  @@unique([documentId, order])
+  @@index([documentId])
+  @@map("pages")
+}
+
+// OCR output for a single Page. Accepted page text is the factual source of truth.
+model OcrResult {
+  id            String   @id @default(cuid())
+  pageId        String   @unique
+  extractedText String
+  confidence    Float?
+  warnings      Json?
+  createdAt     DateTime @default(now())
+
+  page Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@map("ocr_results")
+}
+
+// Generated plain-language section. Readability aid only; page text remains authoritative.
+model Section {
+  id         String   @id @default(cuid())
+  documentId String
+  heading    String
+  body       String
+  order      Int
+  createdAt  DateTime @default(now())
+
+  document Document        @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  sources  SectionSource[]
+
+  @@index([documentId])
+  @@map("sections")
+}
+
+// Traceability from a generated Section back to the accepted Page(s) it came from.
+model SectionSource {
+  id        String   @id @default(cuid())
+  sectionId String
+  pageId    String
+  createdAt DateTime @default(now())
+
+  section Section @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  page    Page    @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@unique([sectionId, pageId])
+  @@index([pageId])
+  @@map("section_sources")
+}
+
+// ---------------------------------------------------------------------------
+// Temporary AI chat (never permanent history)
+// ---------------------------------------------------------------------------
+
+// Ephemeral, server-side chat. May be owned by a temporary session or a user (ownership can
+// transfer with the workspace, Phase 7), and always expires. Deleting the owner cascades.
+model ChatSession {
+  id                 String   @id @default(cuid())
+  userId             String?
+  temporarySessionId String?
+  expiresAt          DateTime
+  createdAt          DateTime @default(now())
+
+  user             User?             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  temporarySession TemporarySession? @relation(fields: [temporarySessionId], references: [id], onDelete: Cascade)
+
+  documents ChatSessionDocument[]
+  messages  ChatMessage[]
+
+  @@index([userId])
+  @@index([temporarySessionId])
+  @@index([expiresAt])
+  @@map("chat_sessions")
+}
+
+// Join: which READY Documents a chat is grounded in (service layer enforces the max of 3).
+model ChatSessionDocument {
+  id            String   @id @default(cuid())
+  chatSessionId String
+  documentId    String
+  createdAt     DateTime @default(now())
+
+  chatSession ChatSession @relation(fields: [chatSessionId], references: [id], onDelete: Cascade)
+  document    Document    @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([chatSessionId, documentId])
+  @@index([documentId])
+  @@map("chat_session_documents")
+}
+
+model ChatMessage {
+  id            String   @id @default(cuid())
+  chatSessionId String
+  role          ChatRole
+  content       String
+  createdAt     DateTime @default(now())
+
+  chatSession ChatSession         @relation(fields: [chatSessionId], references: [id], onDelete: Cascade)
+  sources     ChatMessageSource[]
+
+  @@index([chatSessionId])
+  @@map("chat_messages")
+}
+
+// Which Document/Page grounded a given assistant message.
+model ChatMessageSource {
+  id            String   @id @default(cuid())
+  chatMessageId String
+  documentId    String
+  pageId        String?
+  createdAt     DateTime @default(now())
+
+  chatMessage ChatMessage @relation(fields: [chatMessageId], references: [id], onDelete: Cascade)
+  document    Document    @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([chatMessageId])
+  @@index([documentId])
+  @@map("chat_message_sources")
+}
+
+// ---------------------------------------------------------------------------
+// Safety / event metadata
+// ---------------------------------------------------------------------------
+
+// Non-sensitive audit metadata for safety-relevant events (e.g. suspected prompt injection,
+// missing-source answers, rate-limit hits). Never stores document, OCR, or chat text.
+model SafetyEvent {
+  id            String   @id @default(cuid())
+  eventType     String
+  chatSessionId String?
+  metadata      Json?
+  createdAt     DateTime @default(now())
+
+  @@index([eventType])
+  @@index([chatSessionId])
+  @@map("safety_events")
 }

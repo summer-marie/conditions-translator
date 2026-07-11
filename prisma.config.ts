@@ -5,14 +5,15 @@ import { defineConfig, env } from "prisma/config";
 // to match this project's local-development convention (see env.example).
 config({ path: ".env.local" });
 
-// NOTE: Prisma 7.8.0's `datasource` config only accepts `url` and `shadowDatabaseUrl`
-// (verified against node_modules/@prisma/config/dist/index.d.ts) — there is no `directUrl`
-// field here despite some current docs describing one. DIRECT_URL remains documented in
-// env.example for Neon's direct (non-pooled) connection; revisit this file if a future
-// Prisma release adds first-class direct-connection support to prisma.config.ts.
+// This config is consumed ONLY by the Prisma CLI (migrate, generate, studio) — never by the
+// runtime PrismaClient, which is instantiated in lib/database/prisma.ts with the Neon driver
+// adapter over the pooled DATABASE_URL. Prisma 7 removed the `directUrl` field, so we point the
+// CLI's single `url` at DIRECT_URL: schema migrations require Neon's direct (non-pooled) endpoint
+// because the pgBouncer pooler does not support the DDL/advisory-lock operations Prisma Migrate
+// performs. Runtime queries continue to use the pooled endpoint.
 export default defineConfig({
   schema: "prisma/schema.prisma",
   datasource: {
-    url: env("DATABASE_URL"),
+    url: env("DIRECT_URL"),
   },
 });
