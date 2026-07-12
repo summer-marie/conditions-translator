@@ -21,3 +21,12 @@ export const CHAT_MAX_CONFIRMED_CHARACTERS = readNumber(
 );
 
 export const CHAT_MAX_TOTAL_MESSAGES = readNumber("CHAT_MAX_TOTAL_MESSAGES", 40);
+
+export const MAX_PAGE_SIZE_BYTES = readNumber("OCR_MAX_FILE_MB", 10) * 1024 * 1024;
+
+// docs/03_OCR_Specifications.md: MVP OCR accepts images only (no PDF/DOCX/HEIC).
+export const ALLOWED_IMAGE_MIME_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+] as const;
