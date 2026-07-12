@@ -20,7 +20,22 @@ export const CHAT_MAX_CONFIRMED_CHARACTERS = readNumber(
   50000
 );
 
+export const CHAT_MAX_USER_MESSAGES = readNumber("CHAT_MAX_USER_MESSAGES", 20);
+
 export const CHAT_MAX_TOTAL_MESSAGES = readNumber("CHAT_MAX_TOTAL_MESSAGES", 40);
+
+// Number of user questions after which the UI shows a "start a fresh chat soon" warning
+// (docs/07_Launch_Readiness_Checklist.md §5).
+export const CHAT_WARNING_USER_MESSAGES = readNumber(
+  "CHAT_WARNING_USER_MESSAGES",
+  17
+);
+
+// Temporary AI chat session lifetime, in minutes (docs/05_Account_Creation_and_Temporary_Access.md).
+export const CHAT_SESSION_TTL_MINUTES = readNumber(
+  "CHAT_SESSION_TTL_MINUTES",
+  120
+);
 
 export const MAX_PAGE_SIZE_BYTES = readNumber("OCR_MAX_FILE_MB", 10) * 1024 * 1024;
 
