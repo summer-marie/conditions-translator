@@ -9,6 +9,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   createTemporaryDocument,
@@ -568,13 +569,13 @@ export default function WorkspacePage() {
                         <div className="flex items-start gap-3">
                           <button
                             onClick={() => setExpandedImagePage(page)}
-                            className="flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
+                            className="shrink-0 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
                           >
                             {/* eslint-disable-next-line @next/next/no-img-element -- Dynamic authenticated API route with private Blob storage */}
                             <img
                               src={`/api/documents/${document.id}/pages/${page.id}/image`}
                               alt={`Page ${page.order + 1} (click to enlarge)`}
-                              className="w-32 sm:w-40 aspect-[3/4] object-cover bg-gray-100 rounded cursor-pointer hover:ring-2 hover:ring-blue-400 transition-all"
+                              className="w-32 sm:w-40 aspect-3/4 object-cover bg-gray-100 rounded cursor-pointer hover:ring-2 hover:ring-blue-400 transition-all"
                             />
                           </button>
                           <div className="flex-1 min-w-0">
@@ -792,10 +793,16 @@ export default function WorkspacePage() {
                 <h2 className="text-lg font-semibold text-green-900 mb-2">
                   Document Ready!
                 </h2>
-                <p className="text-sm text-green-700">
-                  Your document has been organized into sections below. AI chat will be available
-                  in the next phase.
+                <p className="text-sm text-green-700 mb-4">
+                  Your document has been organized into sections below. You can now ask questions
+                  about it.
                 </p>
+                <Link
+                  href="/app/chat"
+                  className="inline-block rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
+                >
+                  Ask about your documents
+                </Link>
               </div>
             )}
 
