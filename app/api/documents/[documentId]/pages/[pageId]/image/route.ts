@@ -2,14 +2,14 @@
 //
 // Streams a page's original image from private Blob storage after verifying ownership.
 // Never proxies bytes without an auth check (docs/03_OCR_Specifications.md §4.3 preview).
+// Owner-aware: works for both saved and temporary Documents.
 
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { prisma } from "@/lib/database/prisma";
 import { AppError } from "@/lib/errors";
 import { readPageImage } from "@/lib/storage/blob";
-
-const TMP_SESSION_COOKIE = "tmp_session";
+import { getCurrentOwner } from "@/lib/auth/session";
+import { getOwnedDocument } from "@/lib/permissions/ownership";
 
 export async function GET(
   request: Request,
@@ -18,29 +18,12 @@ export async function GET(
   try {
     const { documentId, pageId } = params;
 
-    const cookieStore = await cookies();
-    const sessionToken = cookieStore.get(TMP_SESSION_COOKIE)?.value;
-
-    if (!sessionToken) {
-      throw new AppError("No session found", 401, "NO_SESSION");
+    const owner = await getCurrentOwner();
+    if (!owner) {
+      throw new AppError("No active session found.", 401, "NO_ACTIVE_SESSION");
     }
 
-    const session = await prisma.temporarySession.findUnique({
-      where: { token: sessionToken },
-    });
-
-    if (!session) {
-      throw new AppError("Invalid session", 401, "INVALID_SESSION");
-    }
-
-    const document = await prisma.document.findFirst({
-      where: {
-        id: documentId,
-        temporarySessionId: session.id,
-        deletionState: "ACTIVE",
-      },
-    });
-
+    const document = await getOwnedDocument(owner, documentId);
     if (!document) {
       throw new AppError("Document not found", 404, "DOCUMENT_NOT_FOUND");
     }

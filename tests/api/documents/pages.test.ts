@@ -6,8 +6,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { POST } from "@/app/api/documents/[documentId]/pages/route";
+import { GET, POST } from "@/app/api/documents/[documentId]/pages/route";
 import { prisma } from "@/lib/database/prisma";
+import { getCurrentOwner } from "@/lib/auth/session";
 
 // Minimal valid magic-byte prefixes so validateImageUpload's format sniff succeeds.
 const JPEG_BYTES = new Uint8Array([0xff, 0xd8, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00]);
@@ -26,11 +27,12 @@ vi.mock("@/lib/database/prisma", () => ({
       create: vi.fn(),
       update: vi.fn(),
       delete: vi.fn(),
+      findMany: vi.fn(),
     },
   },
 }));
 
-// Mock cookies
+// Mock cookies (still used by the POST upload path, which stays temporary-session-scoped)
 vi.mock("next/headers", () => ({
   cookies: vi.fn(),
 }));
@@ -39,6 +41,79 @@ vi.mock("next/headers", () => ({
 vi.mock("@/lib/storage/blob", () => ({
   uploadPageImage: vi.fn(),
 }));
+
+// Mock owner resolution for the owner-aware GET handler.
+vi.mock("@/lib/auth/session", () => ({
+  getCurrentOwner: vi.fn(),
+}));
+
+describe("GET /api/documents/[documentId]/pages", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("lists pages for a temporary-session owner", async () => {
+    vi.mocked(getCurrentOwner).mockResolvedValue({
+      kind: "temporary",
+      temporarySessionId: "session-123",
+    });
+    vi.mocked(prisma.document.findFirst).mockResolvedValue({
+      id: "doc-123",
+      temporarySessionId: "session-123",
+      deletionState: "ACTIVE",
+    } as any);
+    vi.mocked(prisma.page.findMany).mockResolvedValue([
+      { id: "page-1", order: 0, status: "ACCEPTED", ocr: null },
+    ] as any);
+
+    const request = new Request("http://localhost/api/documents/doc-123/pages");
+    const response = await GET(request, { params: { documentId: "doc-123" } });
+    const data = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(data.pages).toHaveLength(1);
+  });
+
+  it("lists pages for a signed-in user owner", async () => {
+    vi.mocked(getCurrentOwner).mockResolvedValue({ kind: "user", userId: "user-123" });
+    vi.mocked(prisma.document.findFirst).mockResolvedValue({
+      id: "doc-123",
+      userId: "user-123",
+      deletionState: "ACTIVE",
+    } as any);
+    vi.mocked(prisma.page.findMany).mockResolvedValue([] as any);
+
+    const request = new Request("http://localhost/api/documents/doc-123/pages");
+    const response = await GET(request, { params: { documentId: "doc-123" } });
+
+    expect(response.status).toBe(200);
+    expect(prisma.document.findFirst).toHaveBeenCalledWith({
+      where: { id: "doc-123", userId: "user-123", deletionState: "ACTIVE" },
+    });
+  });
+
+  it("returns 404 for a document owned by someone else", async () => {
+    vi.mocked(getCurrentOwner).mockResolvedValue({
+      kind: "temporary",
+      temporarySessionId: "session-123",
+    });
+    vi.mocked(prisma.document.findFirst).mockResolvedValue(null);
+
+    const request = new Request("http://localhost/api/documents/doc-999/pages");
+    const response = await GET(request, { params: { documentId: "doc-999" } });
+
+    expect(response.status).toBe(404);
+  });
+
+  it("returns 401 when there is no active session or signed-in user", async () => {
+    vi.mocked(getCurrentOwner).mockResolvedValue(null);
+
+    const request = new Request("http://localhost/api/documents/doc-123/pages");
+    const response = await GET(request, { params: { documentId: "doc-123" } });
+
+    expect(response.status).toBe(401);
+  });
+});
 
 describe("POST /api/documents/[documentId]/pages", () => {
   beforeEach(() => {

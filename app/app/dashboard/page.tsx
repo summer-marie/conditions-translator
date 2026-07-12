@@ -3,11 +3,11 @@
 // Shows all documents for the current owner (user or temporary session) with:
 // - document cards displaying title, status, page count, and created date
 // - loading, empty, and error states
-// - delete confirmation modal (stub - backend implementation pending)
+// - delete confirmation modal wired to DELETE /api/documents/[documentId]
 // - navigation to view sections or start chat for READY documents
 //
-// This is a UI-only implementation. Real deletion logic and Blob cleanup
-// will be implemented in the Phase 8 backend pass.
+// "View sections" (document detail view) remains a stub — out of scope for the Phase 8
+// backend pass, which covers deletion + owner-aware reads only.
 
 "use client";
 
@@ -54,7 +54,9 @@ export default function DashboardPage() {
   const [deleteModal, setDeleteModal] = useState<{
     isOpen: boolean;
     document: Document | null;
-  }>({ isOpen: false, document: null });
+    isDeleting: boolean;
+    error: string | null;
+  }>({ isOpen: false, document: null, isDeleting: false, error: null });
 
   const fetchDocuments = useCallback(async () => {
     try {
@@ -96,26 +98,44 @@ export default function DashboardPage() {
   }, [fetchDocuments]);
 
   const handleDeleteClick = (document: Document) => {
-    setDeleteModal({ isOpen: true, document });
+    setDeleteModal({ isOpen: true, document, isDeleting: false, error: null });
   };
 
   const handleDeleteConfirm = async () => {
     if (!deleteModal.document) return;
+    const documentId = deleteModal.document.id;
 
-    // TODO: Phase 8 backend pass - wire to real deletion API route
-    // This is a UI-only stub. The real implementation will:
-    // 1. Call deletion endpoint that sets deletionState to DELETE_PENDING
-    // 2. Remove document from local state immediately
-    // 3. Backend will handle database children and Blob cleanup
-    console.log("Delete requested for document:", deleteModal.document.id);
-    
-    // For now, just close the modal and show a message
-    setDeleteModal({ isOpen: false, document: null });
-    alert("Deletion will be implemented in the Phase 8 backend pass");
+    setDeleteModal((prev) => ({ ...prev, isDeleting: true, error: null }));
+
+    try {
+      const response = await fetch(`/api/documents/${documentId}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to delete document");
+      }
+
+      // The document is already inaccessible server-side (deletionState left ACTIVE) the
+      // moment this request succeeds, regardless of whether storage cleanup fully finished —
+      // so it disappears from the list immediately either way.
+      setState((prev) => ({
+        ...prev,
+        documents: prev.documents.filter((d) => d.id !== documentId),
+      }));
+      setDeleteModal({ isOpen: false, document: null, isDeleting: false, error: null });
+    } catch (error) {
+      setDeleteModal((prev) => ({
+        ...prev,
+        isDeleting: false,
+        error: error instanceof Error ? error.message : "Failed to delete document",
+      }));
+    }
   };
 
   const handleDeleteCancel = () => {
-    setDeleteModal({ isOpen: false, document: null });
+    setDeleteModal({ isOpen: false, document: null, isDeleting: false, error: null });
   };
 
   const documentStatusLabel = (status: DocumentStatus): string => {
@@ -354,20 +374,25 @@ export default function DashboardPage() {
                 <span className="font-medium">{deleteModal.document.title}</span> and all
                 its pages. This action cannot be undone.
               </p>
+              {deleteModal.error && (
+                <p className="text-red-600 text-sm mt-2">{deleteModal.error}</p>
+              )}
             </div>
 
             <div className="flex gap-3 justify-end">
               <button
                 onClick={handleDeleteCancel}
-                className="px-4 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors"
+                disabled={deleteModal.isDeleting}
+                className="px-4 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDeleteConfirm}
-                className="px-4 py-2 rounded-md text-sm font-medium text-white bg-red-600 hover:bg-red-700 transition-colors"
+                disabled={deleteModal.isDeleting}
+                className="px-4 py-2 rounded-md text-sm font-medium text-white bg-red-600 hover:bg-red-700 transition-colors disabled:opacity-50"
               >
-                Delete
+                {deleteModal.isDeleting ? "Deleting…" : "Delete"}
               </button>
             </div>
           </div>
