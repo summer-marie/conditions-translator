@@ -3,6 +3,7 @@ import { prisma } from "@/lib/database/prisma";
 import {
   assertOwnedDocument,
   createDocument,
+  getDeletableDocument,
   getOwnedDocument,
   listOwnedDocuments,
   temporaryOwner,
@@ -141,6 +142,50 @@ describe.skipIf(!isLiveDbConfigured())("Document ownership", () => {
     await expect(
       listOwnedDocuments(temporaryOwner(sessionB.id))
     ).resolves.toHaveLength(0);
+  });
+
+  it("excludes DELETE_PENDING and DELETED Documents from normal ownership reads (Phase 8)", async () => {
+    const session = await owners.createTemporarySession();
+
+    const pending = await createDocument(temporaryOwner(session.id), {
+      title: "Pending deletion",
+      expiresAt: futureDate(),
+    });
+    const deleted = await createDocument(temporaryOwner(session.id), {
+      title: "Already deleted",
+      expiresAt: futureDate(),
+    });
+    const active = await createDocument(temporaryOwner(session.id), {
+      title: "Still active",
+      expiresAt: futureDate(),
+    });
+
+    await prisma.document.update({
+      where: { id: pending.id },
+      data: { deletionState: "DELETE_PENDING" },
+    });
+    await prisma.document.update({
+      where: { id: deleted.id },
+      data: { deletionState: "DELETED" },
+    });
+
+    await expect(getOwnedDocument(temporaryOwner(session.id), pending.id)).resolves.toBeNull();
+    await expect(getOwnedDocument(temporaryOwner(session.id), deleted.id)).resolves.toBeNull();
+    await expect(
+      getOwnedDocument(temporaryOwner(session.id), active.id)
+    ).resolves.toMatchObject({ id: active.id });
+
+    const listed = await listOwnedDocuments(temporaryOwner(session.id));
+    expect(listed.map((d) => d.id).sort()).toEqual([active.id].sort());
+
+    // getDeletableDocument is the one exception: it allows DELETE_PENDING (so a failed cleanup
+    // can be retried) but still excludes a fully DELETED Document.
+    await expect(
+      getDeletableDocument(temporaryOwner(session.id), pending.id)
+    ).resolves.toMatchObject({ id: pending.id });
+    await expect(
+      getDeletableDocument(temporaryOwner(session.id), deleted.id)
+    ).resolves.toBeNull();
   });
 
   it("assertOwnedDocument throws 404 for a non-owner", async () => {

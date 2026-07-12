@@ -74,22 +74,40 @@ export async function createDocument(
   });
 }
 
-// Ownership-scoped lookup. Returns the Document only if it belongs to the given owner,
-// otherwise null. Uses findFirst with id + owner — never findUnique by id alone.
+// Ownership-scoped lookup. Returns the Document only if it belongs to the given owner and is
+// still ACTIVE, otherwise null. Uses findFirst with id + owner — never findUnique by id alone.
+// DELETE_PENDING/DELETED Documents are excluded here so no normal read path can resurface them
+// (Phase 8: docs/08 §11 — "Deleted Documents cannot be selected").
 export async function getOwnedDocument(
   owner: Owner,
   documentId: string
 ): Promise<Document | null> {
   return prisma.document.findFirst({
-    where: { id: documentId, ...ownerWhere(owner) },
+    where: { id: documentId, ...ownerWhere(owner), deletionState: "ACTIVE" },
   });
 }
 
-// Lists all Documents belonging to the given owner, newest first.
+// Lists all ACTIVE Documents belonging to the given owner, newest first.
 export async function listOwnedDocuments(owner: Owner): Promise<Document[]> {
   return prisma.document.findMany({
-    where: ownerWhere(owner),
+    where: { ...ownerWhere(owner), deletionState: "ACTIVE" },
     orderBy: { createdAt: "desc" },
+  });
+}
+
+// Owner-scoped lookup for the deletion flow only: unlike getOwnedDocument, this allows a
+// Document that is already DELETE_PENDING so a failed cleanup attempt can be retried. A DELETED
+// Document (cleanup already finished) still returns null.
+export async function getDeletableDocument(
+  owner: Owner,
+  documentId: string
+): Promise<Document | null> {
+  return prisma.document.findFirst({
+    where: {
+      id: documentId,
+      ...ownerWhere(owner),
+      deletionState: { in: ["ACTIVE", "DELETE_PENDING"] },
+    },
   });
 }
 
