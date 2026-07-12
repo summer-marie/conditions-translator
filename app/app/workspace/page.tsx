@@ -126,6 +126,8 @@ export default function WorkspacePage() {
   const [ocrRunningIds, setOcrRunningIds] = useState<Record<string, boolean>>({});
   const [actioningPageId, setActioningPageId] = useState<string | null>(null);
   const [expandedImagePage, setExpandedImagePage] = useState<Page | null>(null);
+  // Set once the workspace is owned by a signed-in account (Phase 7). null while temporary.
+  const [savedUserId, setSavedUserId] = useState<string | null>(null);
 
   async function initializeWorkspace() {
     try {
@@ -136,14 +138,17 @@ export default function WorkspacePage() {
         throw new Error("Failed to load session status");
       }
       const status = await statusResponse.json();
+      setSavedUserId(status.userId ?? null);
 
-      if (!status.privacyAccepted || !status.sessionId) {
+      // A signed-in user (Phase 7) owns their workspace even without a temporary session cookie.
+      const hasOwner = Boolean(status.sessionId || status.userId);
+      if (!status.privacyAccepted || !hasOwner) {
         router.push("/app/start");
         return;
       }
 
-      // Load document or create one
-      const response = await fetch(`/api/documents?sessionId=${status.sessionId}`);
+      // Load document or create one (owner is resolved from cookies server-side).
+      const response = await fetch(`/api/documents`);
       if (!response.ok) {
         throw new Error("Failed to load documents");
       }
@@ -160,8 +165,9 @@ export default function WorkspacePage() {
         });
 
         await refetchPages(doc.id);
-      } else {
-        // Create new document
+      } else if (!status.userId) {
+        // Only auto-create a fresh document in temporary mode; a saved account with no documents
+        // is handled by the empty-state below rather than silently creating a temporary one.
         setIsCreating(true);
         try {
           const newDoc = await createTemporaryDocument("Untitled Document");
@@ -481,6 +487,19 @@ export default function WorkspacePage() {
               >
                 {documentStatusLabel(document.status)}
               </span>
+
+              {savedUserId ? (
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                  Saved to your account
+                </span>
+              ) : (
+                <Link
+                  href="/app/save"
+                  className="inline-flex items-center rounded-md bg-gray-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-gray-800"
+                >
+                  Save workspace
+                </Link>
+              )}
             </div>
           </div>
         </div>
