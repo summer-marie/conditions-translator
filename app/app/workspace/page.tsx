@@ -570,6 +570,7 @@ export default function WorkspacePage() {
                             onClick={() => setExpandedImagePage(page)}
                             className="flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
                           >
+                            {/* eslint-disable-next-line @next/next/no-img-element -- Dynamic authenticated API route with private Blob storage */}
                             <img
                               src={`/api/documents/${document.id}/pages/${page.id}/image`}
                               alt={`Page ${page.order + 1} (click to enlarge)`}
@@ -835,6 +836,7 @@ export default function WorkspacePage() {
             >
               ×
             </button>
+            {/* eslint-disable-next-line @next/next/no-img-element -- Dynamic authenticated API route with private Blob storage */}
             <img
               src={`/api/documents/${document.id}/pages/${expandedImagePage.id}/image`}
               alt={`Page ${expandedImagePage.order + 1} enlarged`}
