@@ -28,6 +28,17 @@ export function ownerWhere(owner: Owner): Prisma.DocumentWhereInput {
     : { temporarySessionId: owner.temporarySessionId };
 }
 
+// Owner-scoped unique WHERE for update()/delete() calls that must target one Document by id
+// while still enforcing ownership in the same query (never `{ id: documentId }` alone).
+export function ownerScopedDocumentWhere(
+  owner: Owner,
+  documentId: string
+): Prisma.DocumentWhereUniqueInput {
+  return owner.kind === "user"
+    ? { id: documentId, userId: owner.userId }
+    : { id: documentId, temporarySessionId: owner.temporarySessionId };
+}
+
 // Creates a Document with exactly one owner.
 // - Temporary (session-owned) Documents require an expiry.
 // - Saved (user-owned) Documents never expire automatically, so expiresAt is forced to null.

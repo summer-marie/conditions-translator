@@ -52,6 +52,10 @@ export async function GET(request: Request) {
         _count: {
           select: { pages: true },
         },
+        sections: {
+          orderBy: { order: "asc" },
+          include: { sources: { select: { pageId: true } } },
+        },
       },
       orderBy: {
         createdAt: "desc",

@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 import {
   createTemporaryDocument,
   finishDocument,
+  retryDocumentProcessing,
   acceptPage,
   reuploadPage,
   deletePage,
@@ -45,11 +46,43 @@ interface Page {
   createdAt: string;
 }
 
+type DocumentStatus =
+  | "IN_PROGRESS"
+  | "COMPLETED"
+  | "PROCESSING"
+  | "READY"
+  | "PROCESSING_FAILED";
+
+interface GeneratedSection {
+  id: string;
+  heading: string;
+  body: string;
+  order: number;
+  sources: { pageId: string }[];
+}
+
 interface Document {
   id: string;
   title: string;
-  status: string;
+  status: DocumentStatus;
   pageCount: number;
+  sections: GeneratedSection[];
+}
+
+function documentStatusLabel(status: DocumentStatus): string {
+  switch (status) {
+    case "IN_PROGRESS":
+      return "In Progress";
+    case "COMPLETED":
+    case "PROCESSING":
+      return "Processing";
+    case "READY":
+      return "Ready";
+    case "PROCESSING_FAILED":
+      return "Needs Retry";
+    default:
+      return status;
+  }
 }
 
 function hasBlockingQuality(warnings: OcrQuality | null): boolean {
@@ -86,6 +119,7 @@ export default function WorkspacePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   const [isFinishing, setIsFinishing] = useState(false);
+  const [isRetrying, setIsRetrying] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleInput, setTitleInput] = useState("");
   const [ocrRunningIds, setOcrRunningIds] = useState<Record<string, boolean>>({});
@@ -121,6 +155,7 @@ export default function WorkspacePage() {
           title: doc.title,
           status: doc.status,
           pageCount: doc._count.pages,
+          sections: doc.sections || [],
         });
 
         await refetchPages(doc.id);
@@ -133,8 +168,9 @@ export default function WorkspacePage() {
             setDocument({
               id: newDoc.id,
               title: newDoc.title,
-              status: newDoc.status,
+              status: newDoc.status as DocumentStatus,
               pageCount: 0,
+              sections: [],
             });
           }
         } finally {
@@ -154,6 +190,21 @@ export default function WorkspacePage() {
       const pagesData = await pagesResponse.json();
       setPages(pagesData.pages || []);
     }
+  };
+
+  const refetchDocument = async (documentId: string) => {
+    const response = await fetch(`/api/documents/${documentId}`);
+    if (!response.ok) return;
+    const data = await response.json();
+    setDocument((prev) =>
+      prev
+        ? {
+            ...prev,
+            status: data.document.status,
+            sections: data.document.sections || [],
+          }
+        : prev
+    );
   };
 
   const runOcrForPage = async (documentId: string, pageId: string) => {
@@ -287,14 +338,26 @@ export default function WorkspacePage() {
 
     setIsFinishing(true);
     try {
-      const result = await finishDocument(document.id);
-      if (result) {
-        setDocument((prev) => prev ? { ...prev, status: result.status } : null);
-        // Redirect to chat or show AI controls would happen here
-        alert("Document is now ready! AI features will be available in the next phase.");
-      }
+      await finishDocument(document.id);
+      await refetchDocument(document.id);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Failed to finish document");
     } finally {
       setIsFinishing(false);
+    }
+  };
+
+  const handleRetryProcessing = async () => {
+    if (!document) return;
+
+    setIsRetrying(true);
+    try {
+      await retryDocumentProcessing(document.id);
+      await refetchDocument(document.id);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Failed to retry processing");
+    } finally {
+      setIsRetrying(false);
     }
   };
 
@@ -355,7 +418,10 @@ export default function WorkspacePage() {
   }
 
   const isReady = document.status === "READY";
-  const canFinish = document.pageCount > 0 && document.status === "IN_PROGRESS";
+  const isProcessing = document.status === "COMPLETED" || document.status === "PROCESSING";
+  const isProcessingFailed = document.status === "PROCESSING_FAILED";
+  const acceptedPageCount = pages.filter((p) => p.status === "ACCEPTED").length;
+  const canFinish = acceptedPageCount > 0 && document.status === "IN_PROGRESS";
   const canUpload = document.pageCount < 10 && document.status === "IN_PROGRESS";
 
   return (
@@ -405,10 +471,14 @@ export default function WorkspacePage() {
                 className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
                   isReady
                     ? "bg-green-100 text-green-800"
+                    : isProcessingFailed
+                    ? "bg-red-100 text-red-800"
+                    : isProcessing
+                    ? "bg-blue-100 text-blue-800"
                     : "bg-yellow-100 text-yellow-800"
                 }`}
               >
-                {isReady ? "Ready" : "In Progress"}
+                {documentStatusLabel(document.status)}
               </span>
             </div>
           </div>
@@ -647,8 +717,12 @@ export default function WorkspacePage() {
                   <span className="font-medium">{document.pageCount}/10</span>
                 </div>
                 <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Pages accepted:</span>
+                  <span className="font-medium">{acceptedPageCount}</span>
+                </div>
+                <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Status:</span>
-                  <span className="font-medium">{document.status}</span>
+                  <span className="font-medium">{documentStatusLabel(document.status)}</span>
                 </div>
               </div>
             </div>
@@ -672,9 +746,43 @@ export default function WorkspacePage() {
                 </button>
                 {!canFinish && (
                   <p className="text-sm text-gray-500 mt-2 text-center">
-                    Upload at least one page to finish
+                    Accept at least one page to finish
                   </p>
                 )}
+              </div>
+            )}
+
+            {(isProcessing || isFinishing) && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3"></div>
+                <h2 className="text-lg font-semibold text-blue-900 mb-1">
+                  Organizing your document
+                </h2>
+                <p className="text-sm text-blue-700">
+                  We&apos;re creating sections from your accepted pages. This may take a moment.
+                </p>
+              </div>
+            )}
+
+            {isProcessingFailed && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+                <h2 className="text-lg font-semibold text-red-900 mb-2">
+                  We couldn&apos;t finish organizing this document
+                </h2>
+                <p className="text-sm text-red-700 mb-4">
+                  Please try again.
+                </p>
+                <button
+                  onClick={handleRetryProcessing}
+                  disabled={isRetrying}
+                  className={`w-full py-3 px-4 rounded-md font-semibold transition-colors ${
+                    !isRetrying
+                      ? "bg-red-600 text-white hover:bg-red-700"
+                      : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                  }`}
+                >
+                  {isRetrying ? "Retrying..." : "Retry"}
+                </button>
               </div>
             )}
 
@@ -684,8 +792,29 @@ export default function WorkspacePage() {
                   Document Ready!
                 </h2>
                 <p className="text-sm text-green-700">
-                  Your document is ready for AI processing. AI features will be available in the next phase.
+                  Your document has been organized into sections below. AI chat will be available
+                  in the next phase.
                 </p>
+              </div>
+            )}
+
+            {isReady && document.sections.length > 0 && (
+              <div className="bg-white rounded-lg shadow p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                  Sections
+                </h2>
+                <div className="space-y-4">
+                  {document.sections.map((section) => (
+                    <div key={section.id} className="border-b border-gray-100 pb-4 last:border-0 last:pb-0">
+                      <h3 className="text-sm font-semibold text-gray-900">{section.heading}</h3>
+                      <p className="text-sm text-gray-700 mt-1">{section.body}</p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        Based on {section.sources.length} accepted page
+                        {section.sources.length === 1 ? "" : "s"}
+                      </p>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
