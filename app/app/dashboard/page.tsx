@@ -13,7 +13,6 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 
 type DocumentStatus =
   | "IN_PROGRESS"
@@ -44,8 +43,21 @@ interface DashboardState {
   error: string | null;
 }
 
+interface SectionsModalState {
+  isOpen: boolean;
+  document: Document | null;
+  sections: Array<{
+    id: string;
+    heading: string;
+    body: string;
+    order: number;
+    sources: Array<{ pageId: string }>;
+  }> | null;
+  isLoading: boolean;
+  error: string | null;
+}
+
 export default function DashboardPage() {
-  const router = useRouter();
   const [state, setState] = useState<DashboardState>({
     documents: [],
     isLoading: true,
@@ -57,6 +69,14 @@ export default function DashboardPage() {
     isDeleting: boolean;
     error: string | null;
   }>({ isOpen: false, document: null, isDeleting: false, error: null });
+  
+  const [sectionsModal, setSectionsModal] = useState<SectionsModalState>({
+    isOpen: false,
+    document: null,
+    sections: null,
+    isLoading: false,
+    error: null,
+  });
 
   const fetchDocuments = useCallback(async () => {
     try {
@@ -136,6 +156,58 @@ export default function DashboardPage() {
 
   const handleDeleteCancel = () => {
     setDeleteModal({ isOpen: false, document: null, isDeleting: false, error: null });
+  };
+
+  const handleViewSections = async (document: Document) => {
+    setSectionsModal({
+      isOpen: true,
+      document,
+      sections: null,
+      isLoading: true,
+      error: null,
+    });
+
+    try {
+      const response = await fetch(`/api/documents/${document.id}`);
+      if (!response.ok) {
+        throw new Error("Failed to load document sections");
+      }
+      const data = await response.json();
+      
+      setSectionsModal((prev) => ({
+        ...prev,
+        sections: data.document?.sections || [],
+        isLoading: false,
+      }));
+    } catch (error) {
+      setSectionsModal((prev) => ({
+        ...prev,
+        isLoading: false,
+        error: error instanceof Error ? error.message : "Failed to load sections",
+      }));
+    }
+  };
+
+  const handleCloseSectionsModal = () => {
+    setSectionsModal({
+      isOpen: false,
+      document: null,
+      sections: null,
+      isLoading: false,
+      error: null,
+    });
+  };
+
+  // Simple duplicate detection: case-insensitive equality with whitespace normalization
+  const normalizeTitle = (title: string): string => {
+    return title.trim().toLowerCase().replace(/\s+/g, " ");
+  };
+
+  const hasDuplicateTitle = (document: Document, documents: Document[]): boolean => {
+    const normalizedTitle = normalizeTitle(document.title);
+    return documents.some(
+      (doc) => doc.id !== document.id && normalizeTitle(doc.title) === normalizedTitle
+    );
   };
 
   const documentStatusLabel = (status: DocumentStatus): string => {
@@ -269,6 +341,7 @@ export default function DashboardPage() {
           {state.documents.map((document) => {
             const isReady = document.status === "READY";
             const hasSections = document.sections.length > 0;
+            const isDuplicate = hasDuplicateTitle(document, state.documents);
 
             return (
               <div
@@ -287,11 +360,17 @@ export default function DashboardPage() {
                     <p className="text-sm text-gray-500 mt-1">
                       {document._count.pages} page{document._count.pages !== 1 ? "s" : ""}
                     </p>
+                    {isDuplicate && (
+                      <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-1 bg-amber-50 text-amber-800 rounded text-xs font-medium">
+                        <span aria-hidden="true">⚠️</span>
+                        <span>Similar document name</span>
+                      </div>
+                    )}
                   </div>
                   <span
                     className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium shrink-0 ${getStatusBadgeColor(
-                      document.status
-                    )}`}
+                    document.status
+                  )}`}
                   >
                     {documentStatusLabel(document.status)}
                   </span>
@@ -321,11 +400,7 @@ export default function DashboardPage() {
                       </Link>
                       {hasSections && (
                         <button
-                          onClick={() => {
-                            // TODO: Phase 8 backend pass - wire to document detail view
-                            // This would navigate to a page showing all sections with source page references
-                            alert("Document detail view will be implemented in the Phase 8 backend pass");
-                          }}
+                          onClick={() => handleViewSections(document)}
                           className="block w-full text-center bg-gray-100 text-gray-700 px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-200 transition-colors"
                         >
                           View sections
@@ -393,6 +468,113 @@ export default function DashboardPage() {
                 className="px-4 py-2 rounded-md text-sm font-medium text-white bg-red-600 hover:bg-red-700 transition-colors disabled:opacity-50"
               >
                 {deleteModal.isDeleting ? "Deleting…" : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sections view modal */}
+      {sectionsModal.isOpen && sectionsModal.document && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          onClick={handleCloseSectionsModal}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="sections-modal-title"
+        >
+          <div
+            className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal header */}
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between mb-4">
+                <h2
+                  id="sections-modal-title"
+                  className="text-xl font-semibold text-gray-900"
+                >
+                  {sectionsModal.document.title}
+                </h2>
+                <button
+                  onClick={handleCloseSectionsModal}
+                  className="text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
+                  aria-label="Close"
+                >
+                  <svg
+                    className="h-6 w-6"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Modal body */}
+            <div className="p-6 overflow-y-auto flex-1">
+              {sectionsModal.isLoading ? (
+                <div className="text-center py-8">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  <p className="mt-4 text-gray-600">Loading sections...</p>
+                </div>
+              ) : sectionsModal.error ? (
+                <div className="text-center py-8">
+                  <div className="text-red-600 text-5xl mb-4">⚠️</div>
+                  <p className="text-gray-600">{sectionsModal.error}</p>
+                  <button
+                    onClick={() => handleViewSections(sectionsModal.document!)}
+                    className="mt-4 text-blue-600 hover:text-blue-700 text-sm font-medium"
+                  >
+                    Try again
+                  </button>
+                </div>
+              ) : !sectionsModal.sections || sectionsModal.sections.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="text-gray-400 text-6xl mb-4">📄</div>
+                  <p className="text-gray-600">No sections available for this document</p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {sectionsModal.sections.map((section) => (
+                    <div key={section.id} className="border-b border-gray-200 pb-6 last:border-0">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                        {section.order + 1}. {section.heading}
+                      </h3>
+                      <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">
+                        {section.body}
+                      </p>
+                      {section.sources && section.sources.length > 0 && (
+                        <div className="mt-3 text-sm text-gray-500">
+                          <span className="font-medium">Source pages:</span>{" "}
+                          {section.sources.map((source, idx) => (
+                            <span key={source.pageId}>
+                              {idx > 0 && ", "}
+                              {source.pageId}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Modal footer */}
+            <div className="p-6 border-t border-gray-200 flex justify-end">
+              <button
+                onClick={handleCloseSectionsModal}
+                className="px-6 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                Close
               </button>
             </div>
           </div>
