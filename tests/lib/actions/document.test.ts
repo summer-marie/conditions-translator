@@ -8,6 +8,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import {
   createTemporaryDocument,
   finishDocument,
+  retryDocumentProcessing,
   updateDocumentTitle,
   acceptPage,
   reuploadPage,
@@ -15,6 +16,11 @@ import {
 } from "@/lib/actions/document";
 import { prisma } from "@/lib/database/prisma";
 import { AppError } from "@/lib/errors";
+import { generateSectionsForDocument } from "@/lib/sections/generate";
+
+vi.mock("@/lib/sections/generate", () => ({
+  generateSectionsForDocument: vi.fn(),
+}));
 
 // Mock Prisma
 vi.mock("@/lib/database/prisma", () => ({
@@ -176,7 +182,7 @@ describe("finishDocument", () => {
     vi.clearAllMocks();
   });
 
-  it("should transition document from IN_PROGRESS to READY", async () => {
+  it("marks the document COMPLETED and delegates to generateSectionsForDocument", async () => {
     const mockSession = {
       id: "session-123",
       token: "token-abc",
@@ -196,10 +202,7 @@ describe("finishDocument", () => {
       deletionState: "ACTIVE",
     };
 
-    const mockUpdatedDocument = {
-      ...mockDocument,
-      status: "READY",
-    };
+    const mockReadyDocument = { ...mockDocument, status: "READY" };
 
     const { getTemporarySession } = await import("@/lib/session/temporary");
     const { temporaryOwner } = await import("@/lib/permissions/ownership");
@@ -210,16 +213,23 @@ describe("finishDocument", () => {
     vi.mocked(temporaryOwner).mockReturnValue({ kind: "temporary", temporarySessionId: "session-123" });
     vi.mocked(getOwnedDocument).mockResolvedValue(mockDocument as any);
     vi.mocked(prisma.page.count).mockResolvedValue(1);
-    vi.mocked(prisma.document.update).mockResolvedValue(mockUpdatedDocument as any);
+    vi.mocked(prisma.document.update).mockResolvedValue({ ...mockDocument, status: "COMPLETED" } as any);
+    vi.mocked(generateSectionsForDocument).mockResolvedValue(mockReadyDocument as any);
 
     const result = await finishDocument("doc-123");
 
     expect(result.status).toBe("READY");
-    expect(prisma.page.count).toHaveBeenCalledWith({ where: { documentId: "doc-123" } });
+    expect(prisma.page.count).toHaveBeenCalledWith({
+      where: { documentId: "doc-123", status: "ACCEPTED" },
+    });
     expect(prisma.document.update).toHaveBeenCalledWith({
       where: { id: "doc-123", temporarySessionId: "session-123" },
-      data: { status: "READY" },
+      data: { status: "COMPLETED" },
     });
+    expect(generateSectionsForDocument).toHaveBeenCalledWith(
+      { kind: "temporary", temporarySessionId: "session-123" },
+      "doc-123"
+    );
     expect(revalidatePath).toHaveBeenCalledWith("/app/workspace");
   });
 
@@ -283,7 +293,7 @@ describe("finishDocument", () => {
     );
   });
 
-  it("should throw error if document has no pages", async () => {
+  it("should throw error if document has no accepted pages", async () => {
     const mockSession = {
       id: "session-123",
       token: "token-abc",
@@ -313,8 +323,102 @@ describe("finishDocument", () => {
     vi.mocked(prisma.page.count).mockResolvedValue(0);
 
     await expect(finishDocument("doc-123")).rejects.toThrow(
-      "Document must have at least one page before finishing."
+      "Document must have at least one accepted page before finishing."
     );
+    expect(generateSectionsForDocument).not.toHaveBeenCalled();
+  });
+});
+
+describe("retryDocumentProcessing", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  const mockSession = {
+    id: "session-123",
+    token: "token-abc",
+    noticeAcceptedAt: new Date(),
+    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+  };
+
+  it("delegates to generateSectionsForDocument when the document is PROCESSING_FAILED", async () => {
+    const mockDocument = {
+      id: "doc-123",
+      title: "Test Document",
+      status: "PROCESSING_FAILED",
+      userId: null,
+      temporarySessionId: "session-123",
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      deletionState: "ACTIVE",
+    };
+    const mockReadyDocument = { ...mockDocument, status: "READY" };
+
+    const { getTemporarySession } = await import("@/lib/session/temporary");
+    const { temporaryOwner } = await import("@/lib/permissions/ownership");
+    const { getOwnedDocument } = await import("@/lib/permissions/ownership");
+    const { revalidatePath } = await import("next/cache");
+
+    vi.mocked(getTemporarySession).mockResolvedValue(mockSession);
+    vi.mocked(temporaryOwner).mockReturnValue({ kind: "temporary", temporarySessionId: "session-123" });
+    vi.mocked(getOwnedDocument).mockResolvedValue(mockDocument as any);
+    vi.mocked(generateSectionsForDocument).mockResolvedValue(mockReadyDocument as any);
+
+    const result = await retryDocumentProcessing("doc-123");
+
+    expect(result.status).toBe("READY");
+    expect(generateSectionsForDocument).toHaveBeenCalledWith(
+      { kind: "temporary", temporarySessionId: "session-123" },
+      "doc-123"
+    );
+    expect(revalidatePath).toHaveBeenCalledWith("/app/workspace");
+  });
+
+  it("throws if no session found", async () => {
+    const { getTemporarySession } = await import("@/lib/session/temporary");
+    vi.mocked(getTemporarySession).mockResolvedValue(null);
+
+    await expect(retryDocumentProcessing("doc-123")).rejects.toThrow("No active session found");
+  });
+
+  it("throws if document not found", async () => {
+    const { getTemporarySession } = await import("@/lib/session/temporary");
+    const { temporaryOwner } = await import("@/lib/permissions/ownership");
+    const { getOwnedDocument } = await import("@/lib/permissions/ownership");
+
+    vi.mocked(getTemporarySession).mockResolvedValue(mockSession);
+    vi.mocked(temporaryOwner).mockReturnValue({ kind: "temporary", temporarySessionId: "session-123" });
+    vi.mocked(getOwnedDocument).mockResolvedValue(null);
+
+    await expect(retryDocumentProcessing("doc-123")).rejects.toThrow("Document not found");
+  });
+
+  it("throws if the document is not in PROCESSING_FAILED", async () => {
+    const mockDocument = {
+      id: "doc-123",
+      title: "Test Document",
+      status: "READY",
+      userId: null,
+      temporarySessionId: "session-123",
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      deletionState: "ACTIVE",
+    };
+
+    const { getTemporarySession } = await import("@/lib/session/temporary");
+    const { temporaryOwner } = await import("@/lib/permissions/ownership");
+    const { getOwnedDocument } = await import("@/lib/permissions/ownership");
+
+    vi.mocked(getTemporarySession).mockResolvedValue(mockSession);
+    vi.mocked(temporaryOwner).mockReturnValue({ kind: "temporary", temporarySessionId: "session-123" });
+    vi.mocked(getOwnedDocument).mockResolvedValue(mockDocument as any);
+
+    await expect(retryDocumentProcessing("doc-123")).rejects.toThrow(
+      "Document is not in a failed processing state."
+    );
+    expect(generateSectionsForDocument).not.toHaveBeenCalled();
   });
 });
 

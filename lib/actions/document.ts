@@ -22,6 +22,7 @@ import {
 import { validateImageUpload } from "@/lib/validation/image";
 import { uploadPageImage, deletePageImage } from "@/lib/storage/blob";
 import { hasBlockingQualityIssue } from "@/lib/ocr/schema";
+import { generateSectionsForDocument } from "@/lib/sections/generate";
 
 // Resolves the current owner (temporary session only for now; Phase 7 adds user accounts) and
 // asserts the Document exists, belongs to that owner, and is still IN_PROGRESS.
@@ -88,12 +89,13 @@ export async function createTemporaryDocument(
 }
 
 /**
- * Finishes a document, transitioning it from IN_PROGRESS to READY status.
+ * Finishes a document: closes intake and starts section generation.
  * Only the owner can finish their document.
- * Requires at least one page to be uploaded.
+ * Requires at least one ACCEPTED page. Transitions IN_PROGRESS -> COMPLETED -> PROCESSING,
+ * then -> READY on generation success or PROCESSING_FAILED on failure (never thrown for a
+ * generation failure — that is a normal, retryable outcome the caller renders in the UI).
  */
 export async function finishDocument(documentId: string) {
-  // Get owner information
   const session = await getTemporarySession();
   if (!session) {
     throw new AppError(
@@ -105,7 +107,6 @@ export async function finishDocument(documentId: string) {
 
   const owner: Owner = temporaryOwner(session.id);
 
-  // Verify ownership and get document
   const document = await getOwnedDocument(owner, documentId);
   if (!document) {
     throw new AppError(
@@ -115,7 +116,6 @@ export async function finishDocument(documentId: string) {
     );
   }
 
-  // Check if document is in IN_PROGRESS status
   if (document.status !== "IN_PROGRESS") {
     throw new AppError(
       "Document is not in IN_PROGRESS status.",
@@ -124,33 +124,70 @@ export async function finishDocument(documentId: string) {
     );
   }
 
-  // Check if document has at least one page
-  const pageCount = await prisma.page.count({
-    where: { documentId },
+  const acceptedPageCount = await prisma.page.count({
+    where: { documentId, status: "ACCEPTED" },
   });
 
-  if (pageCount === 0) {
+  if (acceptedPageCount === 0) {
     throw new AppError(
-      "Document must have at least one page before finishing.",
+      "Document must have at least one accepted page before finishing.",
       400,
-      "NO_PAGES_UPLOADED"
+      "NO_ACCEPTED_PAGES"
     );
   }
 
-  // Build update data based on owner type
   const whereClause = owner.kind === "user"
     ? { id: documentId, userId: owner.userId }
     : { id: documentId, temporarySessionId: owner.temporarySessionId };
 
-  // Transition to READY status
-  const updatedDocument = await prisma.document.update({
+  await prisma.document.update({
     where: whereClause,
-    data: {
-      status: "READY",
-    },
+    data: { status: "COMPLETED" },
   });
 
-  // Revalidate workspace path
+  const updatedDocument = await generateSectionsForDocument(owner, documentId);
+
+  revalidatePath("/app/workspace");
+
+  return updatedDocument;
+}
+
+/**
+ * Retries section generation for a document stuck in PROCESSING_FAILED.
+ * Only the owner can retry their document. Re-enters PROCESSING, then -> READY on success
+ * or back to PROCESSING_FAILED on another failure.
+ */
+export async function retryDocumentProcessing(documentId: string) {
+  const session = await getTemporarySession();
+  if (!session) {
+    throw new AppError(
+      "No active session found.",
+      401,
+      "NO_ACTIVE_SESSION"
+    );
+  }
+
+  const owner: Owner = temporaryOwner(session.id);
+
+  const document = await getOwnedDocument(owner, documentId);
+  if (!document) {
+    throw new AppError(
+      "Document not found.",
+      404,
+      "DOCUMENT_NOT_FOUND"
+    );
+  }
+
+  if (document.status !== "PROCESSING_FAILED") {
+    throw new AppError(
+      "Document is not in a failed processing state.",
+      400,
+      "INVALID_DOCUMENT_STATUS"
+    );
+  }
+
+  const updatedDocument = await generateSectionsForDocument(owner, documentId);
+
   revalidatePath("/app/workspace");
 
   return updatedDocument;
