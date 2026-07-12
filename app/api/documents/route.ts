@@ -1,51 +1,26 @@
-// API route for listing documents for the current session.
+// GET /api/documents
+//
+// Lists the current owner's active documents. The owner is resolved from cookies
+// (getCurrentOwner) — a signed-in user (Phase 7) sees their saved documents; otherwise the
+// temporary session sees its documents. The query is always owner-scoped (never by document id
+// alone), so this same route serves both temporary and saved workspaces after ownership transfer.
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/database/prisma";
 import { AppError } from "@/lib/errors";
-import { cookies } from "next/headers";
+import { getCurrentOwner } from "@/lib/auth/session";
+import { ownerWhere } from "@/lib/permissions/ownership";
 
-const TMP_SESSION_COOKIE = "tmp_session";
-
-/**
- * GET /api/documents?sessionId=<id>
- * Lists all documents for the given temporary session ID.
- */
-export async function GET(request: Request) {
+export async function GET() {
   try {
-    const { searchParams } = new URL(request.url);
-    const sessionId = searchParams.get("sessionId");
-
-    if (!sessionId) {
-      throw new AppError("Session ID is required", 400, "SESSION_ID_REQUIRED");
+    const owner = await getCurrentOwner();
+    if (!owner) {
+      throw new AppError("No active session found.", 401, "NO_ACTIVE_SESSION");
     }
 
-    // Get session ID from cookie for verification
-    const cookieStore = await cookies();
-    const sessionToken = cookieStore.get(TMP_SESSION_COOKIE)?.value;
-
-    if (!sessionToken) {
-      throw new AppError("No session found", 401, "NO_SESSION");
-    }
-
-    // Verify the session token
-    const session = await prisma.temporarySession.findUnique({
-      where: { token: sessionToken },
-    });
-
-    if (!session) {
-      throw new AppError("Invalid session", 401, "INVALID_SESSION");
-    }
-
-    // Verify session ID matches
-    if (session.id !== sessionId) {
-      throw new AppError("Session ID mismatch", 403, "SESSION_MISMATCH");
-    }
-
-    // List documents for this session
     const documents = await prisma.document.findMany({
       where: {
-        temporarySessionId: sessionId,
+        ...ownerWhere(owner),
         deletionState: "ACTIVE",
       },
       include: {
