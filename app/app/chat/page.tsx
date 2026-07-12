@@ -53,6 +53,8 @@ export default function ChatPage() {
   const [readyDocuments, setReadyDocuments] = useState<ReadyDocument[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isLoadingDocuments, setIsLoadingDocuments] = useState(true);
+  // Set once the workspace is owned by a signed-in account (Phase 7). null while temporary.
+  const [savedUserId, setSavedUserId] = useState<string | null>(null);
 
   const [chatSessionId, setChatSessionId] = useState<string | null>(null);
   const [activeDocuments, setActiveDocuments] = useState<{ documentId: string; title: string }[]>(
@@ -73,12 +75,14 @@ export default function ChatPage() {
       try {
         const statusRes = await fetch("/api/session/status");
         const status = await statusRes.json();
-        if (!status.sessionId) {
+        setSavedUserId(status.userId ?? null);
+        // A temporary session OR a signed-in account (Phase 7) can own READY documents.
+        if (!status.sessionId && !status.userId) {
           setIsLoadingDocuments(false);
           return;
         }
 
-        const docsRes = await fetch(`/api/documents?sessionId=${status.sessionId}`);
+        const docsRes = await fetch(`/api/documents`);
         const data = await docsRes.json();
         const ready: ReadyDocument[] = (data.documents ?? []).filter(
           (doc: ReadyDocument) => doc.status === "READY"
@@ -166,9 +170,18 @@ export default function ChatPage() {
       <div className="max-w-2xl mx-auto p-4 sm:p-6">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-xl font-semibold text-gray-900">Ask about your documents</h1>
-          <Link href="/app/workspace" className="text-sm text-blue-600 hover:underline">
-            Back to workspace
-          </Link>
+          <div className="flex items-center gap-3">
+            {savedUserId ? (
+              <span className="text-xs font-medium text-green-700">Saved</span>
+            ) : (
+              <Link href="/app/save" className="text-sm font-medium text-gray-900 hover:underline">
+                Save workspace
+              </Link>
+            )}
+            <Link href="/app/workspace" className="text-sm text-blue-600 hover:underline">
+              Back to workspace
+            </Link>
+          </div>
         </div>
 
         <p className="text-sm text-gray-600 mb-4">
@@ -249,9 +262,18 @@ export default function ChatPage() {
     <div className="max-w-2xl mx-auto flex flex-col h-[100dvh] p-4 sm:p-6">
       <div className="flex items-center justify-between mb-2">
         <h1 className="text-lg font-semibold text-gray-900">Chat</h1>
-        <Link href="/app/workspace" className="text-sm text-blue-600 hover:underline">
-          Back to workspace
-        </Link>
+        <div className="flex items-center gap-3">
+          {savedUserId ? (
+            <span className="text-xs font-medium text-green-700">Saved</span>
+          ) : (
+            <Link href="/app/save" className="text-sm font-medium text-gray-900 hover:underline">
+              Save workspace
+            </Link>
+          )}
+          <Link href="/app/workspace" className="text-sm text-blue-600 hover:underline">
+            Back to workspace
+          </Link>
+        </div>
       </div>
 
       <div className="mb-3 flex flex-wrap gap-2">

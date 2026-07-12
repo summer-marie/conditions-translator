@@ -7,8 +7,8 @@
 "use server";
 
 import { AppError } from "@/lib/errors";
-import { temporaryOwner, type Owner } from "@/lib/permissions/ownership";
-import { getTemporarySession } from "@/lib/session/temporary";
+import { type Owner } from "@/lib/permissions/ownership";
+import { getCurrentOwner } from "@/lib/auth/session";
 import {
   createChatSession,
   getChatSessionState,
@@ -17,12 +17,15 @@ import {
   type SendMessageResult,
 } from "@/lib/chat/session";
 
+// Resolves the current owner (a signed-in user takes precedence over a temporary session). Because
+// a saved workspace's ChatSession is transferred to the user (Phase 7), this is what lets the same
+// active chat continue seamlessly after the user creates an account or signs in.
 async function requireOwner(): Promise<Owner> {
-  const session = await getTemporarySession();
-  if (!session) {
+  const owner = await getCurrentOwner();
+  if (!owner) {
     throw new AppError("No active session found.", 401, "NO_ACTIVE_SESSION");
   }
-  return temporaryOwner(session.id);
+  return owner;
 }
 
 /** Starts a temporary chat grounded in the selected READY documents. */
