@@ -6,7 +6,7 @@ const BASE_VALID_ENV = {
   DIRECT_URL: "postgresql://user:pass@host/db",
   AUTH_SECRET: "test-secret",
   OPENAI_API_KEY: "test-key",
-  BLOB_READ_WRITE_TOKEN: "test-token",
+  BLOB_STORE_ID: "store_test123",
   CLEANUP_JOB_SECRET: "test-secret",
 };
 

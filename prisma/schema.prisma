@@ -45,6 +45,18 @@ enum ChatRole {
   SYSTEM
 }
 
+// Page-level OCR/acceptance state machine (Phase 4).
+// PENDING: uploaded, OCR not yet run (or re-upload reset it).
+// OCR_COMPLETE: OCR succeeded; text extracted and awaiting user Accept/Re-upload/Delete.
+// OCR_FAILED: OCR could not extract usable text (see Page.ocrFailureReason).
+// ACCEPTED: user confirmed the page; its OcrResult.extractedText is now immutable.
+enum PageStatus {
+  PENDING
+  OCR_COMPLETE
+  OCR_FAILED
+  ACCEPTED
+}
+
 // ---------------------------------------------------------------------------
 // Ownership roots
 // ---------------------------------------------------------------------------
@@ -129,13 +141,15 @@ model Document {
 }
 
 model Page {
-  id         String   @id @default(cuid())
-  documentId String
-  order      Int
-  accepted   Boolean  @default(false)
-  blobPath   String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id               String     @id @default(cuid())
+  documentId       String
+  order            Int
+  status           PageStatus @default(PENDING)
+  // Set only when status = OCR_FAILED; explains why OCR could not produce usable text.
+  ocrFailureReason String?
+  blobPath         String?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
 
   document       Document        @relation(fields: [documentId], references: [id], onDelete: Cascade)
   ocr            OcrResult?

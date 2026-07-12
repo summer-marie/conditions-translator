@@ -1,10 +1,13 @@
-// API route for page upload with 10-page limit enforcement.
+// API route for page listing and upload, with 10-page limit enforcement and real
+// image validation + private Blob storage (docs/03_OCR_Specifications.md, Phase 4).
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/database/prisma";
 import { AppError } from "@/lib/errors";
 import { cookies } from "next/headers";
 import { DOCUMENT_MAX_PAGES } from "@/lib/constants";
+import { validateImageUpload } from "@/lib/validation/image";
+import { uploadPageImage } from "@/lib/storage/blob";
 
 const TMP_SESSION_COOKIE = "tmp_session";
 
@@ -19,7 +22,6 @@ export async function GET(
   try {
     const { documentId } = params;
 
-    // Get session token from cookie
     const cookieStore = await cookies();
     const sessionToken = cookieStore.get(TMP_SESSION_COOKIE)?.value;
 
@@ -27,7 +29,6 @@ export async function GET(
       throw new AppError("No session found", 401, "NO_SESSION");
     }
 
-    // Verify the session token
     const session = await prisma.temporarySession.findUnique({
       where: { token: sessionToken },
     });
@@ -36,7 +37,6 @@ export async function GET(
       throw new AppError("Invalid session", 401, "INVALID_SESSION");
     }
 
-    // Verify document ownership
     const document = await prisma.document.findFirst({
       where: {
         id: documentId,
@@ -49,10 +49,10 @@ export async function GET(
       throw new AppError("Document not found", 404, "DOCUMENT_NOT_FOUND");
     }
 
-    // List pages for this document
     const pages = await prisma.page.findMany({
       where: { documentId },
       orderBy: { order: "asc" },
+      include: { ocr: true },
     });
 
     return NextResponse.json({ pages });
@@ -75,15 +75,19 @@ export async function GET(
 /**
  * POST /api/documents/[documentId]/pages
  * Uploads a page to a document with 10-page limit enforcement.
+ * Validates the image (magic bytes + size) and stores it in the private Blob store.
+ * Does not run OCR — the client triggers OCR separately via
+ * POST /api/documents/[documentId]/pages/[pageId]/ocr.
  */
 export async function POST(
   request: Request,
   { params }: { params: { documentId: string } }
 ) {
+  let createdPageId: string | null = null;
+
   try {
     const { documentId } = params;
 
-    // Get session token from cookie
     const cookieStore = await cookies();
     const sessionToken = cookieStore.get(TMP_SESSION_COOKIE)?.value;
 
@@ -91,7 +95,6 @@ export async function POST(
       throw new AppError("No session found", 401, "NO_SESSION");
     }
 
-    // Verify the session token
     const session = await prisma.temporarySession.findUnique({
       where: { token: sessionToken },
     });
@@ -100,7 +103,6 @@ export async function POST(
       throw new AppError("Invalid session", 401, "INVALID_SESSION");
     }
 
-    // Verify document ownership
     const document = await prisma.document.findFirst({
       where: {
         id: documentId,
@@ -113,7 +115,14 @@ export async function POST(
       throw new AppError("Document not found", 404, "DOCUMENT_NOT_FOUND");
     }
 
-    // Check page count
+    if (document.status !== "IN_PROGRESS") {
+      throw new AppError(
+        "Pages can only be added while the document is in progress.",
+        400,
+        "INVALID_DOCUMENT_STATUS"
+      );
+    }
+
     const currentPageCount = await prisma.page.count({
       where: { documentId },
     });
@@ -126,58 +135,46 @@ export async function POST(
       );
     }
 
-    // Get file from form data
     const formData = await request.formData();
-    const file = formData.get("file") as File;
+    const file = formData.get("file") as File | null;
 
     if (!file) {
       throw new AppError("No file provided", 400, "NO_FILE");
     }
 
-    // Validate file type
-    const allowedTypes = ["image/jpeg", "image/png", "application/pdf"];
-    if (!allowedTypes.includes(file.type)) {
-      throw new AppError(
-        "Invalid file type. Only JPEG, PNG, and PDF files are allowed",
-        400,
-        "INVALID_FILE_TYPE"
-      );
-    }
-
-    // Validate file size (max 10MB)
-    const maxSize = 10 * 1024 * 1024;
-    if (file.size > maxSize) {
-      throw new AppError(
-        "File too large. Maximum size is 10MB",
-        400,
-        "FILE_TOO_LARGE"
-      );
-    }
-
-    // Convert file to buffer
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Generate a unique blob path
-    const timestamp = Date.now();
-    const randomString = Math.random().toString(36).substring(2, 15);
-    const blobPath = `documents/${documentId}/${timestamp}-${randomString}-${file.name}`;
+    const { mimeType } = validateImageUpload(buffer, file.type);
 
-    // In a real implementation, you would upload to Vercel Blob here
-    // For now, we'll store a placeholder path
-    // TODO: Integrate Vercel Blob storage in Phase 4
-
-    // Create page record
+    // Create the Page row first so its id can key a stable Blob pathname (re-upload later
+    // overwrites the same object rather than accumulating orphans).
     const page = await prisma.page.create({
       data: {
         documentId,
         order: currentPageCount,
-        blobPath: blobPath,
       },
     });
+    createdPageId = page.id;
 
-    return NextResponse.json({ page }, { status: 201 });
+    const prefix = process.env.BLOB_PATH_PREFIX || "conditions-translator";
+    const extension = mimeType.split("/")[1];
+    const pathname = `${prefix}/documents/${documentId}/pages/${page.id}.${extension}`;
+
+    const blob = await uploadPageImage(pathname, buffer, mimeType);
+
+    const updatedPage = await prisma.page.update({
+      where: { id: page.id },
+      data: { blobPath: blob.pathname },
+    });
+
+    return NextResponse.json({ page: updatedPage }, { status: 201 });
   } catch (error) {
+    // Roll back the Page row if the image never made it to storage.
+    if (createdPageId) {
+      await prisma.page.delete({ where: { id: createdPageId } }).catch(() => {});
+    }
+
     if (error instanceof AppError) {
       return NextResponse.json(
         { error: error.message, code: error.code },
@@ -185,7 +182,7 @@ export async function POST(
       );
     }
 
-    console.error("Error uploading page:", error);
+    console.error("Error uploading page", error instanceof Error ? error.name : "unknown error");
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

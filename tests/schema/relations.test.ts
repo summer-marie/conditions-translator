@@ -31,7 +31,7 @@ describe.skipIf(!isLiveDbConfigured())("Page relationship and cascade behavior",
     });
 
     expect(page.documentId).toBe(document.id);
-    expect(page.accepted).toBe(false);
+    expect(page.status).toBe("PENDING");
   });
 
   it("rejects a Page pointing at a non-existent Document (foreign key)", async () => {

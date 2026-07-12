@@ -1,6 +1,7 @@
 // Workspace UI shell for temporary document intake.
 //
-// Shows: document title (editable inline), page list, upload button, Finish Document button.
+// Shows: document title (editable inline), page list with OCR preview/accept/re-upload/delete,
+// upload button, Finish Document button.
 // Upload button is disabled once page_count = 10.
 // Finish Document button is disabled when page_count = 0.
 // No AI controls are visible while status = IN_PROGRESS.
@@ -9,13 +10,38 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { createTemporaryDocument, finishDocument } from "@/lib/actions/document";
-import { getTemporarySession, isPrivacyAccepted } from "@/lib/session/temporary";
+import {
+  createTemporaryDocument,
+  finishDocument,
+  acceptPage,
+  reuploadPage,
+  deletePage,
+} from "@/lib/actions/document";
+
+interface OcrQuality {
+  blurry: boolean;
+  cutOff: boolean;
+  sideways: boolean;
+  incomplete: boolean;
+  unreadable: boolean;
+  retakeGuidance?: string | null;
+}
+
+interface OcrResult {
+  extractedText: string;
+  confidence: number | null;
+  warnings: OcrQuality | null;
+}
+
+type PageStatus = "PENDING" | "OCR_COMPLETE" | "OCR_FAILED" | "ACCEPTED";
 
 interface Page {
   id: string;
   order: number;
   blobPath: string | null;
+  status: PageStatus;
+  ocrFailureReason: string | null;
+  ocr: OcrResult | null;
   createdAt: string;
 }
 
@@ -24,6 +50,32 @@ interface Document {
   title: string;
   status: string;
   pageCount: number;
+}
+
+function hasBlockingQuality(warnings: OcrQuality | null): boolean {
+  if (!warnings) return false;
+  return (
+    warnings.blurry ||
+    warnings.cutOff ||
+    warnings.sideways ||
+    warnings.incomplete ||
+    warnings.unreadable
+  );
+}
+
+function statusLabel(page: Page): string {
+  switch (page.status) {
+    case "PENDING":
+      return "Processing...";
+    case "OCR_COMPLETE":
+      return hasBlockingQuality(page.ocr?.warnings ?? null) ? "Needs retake" : "Ready to accept";
+    case "OCR_FAILED":
+      return "OCR failed";
+    case "ACCEPTED":
+      return "Accepted";
+    default:
+      return page.status;
+  }
 }
 
 export default function WorkspacePage() {
@@ -36,29 +88,27 @@ export default function WorkspacePage() {
   const [isFinishing, setIsFinishing] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleInput, setTitleInput] = useState("");
+  const [ocrRunningIds, setOcrRunningIds] = useState<Record<string, boolean>>({});
+  const [actioningPageId, setActioningPageId] = useState<string | null>(null);
+  const [expandedImagePage, setExpandedImagePage] = useState<Page | null>(null);
 
-  useEffect(() => {
-    initializeWorkspace();
-  }, []);
-
-  const initializeWorkspace = async () => {
+  async function initializeWorkspace() {
     try {
-      // Check if privacy has been accepted
-      const privacyAccepted = await isPrivacyAccepted();
-      if (!privacyAccepted) {
-        router.push("/app/start");
-        return;
+      // Privacy acceptance and session lookup use next/headers (cookies()) and must run
+      // server-side; this client component fetches that state instead of importing it directly.
+      const statusResponse = await fetch("/api/session/status");
+      if (!statusResponse.ok) {
+        throw new Error("Failed to load session status");
       }
+      const status = await statusResponse.json();
 
-      // Get session
-      const session = await getTemporarySession();
-      if (!session) {
+      if (!status.privacyAccepted || !status.sessionId) {
         router.push("/app/start");
         return;
       }
 
       // Load document or create one
-      const response = await fetch(`/api/documents?sessionId=${session.id}`);
+      const response = await fetch(`/api/documents?sessionId=${status.sessionId}`);
       if (!response.ok) {
         throw new Error("Failed to load documents");
       }
@@ -72,13 +122,8 @@ export default function WorkspacePage() {
           status: doc.status,
           pageCount: doc._count.pages,
         });
-        
-        // Load pages
-        const pagesResponse = await fetch(`/api/documents/${doc.id}/pages`);
-        if (pagesResponse.ok) {
-          const pagesData = await pagesResponse.json();
-          setPages(pagesData.pages || []);
-        }
+
+        await refetchPages(doc.id);
       } else {
         // Create new document
         setIsCreating(true);
@@ -103,6 +148,37 @@ export default function WorkspacePage() {
     }
   };
 
+  const refetchPages = async (documentId: string) => {
+    const pagesResponse = await fetch(`/api/documents/${documentId}/pages`);
+    if (pagesResponse.ok) {
+      const pagesData = await pagesResponse.json();
+      setPages(pagesData.pages || []);
+    }
+  };
+
+  const runOcrForPage = async (documentId: string, pageId: string) => {
+    setOcrRunningIds((prev) => ({ ...prev, [pageId]: true }));
+    try {
+      const response = await fetch(
+        `/api/documents/${documentId}/pages/${pageId}/ocr`,
+        { method: "POST" }
+      );
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "OCR failed");
+      }
+
+      setPages((prev) =>
+        prev.map((p) => (p.id === pageId ? { ...p, ...data.page, ocr: data.ocr } : p))
+      );
+    } catch (error) {
+      console.error("OCR error:", error);
+    } finally {
+      setOcrRunningIds((prev) => ({ ...prev, [pageId]: false }));
+    }
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || !document || files.length === 0) return;
@@ -120,7 +196,6 @@ export default function WorkspacePage() {
       for (const file of files) {
         const formData = new FormData();
         formData.append("file", file);
-        formData.append("sessionId", document.id); // Using document ID as session identifier
 
         const response = await fetch(`/api/documents/${document.id}/pages`, {
           method: "POST",
@@ -133,8 +208,10 @@ export default function WorkspacePage() {
         }
 
         const data = await response.json();
-        setPages((prev) => [...prev, data.page]);
+        setPages((prev) => [...prev, { ...data.page, ocr: null }]);
         setDocument((prev) => prev ? { ...prev, pageCount: prev.pageCount + 1 } : null);
+
+        await runOcrForPage(document.id, data.page.id);
       }
     } catch (error) {
       console.error("Upload error:", error);
@@ -143,6 +220,65 @@ export default function WorkspacePage() {
       setIsUploading(false);
       // Reset file input
       e.target.value = "";
+    }
+  };
+
+  const handleAcceptPage = async (pageId: string) => {
+    if (!document) return;
+    setActioningPageId(pageId);
+    try {
+      const updated = await acceptPage(document.id, pageId);
+      setPages((prev) =>
+        prev.map((p) => (p.id === pageId ? { ...p, status: updated.status as PageStatus } : p))
+      );
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Failed to accept page");
+    } finally {
+      setActioningPageId(null);
+    }
+  };
+
+  const handleReuploadPage = async (pageId: string, file: File) => {
+    if (!document) return;
+    setActioningPageId(pageId);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const updated = await reuploadPage(document.id, pageId, formData);
+      setPages((prev) =>
+        prev.map((p) =>
+          p.id === pageId
+            ? {
+                ...p,
+                status: updated.status as PageStatus,
+                ocrFailureReason: updated.ocrFailureReason,
+                blobPath: updated.blobPath,
+                ocr: null,
+              }
+            : p
+        )
+      );
+      await runOcrForPage(document.id, pageId);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Failed to re-upload page");
+    } finally {
+      setActioningPageId(null);
+    }
+  };
+
+  const handleDeletePage = async (pageId: string) => {
+    if (!document) return;
+    if (!window.confirm("Delete this page? This cannot be undone.")) return;
+
+    setActioningPageId(pageId);
+    try {
+      await deletePage(document.id, pageId);
+      await refetchPages(document.id);
+      setDocument((prev) => (prev ? { ...prev, pageCount: prev.pageCount - 1 } : null));
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Failed to delete page");
+    } finally {
+      setActioningPageId(null);
     }
   };
 
@@ -184,6 +320,12 @@ export default function WorkspacePage() {
       console.error("Failed to update title:", error);
     }
   };
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time fetch-on-mount
+    initializeWorkspace();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- initializeWorkspace is stable per mount
+  }, []);
 
   if (isLoading) {
     return (
@@ -253,12 +395,12 @@ export default function WorkspacePage() {
                 </h1>
               )}
             </div>
-            
+
             <div className="flex items-center gap-4">
               <div className="text-sm text-gray-600">
                 {document.pageCount}/10 pages
               </div>
-              
+
               <span
                 className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
                   isReady
@@ -306,13 +448,13 @@ export default function WorkspacePage() {
                         <span className="font-semibold">Click to upload</span> or drag and drop
                       </p>
                       <p className="text-xs text-gray-500">
-                        JPEG, PNG, PDF (MAX 10 pages total)
+                        JPEG, PNG, or WEBP (MAX 10 pages total)
                       </p>
                     </div>
                     <input
                       type="file"
                       className="hidden"
-                      accept="image/jpeg,image/png,application/pdf"
+                      accept="image/jpeg,image/png,image/webp"
                       multiple
                       onChange={handleFileUpload}
                       disabled={isUploading}
@@ -338,30 +480,155 @@ export default function WorkspacePage() {
                   No pages uploaded yet. Upload your document pages to get started.
                 </p>
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                  {pages.map((page) => (
-                    <div
-                      key={page.id}
-                      className="border border-gray-200 rounded-lg p-4 flex flex-col items-center"
-                    >
-                      <div className="w-full aspect-[3/4] bg-gray-100 rounded mb-2 flex items-center justify-center">
-                        <svg
-                          className="w-12 h-12 text-gray-400"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                          />
-                        </svg>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {pages.map((page) => {
+                    const isOcrRunning = !!ocrRunningIds[page.id];
+                    const isActioning = actioningPageId === page.id;
+                    const blocked = hasBlockingQuality(page.ocr?.warnings ?? null);
+                    const canAccept =
+                      page.status === "OCR_COMPLETE" && !blocked && !isActioning;
+                    const canReupload = page.status !== "ACCEPTED" && !isActioning;
+                    const canDelete = document.status === "IN_PROGRESS" && !isActioning;
+
+                    return (
+                      <div
+                        key={page.id}
+                        className="border border-gray-200 rounded-lg p-4 flex flex-col gap-3"
+                      >
+                        <div className="flex items-start gap-3">
+                          <button
+                            onClick={() => setExpandedImagePage(page)}
+                            className="flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
+                          >
+                            <img
+                              src={`/api/documents/${document.id}/pages/${page.id}/image`}
+                              alt={`Page ${page.order + 1} (click to enlarge)`}
+                              className="w-32 sm:w-40 aspect-[3/4] object-cover bg-gray-100 rounded cursor-pointer hover:ring-2 hover:ring-blue-400 transition-all"
+                            />
+                          </button>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-medium text-gray-900">
+                                Page {page.order + 1}
+                              </span>
+                              <span
+                                className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                                  page.status === "ACCEPTED"
+                                    ? "bg-green-100 text-green-800"
+                                    : page.status === "OCR_FAILED" || blocked
+                                    ? "bg-red-100 text-red-800"
+                                    : "bg-yellow-100 text-yellow-800"
+                                }`}
+                              >
+                                {isOcrRunning ? "Running OCR..." : statusLabel(page)}
+                              </span>
+                            </div>
+
+                            {/* Quality indicators */}
+                            {page.ocr?.warnings && (
+                              <div className="flex flex-wrap gap-1 mt-2">
+                                {page.ocr.warnings.blurry && (
+                                  <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                    <span>📷</span> Blurry
+                                  </span>
+                                )}
+                                {page.ocr.warnings.cutOff && (
+                                  <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                    <span>✂️</span> Cut off
+                                  </span>
+                                )}
+                                {page.ocr.warnings.sideways && (
+                                  <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                    <span>🔄</span> Sideways
+                                  </span>
+                                )}
+                                {page.ocr.warnings.incomplete && (
+                                  <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                    <span>📄</span> Incomplete
+                                  </span>
+                                )}
+                                {page.ocr.warnings.unreadable && (
+                                  <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                    <span>❓</span> Unreadable
+                                  </span>
+                                )}
+                              </div>
+                            )}
+
+                            {page.status === "OCR_FAILED" && page.ocrFailureReason && (
+                              <div className="mt-2">
+                                <p className="text-sm text-red-700 font-medium">
+                                  {page.ocrFailureReason}
+                                </p>
+                                <p className="text-xs text-gray-600 mt-1">
+                                  Please try re-uploading the image with better quality.
+                                </p>
+                              </div>
+                            )}
+
+                            {blocked && page.ocr?.warnings?.retakeGuidance && (
+                              <p className="text-sm text-red-700 mt-2 font-medium">
+                                {page.ocr.warnings.retakeGuidance}
+                              </p>
+                            )}
+
+                            {page.ocr?.extractedText && (
+                              <p className="text-xs text-gray-600 mt-1 line-clamp-3">
+                                {page.ocr.extractedText}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleAcceptPage(page.id)}
+                            disabled={!canAccept}
+                            className={`text-xs font-semibold px-3 py-1.5 rounded-md ${
+                              canAccept
+                                ? "bg-blue-600 text-white hover:bg-blue-700"
+                                : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                            }`}
+                          >
+                            Accept
+                          </button>
+
+                          <label
+                            className={`text-xs font-semibold px-3 py-1.5 rounded-md text-center ${
+                              canReupload
+                                ? "bg-gray-100 text-gray-700 hover:bg-gray-200 cursor-pointer"
+                                : "bg-gray-100 text-gray-300 cursor-not-allowed"
+                            }`}
+                          >
+                            Re-upload
+                            <input
+                              type="file"
+                              className="hidden"
+                              accept="image/jpeg,image/png,image/webp"
+                              disabled={!canReupload}
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) handleReuploadPage(page.id, file);
+                                e.target.value = "";
+                              }}
+                            />
+                          </label>
+
+                          <button
+                            onClick={() => handleDeletePage(page.id)}
+                            disabled={!canDelete}
+                            className={`text-xs font-semibold px-3 py-1.5 rounded-md ${
+                              canDelete
+                                ? "bg-red-50 text-red-700 hover:bg-red-100"
+                                : "bg-gray-100 text-gray-300 cursor-not-allowed"
+                            }`}
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </div>
-                      <span className="text-sm text-gray-600">Page {page.order + 1}</span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -424,6 +691,32 @@ export default function WorkspacePage() {
           </div>
         </div>
       </main>
+
+      {/* Expanded image modal */}
+      {expandedImagePage && document && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+          onClick={() => setExpandedImagePage(null)}
+        >
+          <div className="relative max-w-4xl max-h-[90vh]">
+            <button
+              onClick={() => setExpandedImagePage(null)}
+              className="absolute -top-12 right-0 text-white text-4xl font-bold hover:text-gray-300 focus:outline-none"
+              aria-label="Close"
+            >
+              ×
+            </button>
+            <img
+              src={`/api/documents/${document.id}/pages/${expandedImagePage.id}/image`}
+              alt={`Page ${expandedImagePage.order + 1} enlarged`}
+              className="max-w-full max-h-[85vh] object-contain rounded-lg"
+            />
+            <p className="text-white text-center mt-2 text-sm">
+              Page {expandedImagePage.order + 1} • Click anywhere to close
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

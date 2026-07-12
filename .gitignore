@@ -46,3 +46,5 @@ Thumbs.db
 /notes
 # Claude local session memory
 .claude/
+.vercel
+.env*
