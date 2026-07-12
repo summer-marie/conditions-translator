@@ -56,7 +56,9 @@ async function setTemporarySessionCookie(
 
     await prisma.temporarySession.create({
       data: {
-        token,
+        // token is guaranteed to be defined here: every branch that sets isNewSession = true
+        // also reassigns token = uuidv4() first (see above).
+        token: token!,
         expiresAt,
       },
     });
