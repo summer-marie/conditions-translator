@@ -11,6 +11,11 @@ function readNumber(envVar: string, fallback: number): number {
 
 export const TEMP_SESSION_TTL_HOURS = readNumber("TEMP_SESSION_TTL_HOURS", 24);
 
+// Saved-account auth session lifetime, in hours (docs/05_Account_Creation_and_Temporary_Access.md).
+// Unlike a temporary session, a signed-in user's saved Documents never expire; this only bounds
+// how long the login cookie stays valid before the user must sign in again.
+export const AUTH_SESSION_TTL_HOURS = readNumber("AUTH_SESSION_TTL_HOURS", 24 * 30);
+
 export const DOCUMENT_MAX_PAGES = readNumber("DOCUMENT_MAX_PAGES", 10);
 
 export const CHAT_MAX_DOCUMENTS = readNumber("CHAT_MAX_DOCUMENTS", 3);
