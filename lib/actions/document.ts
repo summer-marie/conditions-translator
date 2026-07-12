@@ -19,6 +19,34 @@ import {
   getTemporarySession,
   isPrivacyAccepted,
 } from "@/lib/session/temporary";
+import { validateImageUpload } from "@/lib/validation/image";
+import { uploadPageImage, deletePageImage } from "@/lib/storage/blob";
+import { hasBlockingQualityIssue } from "@/lib/ocr/schema";
+
+// Resolves the current owner (temporary session only for now; Phase 7 adds user accounts) and
+// asserts the Document exists, belongs to that owner, and is still IN_PROGRESS.
+async function requireInProgressOwnedDocument(documentId: string) {
+  const session = await getTemporarySession();
+  if (!session) {
+    throw new AppError("No active session found.", 401, "NO_ACTIVE_SESSION");
+  }
+
+  const owner: Owner = temporaryOwner(session.id);
+  const document = await getOwnedDocument(owner, documentId);
+  if (!document) {
+    throw new AppError("Document not found.", 404, "DOCUMENT_NOT_FOUND");
+  }
+
+  if (document.status !== "IN_PROGRESS") {
+    throw new AppError(
+      "Pages can only be changed while the document is in progress.",
+      400,
+      "INVALID_DOCUMENT_STATUS"
+    );
+  }
+
+  return { owner, document };
+}
 
 /**
  * Creates a new IN_PROGRESS document for the current user.
@@ -175,4 +203,141 @@ export async function updateDocumentTitle(
   revalidatePath("/app/workspace");
 
   return updatedDocument;
+}
+
+/**
+ * Accepts a page: its current OcrResult.extractedText becomes the immutable, authoritative
+ * source text for that page (docs/03_OCR_Specifications.md §5). Blocked when OCR hasn't
+ * completed successfully, or when the model flagged a clearly bad-quality scan.
+ */
+export async function acceptPage(documentId: string, pageId: string) {
+  await requireInProgressOwnedDocument(documentId);
+
+  const page = await prisma.page.findFirst({
+    where: { id: pageId, documentId },
+    include: { ocr: true },
+  });
+
+  if (!page) {
+    throw new AppError("Page not found.", 404, "PAGE_NOT_FOUND");
+  }
+
+  if (page.status !== "OCR_COMPLETE" || !page.ocr) {
+    throw new AppError(
+      "This page must complete OCR successfully before it can be accepted.",
+      400,
+      "PAGE_NOT_READY"
+    );
+  }
+
+  const warnings = page.ocr.warnings as
+    | { blurry: boolean; cutOff: boolean; sideways: boolean; incomplete: boolean; unreadable: boolean }
+    | null;
+
+  if (warnings && hasBlockingQualityIssue(warnings)) {
+    throw new AppError(
+      "This page's image quality is too low to accept. Please retake it.",
+      422,
+      "PAGE_QUALITY_BLOCKED"
+    );
+  }
+
+  const updatedPage = await prisma.page.update({
+    where: { id: pageId },
+    data: { status: "ACCEPTED" },
+  });
+
+  revalidatePath("/app/workspace");
+
+  return updatedPage;
+}
+
+/**
+ * Replaces a page's image: clears its prior OCR result and resets it to PENDING so the
+ * caller can trigger OCR again. Not allowed once the page has been accepted.
+ */
+export async function reuploadPage(documentId: string, pageId: string, formData: FormData) {
+  await requireInProgressOwnedDocument(documentId);
+
+  const page = await prisma.page.findFirst({ where: { id: pageId, documentId } });
+  if (!page) {
+    throw new AppError("Page not found.", 404, "PAGE_NOT_FOUND");
+  }
+
+  if (page.status === "ACCEPTED") {
+    throw new AppError(
+      "This page has already been accepted and cannot be re-uploaded.",
+      400,
+      "PAGE_ALREADY_ACCEPTED"
+    );
+  }
+
+  const file = formData.get("file") as File | null;
+  if (!file) {
+    throw new AppError("No file provided.", 400, "NO_FILE");
+  }
+
+  const arrayBuffer = await file.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+  const { mimeType } = validateImageUpload(buffer, file.type);
+
+  const prefix = process.env.BLOB_PATH_PREFIX || "conditions-translator";
+  const extension = mimeType.split("/")[1];
+  const pathname = `${prefix}/documents/${documentId}/pages/${page.id}.${extension}`;
+
+  const blob = await uploadPageImage(pathname, buffer, mimeType);
+
+  if (page.blobPath && page.blobPath !== blob.pathname) {
+    await deletePageImage(page.blobPath);
+  }
+
+  await prisma.ocrResult.deleteMany({ where: { pageId } });
+
+  const updatedPage = await prisma.page.update({
+    where: { id: pageId },
+    data: { status: "PENDING", ocrFailureReason: null, blobPath: blob.pathname },
+  });
+
+  revalidatePath("/app/workspace");
+
+  return updatedPage;
+}
+
+/**
+ * Deletes a page (and its stored image + OCR result) and compacts the remaining pages' order
+ * so it stays contiguous starting at 0 — later uploads rely on that invariant.
+ */
+export async function deletePage(documentId: string, pageId: string) {
+  await requireInProgressOwnedDocument(documentId);
+
+  const page = await prisma.page.findFirst({ where: { id: pageId, documentId } });
+  if (!page) {
+    throw new AppError("Page not found.", 404, "PAGE_NOT_FOUND");
+  }
+
+  if (page.blobPath) {
+    await deletePageImage(page.blobPath);
+  }
+
+  await prisma.page.delete({ where: { id: pageId } });
+
+  const remainingPages = await prisma.page.findMany({
+    where: { documentId },
+    orderBy: { order: "asc" },
+  });
+
+  const reorderOps = remainingPages
+    .map((p, index) => ({ id: p.id, currentOrder: p.order, targetOrder: index }))
+    .filter((p) => p.currentOrder !== p.targetOrder)
+    .map((p) =>
+      prisma.page.update({ where: { id: p.id }, data: { order: p.targetOrder } })
+    );
+
+  if (reorderOps.length > 0) {
+    await prisma.$transaction(reorderOps);
+  }
+
+  revalidatePath("/app/workspace");
+
+  return { deleted: true };
 }
