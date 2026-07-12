@@ -90,6 +90,7 @@ export default function WorkspacePage() {
   const [titleInput, setTitleInput] = useState("");
   const [ocrRunningIds, setOcrRunningIds] = useState<Record<string, boolean>>({});
   const [actioningPageId, setActioningPageId] = useState<string | null>(null);
+  const [expandedImagePage, setExpandedImagePage] = useState<Page | null>(null);
 
   async function initializeWorkspace() {
     try {
@@ -495,11 +496,16 @@ export default function WorkspacePage() {
                         className="border border-gray-200 rounded-lg p-4 flex flex-col gap-3"
                       >
                         <div className="flex items-start gap-3">
-                          <img
-                            src={`/api/documents/${document.id}/pages/${page.id}/image`}
-                            alt={`Page ${page.order + 1}`}
-                            className="w-24 aspect-[3/4] object-cover bg-gray-100 rounded flex-shrink-0"
-                          />
+                          <button
+                            onClick={() => setExpandedImagePage(page)}
+                            className="flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
+                          >
+                            <img
+                              src={`/api/documents/${document.id}/pages/${page.id}/image`}
+                              alt={`Page ${page.order + 1} (click to enlarge)`}
+                              className="w-32 sm:w-40 aspect-[3/4] object-cover bg-gray-100 rounded cursor-pointer hover:ring-2 hover:ring-blue-400 transition-all"
+                            />
+                          </button>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between">
                               <span className="text-sm font-medium text-gray-900">
@@ -518,14 +524,50 @@ export default function WorkspacePage() {
                               </span>
                             </div>
 
+                            {/* Quality indicators */}
+                            {page.ocr?.warnings && (
+                              <div className="flex flex-wrap gap-1 mt-2">
+                                {page.ocr.warnings.blurry && (
+                                  <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                    <span>📷</span> Blurry
+                                  </span>
+                                )}
+                                {page.ocr.warnings.cutOff && (
+                                  <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                    <span>✂️</span> Cut off
+                                  </span>
+                                )}
+                                {page.ocr.warnings.sideways && (
+                                  <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                    <span>🔄</span> Sideways
+                                  </span>
+                                )}
+                                {page.ocr.warnings.incomplete && (
+                                  <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                    <span>📄</span> Incomplete
+                                  </span>
+                                )}
+                                {page.ocr.warnings.unreadable && (
+                                  <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                    <span>❓</span> Unreadable
+                                  </span>
+                                )}
+                              </div>
+                            )}
+
                             {page.status === "OCR_FAILED" && page.ocrFailureReason && (
-                              <p className="text-xs text-red-700 mt-1">
-                                {page.ocrFailureReason}
-                              </p>
+                              <div className="mt-2">
+                                <p className="text-sm text-red-700 font-medium">
+                                  {page.ocrFailureReason}
+                                </p>
+                                <p className="text-xs text-gray-600 mt-1">
+                                  Please try re-uploading the image with better quality.
+                                </p>
+                              </div>
                             )}
 
                             {blocked && page.ocr?.warnings?.retakeGuidance && (
-                              <p className="text-xs text-red-700 mt-1">
+                              <p className="text-sm text-red-700 mt-2 font-medium">
                                 {page.ocr.warnings.retakeGuidance}
                               </p>
                             )}
@@ -649,6 +691,32 @@ export default function WorkspacePage() {
           </div>
         </div>
       </main>
+
+      {/* Expanded image modal */}
+      {expandedImagePage && document && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+          onClick={() => setExpandedImagePage(null)}
+        >
+          <div className="relative max-w-4xl max-h-[90vh]">
+            <button
+              onClick={() => setExpandedImagePage(null)}
+              className="absolute -top-12 right-0 text-white text-4xl font-bold hover:text-gray-300 focus:outline-none"
+              aria-label="Close"
+            >
+              ×
+            </button>
+            <img
+              src={`/api/documents/${document.id}/pages/${expandedImagePage.id}/image`}
+              alt={`Page ${expandedImagePage.order + 1} enlarged`}
+              className="max-w-full max-h-[85vh] object-contain rounded-lg"
+            />
+            <p className="text-white text-center mt-2 text-sm">
+              Page {expandedImagePage.order + 1} • Click anywhere to close
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
