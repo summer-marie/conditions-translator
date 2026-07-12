@@ -259,7 +259,7 @@ export default function ChatPage() {
 
   // ---- Chat screen ----------------------------------------------------------
   return (
-    <div className="max-w-2xl mx-auto flex flex-col h-[100dvh] p-4 sm:p-6">
+    <div className="max-w-2xl mx-auto flex flex-col h-dvh p-4 sm:p-6">
       <div className="flex items-center justify-between mb-2">
         <h1 className="text-lg font-semibold text-gray-900">Chat</h1>
         <div className="flex items-center gap-3">
