@@ -19,6 +19,7 @@ import {
   reuploadPage,
   deletePage,
 } from "@/lib/actions/document";
+import { DEFAULT_DOCUMENT_TITLE, isDefaultDocumentTitle } from "@/lib/constants";
 
 interface OcrQuality {
   blurry: boolean;
@@ -173,7 +174,7 @@ export default function WorkspacePage() {
         // is handled by the empty-state below rather than silently creating a temporary one.
         setIsCreating(true);
         try {
-          const newDoc = await createTemporaryDocument("Untitled Document");
+          const newDoc = await createTemporaryDocument(DEFAULT_DOCUMENT_TITLE);
           if (newDoc) {
             setDocument({
               id: newDoc.id,
@@ -460,15 +461,41 @@ export default function WorkspacePage() {
                   />
                 </div>
               ) : (
-                <h1
-                  className="text-2xl font-bold text-gray-900 cursor-pointer hover:text-blue-600 transition-colors"
-                  onClick={() => {
-                    setTitleInput(document.title);
-                    setIsEditingTitle(true);
-                  }}
-                >
-                  {document.title}
-                </h1>
+                <div className="flex items-center gap-2 group">
+                  <h1
+                    className="text-2xl font-bold text-gray-900 cursor-pointer hover:text-blue-600 transition-colors"
+                    onClick={() => {
+                      setTitleInput(document.title);
+                      setIsEditingTitle(true);
+                    }}
+                  >
+                    {document.title}
+                  </h1>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTitleInput(document.title);
+                      setIsEditingTitle(true);
+                    }}
+                    className="text-gray-400 hover:text-blue-600 opacity-70 group-hover:opacity-100 transition-opacity"
+                    aria-label="Rename document"
+                    title="Rename document"
+                  >
+                    <svg
+                      className="h-5 w-5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                      />
+                    </svg>
+                  </button>
+                </div>
               )}
             </div>
 
@@ -733,6 +760,31 @@ export default function WorkspacePage() {
 
           {/* Right column - Actions */}
           <div className="space-y-6">
+            {/* Naming nudge: shown once pages exist but the document still has its default
+                title, so the user is prompted to name it before finishing. */}
+            {pages.length > 0 &&
+              document.status === "IN_PROGRESS" &&
+              isDefaultDocumentTitle(document.title) && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                  <p className="text-sm text-amber-900 font-medium mb-2">
+                    Don&apos;t forget to name your document
+                  </p>
+                  <p className="text-sm text-amber-800 mb-3">
+                    Give it a label like &quot;Probation Conditions&quot; so it&apos;s easy to
+                    find later.
+                  </p>
+                  <button
+                    onClick={() => {
+                      setTitleInput(document.title);
+                      setIsEditingTitle(true);
+                    }}
+                    className="text-sm font-semibold text-amber-900 hover:text-amber-700 underline"
+                  >
+                    Name it now
+                  </button>
+                </div>
+              )}
+
             {/* Status card */}
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">

@@ -14,7 +14,7 @@ import {
   getOwnedDocument,
   createDocument as createOwnedDocument,
 } from "@/lib/permissions/ownership";
-import { TEMP_SESSION_TTL_HOURS } from "@/lib/constants";
+import { TEMP_SESSION_TTL_HOURS, DEFAULT_DOCUMENT_TITLE } from "@/lib/constants";
 import {
   getTemporarySession,
   isPrivacyAccepted,
@@ -55,7 +55,7 @@ async function requireInProgressOwnedDocument(documentId: string) {
  * If not authenticated, uses the temporary session ID.
  */
 export async function createTemporaryDocument(
-  title: string = "Untitled Document"
+  title: string = DEFAULT_DOCUMENT_TITLE
 ) {
   // Check if privacy notice has been accepted
   const privacyAccepted = await isPrivacyAccepted();

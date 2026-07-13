@@ -17,6 +17,7 @@ import {
 import { prisma } from "@/lib/database/prisma";
 import { AppError } from "@/lib/errors";
 import { generateSectionsForDocument } from "@/lib/sections/generate";
+import { DEFAULT_DOCUMENT_TITLE } from "@/lib/constants";
 
 vi.mock("@/lib/sections/generate", () => ({
   generateSectionsForDocument: vi.fn(),
@@ -147,7 +148,7 @@ describe("createTemporaryDocument", () => {
 
     const mockDocument = {
       id: "doc-123",
-      title: "Untitled Document",
+      title: DEFAULT_DOCUMENT_TITLE,
       status: "IN_PROGRESS",
       userId: null,
       temporarySessionId: "session-123",
@@ -169,10 +170,10 @@ describe("createTemporaryDocument", () => {
 
     const result = await createTemporaryDocument();
 
-    expect(result.title).toBe("Untitled Document");
+    expect(result.title).toBe(DEFAULT_DOCUMENT_TITLE);
     expect(createDocument).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ title: "Untitled Document" })
+      expect.objectContaining({ title: DEFAULT_DOCUMENT_TITLE })
     );
   });
 });
@@ -427,7 +428,7 @@ describe("updateDocumentTitle", () => {
     vi.clearAllMocks();
   });
 
-  it("should update document title", async () => {
+  it("renames an existing Untitled Document to a user-provided label", async () => {
     const mockSession = {
       id: "session-123",
       token: "token-abc",
@@ -437,7 +438,7 @@ describe("updateDocumentTitle", () => {
 
     const mockDocument = {
       id: "doc-123",
-      title: "Old Title",
+      title: DEFAULT_DOCUMENT_TITLE,
       status: "IN_PROGRESS",
       userId: null,
       temporarySessionId: "session-123",
@@ -449,7 +450,7 @@ describe("updateDocumentTitle", () => {
 
     const mockUpdatedDocument = {
       ...mockDocument,
-      title: "New Title",
+      title: "Probation Conditions",
     };
 
     const { getTemporarySession } = await import("@/lib/session/temporary");
@@ -462,12 +463,12 @@ describe("updateDocumentTitle", () => {
     vi.mocked(getOwnedDocument).mockResolvedValue(mockDocument as any);
     vi.mocked(prisma.document.update).mockResolvedValue(mockUpdatedDocument as any);
 
-    const result = await updateDocumentTitle("doc-123", "New Title");
+    const result = await updateDocumentTitle("doc-123", "Probation Conditions");
 
-    expect(result.title).toBe("New Title");
+    expect(result.title).toBe("Probation Conditions");
     expect(prisma.document.update).toHaveBeenCalledWith({
       where: { id: "doc-123", temporarySessionId: "session-123" },
-      data: { title: "New Title" },
+      data: { title: "Probation Conditions" },
     });
     expect(revalidatePath).toHaveBeenCalledWith("/app/workspace");
   });
