@@ -44,7 +44,7 @@ export default function StartPage() {
           </div>
           
           <p>
-            By clicking "I Understand", you acknowledge that your data will be
+            By clicking &quot;I Understand&quot;, you acknowledge that your data will be
             temporary and automatically deleted after 24 hours. You can choose to
             create an account later if you want to save your work permanently.
           </p>
