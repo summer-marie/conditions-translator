@@ -67,7 +67,7 @@ describe("GET /api/documents/[documentId]/pages", () => {
     ] as any);
 
     const request = new Request("http://localhost/api/documents/doc-123/pages");
-    const response = await GET(request, { params: { documentId: "doc-123" } });
+    const response = await GET(request, { params: Promise.resolve({ documentId: "doc-123" }) });
     const data = await response.json();
 
     expect(response.status).toBe(200);
@@ -84,7 +84,7 @@ describe("GET /api/documents/[documentId]/pages", () => {
     vi.mocked(prisma.page.findMany).mockResolvedValue([] as any);
 
     const request = new Request("http://localhost/api/documents/doc-123/pages");
-    const response = await GET(request, { params: { documentId: "doc-123" } });
+    const response = await GET(request, { params: Promise.resolve({ documentId: "doc-123" }) });
 
     expect(response.status).toBe(200);
     expect(prisma.document.findFirst).toHaveBeenCalledWith({
@@ -100,7 +100,7 @@ describe("GET /api/documents/[documentId]/pages", () => {
     vi.mocked(prisma.document.findFirst).mockResolvedValue(null);
 
     const request = new Request("http://localhost/api/documents/doc-999/pages");
-    const response = await GET(request, { params: { documentId: "doc-999" } });
+    const response = await GET(request, { params: Promise.resolve({ documentId: "doc-999" }) });
 
     expect(response.status).toBe(404);
   });
@@ -109,7 +109,7 @@ describe("GET /api/documents/[documentId]/pages", () => {
     vi.mocked(getCurrentOwner).mockResolvedValue(null);
 
     const request = new Request("http://localhost/api/documents/doc-123/pages");
-    const response = await GET(request, { params: { documentId: "doc-123" } });
+    const response = await GET(request, { params: Promise.resolve({ documentId: "doc-123" }) });
 
     expect(response.status).toBe(401);
   });
@@ -179,7 +179,7 @@ describe("POST /api/documents/[documentId]/pages", () => {
       body: formData,
     });
 
-    const response = await POST(request, { params: { documentId: "doc-123" } });
+    const response = await POST(request, { params: Promise.resolve({ documentId: "doc-123" }) });
     const data = await response.json();
 
     expect(response.status).toBe(201);
@@ -218,7 +218,7 @@ describe("POST /api/documents/[documentId]/pages", () => {
       body: formData,
     });
 
-    const response = await POST(request, { params: { documentId: "doc-123" } });
+    const response = await POST(request, { params: Promise.resolve({ documentId: "doc-123" }) });
     const data = await response.json();
 
     expect(response.status).toBe(401);
@@ -241,7 +241,7 @@ describe("POST /api/documents/[documentId]/pages", () => {
       body: formData,
     });
 
-    const response = await POST(request, { params: { documentId: "doc-123" } });
+    const response = await POST(request, { params: Promise.resolve({ documentId: "doc-123" }) });
     const data = await response.json();
 
     expect(response.status).toBe(401);
@@ -272,7 +272,7 @@ describe("POST /api/documents/[documentId]/pages", () => {
       body: formData,
     });
 
-    const response = await POST(request, { params: { documentId: "doc-123" } });
+    const response = await POST(request, { params: Promise.resolve({ documentId: "doc-123" }) });
     const data = await response.json();
 
     expect(response.status).toBe(404);
@@ -315,7 +315,7 @@ describe("POST /api/documents/[documentId]/pages", () => {
       body: formData,
     });
 
-    const response = await POST(request, { params: { documentId: "doc-123" } });
+    const response = await POST(request, { params: Promise.resolve({ documentId: "doc-123" }) });
     const data = await response.json();
 
     expect(response.status).toBe(400);
@@ -359,7 +359,7 @@ describe("POST /api/documents/[documentId]/pages", () => {
       body: formData,
     });
 
-    const response = await POST(request, { params: { documentId: "doc-123" } });
+    const response = await POST(request, { params: Promise.resolve({ documentId: "doc-123" }) });
     const data = await response.json();
 
     expect(response.status).toBe(422);
@@ -404,7 +404,7 @@ describe("POST /api/documents/[documentId]/pages", () => {
       body: formData,
     });
 
-    const response = await POST(request, { params: { documentId: "doc-123" } });
+    const response = await POST(request, { params: Promise.resolve({ documentId: "doc-123" }) });
     const data = await response.json();
 
     expect(response.status).toBe(400);
@@ -448,7 +448,7 @@ describe("POST /api/documents/[documentId]/pages", () => {
       body: formData,
     });
 
-    const response = await POST(request, { params: { documentId: "doc-123" } });
+    const response = await POST(request, { params: Promise.resolve({ documentId: "doc-123" }) });
     const data = await response.json();
 
     expect(response.status).toBe(400);
@@ -497,7 +497,7 @@ describe("POST /api/documents/[documentId]/pages", () => {
       body: formData,
     });
 
-    const response = await POST(request, { params: { documentId: "doc-123" } });
+    const response = await POST(request, { params: Promise.resolve({ documentId: "doc-123" }) });
     const data = await response.json();
 
     expect(response.status).toBe(400);
@@ -564,7 +564,7 @@ describe("POST /api/documents/[documentId]/pages", () => {
       body: formData,
     });
 
-    const response = await POST(request, { params: { documentId: "doc-123" } });
+    const response = await POST(request, { params: Promise.resolve({ documentId: "doc-123" }) });
 
     expect(response.status).toBe(201);
     expect(prisma.page.create).toHaveBeenCalledWith({

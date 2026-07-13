@@ -84,7 +84,7 @@ describe("POST /api/documents/[documentId]/pages/[pageId]/ocr", () => {
       method: "POST",
     });
 
-    const response = await POST(request, { params: { documentId: "doc-123", pageId: "page-123" } });
+    const response = await POST(request, { params: Promise.resolve({ documentId: "doc-123", pageId: "page-123" }) });
     const data = await response.json();
 
     expect(response.status).toBe(404);
@@ -134,7 +134,7 @@ describe("POST /api/documents/[documentId]/pages/[pageId]/ocr", () => {
       method: "POST",
     });
 
-    const response = await POST(request, { params: { documentId: "doc-123", pageId: "page-123" } });
+    const response = await POST(request, { params: Promise.resolve({ documentId: "doc-123", pageId: "page-123" }) });
     const data = await response.json();
 
     expect(response.status).toBe(200);
@@ -183,7 +183,7 @@ describe("POST /api/documents/[documentId]/pages/[pageId]/ocr", () => {
       method: "POST",
     });
 
-    const response = await POST(request, { params: { documentId: "doc-123", pageId: "page-123" } });
+    const response = await POST(request, { params: Promise.resolve({ documentId: "doc-123", pageId: "page-123" }) });
     const data = await response.json();
 
     expect(response.status).toBe(200);
@@ -217,7 +217,7 @@ describe("POST /api/documents/[documentId]/pages/[pageId]/ocr", () => {
       method: "POST",
     });
 
-    const response = await POST(request, { params: { documentId: "doc-123", pageId: "page-123" } });
+    const response = await POST(request, { params: Promise.resolve({ documentId: "doc-123", pageId: "page-123" }) });
     const data = await response.json();
 
     expect(response.status).toBe(500);
@@ -265,7 +265,7 @@ describe("POST /api/documents/[documentId]/pages/[pageId]/ocr", () => {
       method: "POST",
     });
 
-    const response = await POST(request, { params: { documentId: "doc-123", pageId: "page-123" } });
+    const response = await POST(request, { params: Promise.resolve({ documentId: "doc-123", pageId: "page-123" }) });
     const data = await response.json();
 
     expect(JSON.stringify(data)).not.toContain("sk-test-should-never-leak");
@@ -280,7 +280,7 @@ describe("POST /api/documents/[documentId]/pages/[pageId]/ocr", () => {
       method: "POST",
     });
 
-    const response = await POST(request, { params: { documentId: "doc-123", pageId: "page-123" } });
+    const response = await POST(request, { params: Promise.resolve({ documentId: "doc-123", pageId: "page-123" }) });
     const data = await response.json();
 
     expect(response.status).toBe(400);

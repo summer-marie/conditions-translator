@@ -17,10 +17,10 @@ const DEFAULT_RETAKE_GUIDANCE =
 
 export async function POST(
   request: Request,
-  { params }: { params: { documentId: string; pageId: string } }
+  { params }: { params: Promise<{ documentId: string; pageId: string }> }
 ) {
   try {
-    const { documentId, pageId } = params;
+    const { documentId, pageId } = await params;
 
     const cookieStore = await cookies();
     const sessionToken = cookieStore.get(TMP_SESSION_COOKIE)?.value;

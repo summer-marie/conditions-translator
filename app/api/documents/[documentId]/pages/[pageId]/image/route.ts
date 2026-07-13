@@ -13,10 +13,10 @@ import { getOwnedDocument } from "@/lib/permissions/ownership";
 
 export async function GET(
   request: Request,
-  { params }: { params: { documentId: string; pageId: string } }
+  { params }: { params: Promise<{ documentId: string; pageId: string }> }
 ) {
   try {
-    const { documentId, pageId } = params;
+    const { documentId, pageId } = await params;
 
     const owner = await getCurrentOwner();
     if (!owner) {

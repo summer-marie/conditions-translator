@@ -19,10 +19,10 @@ const TMP_SESSION_COOKIE = "tmp_session";
  */
 export async function GET(
   request: Request,
-  { params }: { params: { documentId: string } }
+  { params }: { params: Promise<{ documentId: string }> }
 ) {
   try {
-    const { documentId } = params;
+    const { documentId } = await params;
 
     const owner = await getCurrentOwner();
     if (!owner) {
@@ -66,12 +66,12 @@ export async function GET(
  */
 export async function POST(
   request: Request,
-  { params }: { params: { documentId: string } }
+  { params }: { params: Promise<{ documentId: string }> }
 ) {
   let createdPageId: string | null = null;
 
   try {
-    const { documentId } = params;
+    const { documentId } = await params;
 
     const cookieStore = await cookies();
     const sessionToken = cookieStore.get(TMP_SESSION_COOKIE)?.value;
