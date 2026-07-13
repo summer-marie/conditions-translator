@@ -583,6 +583,9 @@ Suggested tests:
 
 ---
 
+# Phase E2E — End-to-End User Flow Testing and Stabilization
+Runs after Phase 8 and before Phase 9 Cleanup, Reliability, and Demo Validation. This phase validates all implemented user-facing flows (upload, OCR, READY, chat, account creation, transfer, dashboard, deletion) via realistic testing and fixes any blockers before cleanup and demo work.
+
 # 12. Phase 9 — Cleanup, Reliability, and Demo Validation
 
 ## Goal
