@@ -123,7 +123,7 @@ export async function POST(
     return NextResponse.json({
       page: updatedPage,
       ocr: ocrResult,
-      blockingQualityIssue: hasBlockingQualityIssue(result.quality),
+      blockingQualityIssue: hasBlockingQualityIssue(result.quality, result.extractedText),
     });
   } catch (error) {
     if (error instanceof AppError) {

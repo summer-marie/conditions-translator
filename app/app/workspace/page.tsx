@@ -86,15 +86,16 @@ function documentStatusLabel(status: DocumentStatus): string {
   }
 }
 
-function hasBlockingQuality(warnings: OcrQuality | null): boolean {
+// Mirrors lib/ocr/schema.ts's hasBlockingQualityIssue: only a genuinely unreadable or near-empty
+// extraction blocks Accept. Framing flags (blurry/cutOff/sideways/incomplete) are shown as
+// advisory badges below but don't block by themselves — real phone photos are rarely perfectly
+// framed, and the text can still be fully usable.
+const MIN_USABLE_TEXT_LENGTH = 10;
+
+function hasBlockingQuality(warnings: OcrQuality | null, extractedText: string | null): boolean {
   if (!warnings) return false;
-  return (
-    warnings.blurry ||
-    warnings.cutOff ||
-    warnings.sideways ||
-    warnings.incomplete ||
-    warnings.unreadable
-  );
+  if (warnings.unreadable) return true;
+  return (extractedText ?? "").trim().length < MIN_USABLE_TEXT_LENGTH;
 }
 
 function statusLabel(page: Page): string {
@@ -102,7 +103,9 @@ function statusLabel(page: Page): string {
     case "PENDING":
       return "Processing...";
     case "OCR_COMPLETE":
-      return hasBlockingQuality(page.ocr?.warnings ?? null) ? "Needs retake" : "Ready to accept";
+      return hasBlockingQuality(page.ocr?.warnings ?? null, page.ocr?.extractedText ?? null)
+        ? "Needs retake"
+        : "Ready to accept";
     case "OCR_FAILED":
       return "OCR failed";
     case "ACCEPTED":
@@ -574,7 +577,10 @@ export default function WorkspacePage() {
                   {pages.map((page) => {
                     const isOcrRunning = !!ocrRunningIds[page.id];
                     const isActioning = actioningPageId === page.id;
-                    const blocked = hasBlockingQuality(page.ocr?.warnings ?? null);
+                    const blocked = hasBlockingQuality(
+                      page.ocr?.warnings ?? null,
+                      page.ocr?.extractedText ?? null
+                    );
                     const canAccept =
                       page.status === "OCR_COMPLETE" && !blocked && !isActioning;
                     const canReupload = page.status !== "ACCEPTED" && !isActioning;

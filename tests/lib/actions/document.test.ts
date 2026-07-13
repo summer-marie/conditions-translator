@@ -592,16 +592,39 @@ describe("acceptPage", () => {
     );
   });
 
-  it("throws when the model flagged a clearly bad-quality scan", async () => {
+  it("throws when the model reports the page unreadable", async () => {
     await setUpOwnedInProgressDocument();
     vi.mocked(prisma.page.findFirst).mockResolvedValue({
       id: "page-123",
       documentId: "doc-123",
       status: "OCR_COMPLETE",
       ocr: {
-        extractedText: "partial text",
+        extractedText: "",
         warnings: {
           blurry: true,
+          cutOff: false,
+          sideways: false,
+          incomplete: false,
+          unreadable: true,
+        },
+      },
+    } as any);
+
+    await expect(acceptPage("doc-123", "page-123")).rejects.toThrow(
+      "quality is too low"
+    );
+  });
+
+  it("throws when extracted text is too short to be a usable page (mostly missing)", async () => {
+    await setUpOwnedInProgressDocument();
+    vi.mocked(prisma.page.findFirst).mockResolvedValue({
+      id: "page-123",
+      documentId: "doc-123",
+      status: "OCR_COMPLETE",
+      ocr: {
+        extractedText: "hi",
+        warnings: {
+          blurry: false,
           cutOff: false,
           sideways: false,
           incomplete: false,
@@ -613,6 +636,33 @@ describe("acceptPage", () => {
     await expect(acceptPage("doc-123", "page-123")).rejects.toThrow(
       "quality is too low"
     );
+  });
+
+  it("accepts a page with framing warnings (blurry/cutOff/incomplete) when the text is readable", async () => {
+    await setUpOwnedInProgressDocument();
+    vi.mocked(prisma.page.findFirst).mockResolvedValue({
+      id: "page-123",
+      documentId: "doc-123",
+      status: "OCR_COMPLETE",
+      ocr: {
+        extractedText: "ARIZONA CODE OF JUDICIAL ADMINISTRATION Part 6: Probation Chapter 2: Adult",
+        warnings: {
+          blurry: true,
+          cutOff: true,
+          sideways: false,
+          incomplete: true,
+          unreadable: false,
+        },
+      },
+    } as any);
+    vi.mocked(prisma.page.update).mockResolvedValue({
+      id: "page-123",
+      status: "ACCEPTED",
+    } as any);
+
+    const result = await acceptPage("doc-123", "page-123");
+
+    expect(result.status).toBe("ACCEPTED");
   });
 });
 

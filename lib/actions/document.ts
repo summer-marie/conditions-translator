@@ -271,7 +271,7 @@ export async function acceptPage(documentId: string, pageId: string) {
     | { blurry: boolean; cutOff: boolean; sideways: boolean; incomplete: boolean; unreadable: boolean }
     | null;
 
-  if (warnings && hasBlockingQualityIssue(warnings)) {
+  if (warnings && hasBlockingQualityIssue(warnings, page.ocr.extractedText)) {
     throw new AppError(
       "This page's image quality is too low to accept. Please retake it.",
       422,
