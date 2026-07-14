@@ -50,6 +50,11 @@ vi.mock("@/lib/session/temporary", () => ({
   isPrivacyAccepted: vi.fn(),
 }));
 
+// Mock owner resolution (used by requireInProgressOwnedDocument: acceptPage/reuploadPage/deletePage).
+vi.mock("@/lib/auth/session", () => ({
+  getCurrentOwner: vi.fn(),
+}));
+
 // Mock ownership functions
 vi.mock("@/lib/permissions/ownership", () => ({
   temporaryOwner: vi.fn(),
@@ -184,13 +189,6 @@ describe("finishDocument", () => {
   });
 
   it("marks the document COMPLETED and delegates to generateSectionsForDocument", async () => {
-    const mockSession = {
-      id: "session-123",
-      token: "token-abc",
-      noticeAcceptedAt: new Date(),
-      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-    };
-
     const mockDocument = {
       id: "doc-123",
       title: "Test Document",
@@ -205,13 +203,11 @@ describe("finishDocument", () => {
 
     const mockReadyDocument = { ...mockDocument, status: "READY" };
 
-    const { getTemporarySession } = await import("@/lib/session/temporary");
-    const { temporaryOwner } = await import("@/lib/permissions/ownership");
+    const { getCurrentOwner } = await import("@/lib/auth/session");
     const { getOwnedDocument } = await import("@/lib/permissions/ownership");
     const { revalidatePath } = await import("next/cache");
 
-    vi.mocked(getTemporarySession).mockResolvedValue(mockSession);
-    vi.mocked(temporaryOwner).mockReturnValue({ kind: "temporary", temporarySessionId: "session-123" });
+    vi.mocked(getCurrentOwner).mockResolvedValue({ kind: "temporary", temporarySessionId: "session-123" });
     vi.mocked(getOwnedDocument).mockResolvedValue(mockDocument as any);
     vi.mocked(prisma.page.count).mockResolvedValue(1);
     vi.mocked(prisma.document.update).mockResolvedValue({ ...mockDocument, status: "COMPLETED" } as any);
@@ -234,41 +230,57 @@ describe("finishDocument", () => {
     expect(revalidatePath).toHaveBeenCalledWith("/app/workspace");
   });
 
-  it("should throw error if no session found", async () => {
-    const { getTemporarySession } = await import("@/lib/session/temporary");
+  it("finishes an IN_PROGRESS document owned by a signed-in user (resumed after ownership transfer)", async () => {
+    const mockDocument = {
+      id: "doc-123",
+      title: "Test Document",
+      status: "IN_PROGRESS",
+      userId: "user-123",
+      temporarySessionId: null,
+      expiresAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      deletionState: "ACTIVE",
+    };
+    const mockReadyDocument = { ...mockDocument, status: "READY" };
 
-    vi.mocked(getTemporarySession).mockResolvedValue(null);
+    const { getCurrentOwner } = await import("@/lib/auth/session");
+    const { getOwnedDocument } = await import("@/lib/permissions/ownership");
+
+    vi.mocked(getCurrentOwner).mockResolvedValue({ kind: "user", userId: "user-123" });
+    vi.mocked(getOwnedDocument).mockResolvedValue(mockDocument as any);
+    vi.mocked(prisma.page.count).mockResolvedValue(1);
+    vi.mocked(prisma.document.update).mockResolvedValue({ ...mockDocument, status: "COMPLETED" } as any);
+    vi.mocked(generateSectionsForDocument).mockResolvedValue(mockReadyDocument as any);
+
+    const result = await finishDocument("doc-123");
+
+    expect(result.status).toBe("READY");
+    expect(prisma.document.update).toHaveBeenCalledWith({
+      where: { id: "doc-123", userId: "user-123" },
+      data: { status: "COMPLETED" },
+    });
+  });
+
+  it("should throw error if no session found", async () => {
+    const { getCurrentOwner } = await import("@/lib/auth/session");
+
+    vi.mocked(getCurrentOwner).mockResolvedValue(null);
 
     await expect(finishDocument("doc-123")).rejects.toThrow("No active session found");
   });
 
   it("should throw error if document not found", async () => {
-    const mockSession = {
-      id: "session-123",
-      token: "token-abc",
-      noticeAcceptedAt: new Date(),
-      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-    };
-
-    const { getTemporarySession } = await import("@/lib/session/temporary");
-    const { temporaryOwner } = await import("@/lib/permissions/ownership");
+    const { getCurrentOwner } = await import("@/lib/auth/session");
     const { getOwnedDocument } = await import("@/lib/permissions/ownership");
 
-    vi.mocked(getTemporarySession).mockResolvedValue(mockSession);
-    vi.mocked(temporaryOwner).mockReturnValue({ kind: "temporary", temporarySessionId: "session-123" });
+    vi.mocked(getCurrentOwner).mockResolvedValue({ kind: "temporary", temporarySessionId: "session-123" });
     vi.mocked(getOwnedDocument).mockResolvedValue(null);
 
     await expect(finishDocument("doc-123")).rejects.toThrow("Document not found");
   });
 
   it("should throw error if document is not IN_PROGRESS", async () => {
-    const mockSession = {
-      id: "session-123",
-      token: "token-abc",
-      noticeAcceptedAt: new Date(),
-      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-    };
-
     const mockDocument = {
       id: "doc-123",
       title: "Test Document",
@@ -281,12 +293,10 @@ describe("finishDocument", () => {
       deletionState: "ACTIVE",
     };
 
-    const { getTemporarySession } = await import("@/lib/session/temporary");
-    const { temporaryOwner } = await import("@/lib/permissions/ownership");
+    const { getCurrentOwner } = await import("@/lib/auth/session");
     const { getOwnedDocument } = await import("@/lib/permissions/ownership");
 
-    vi.mocked(getTemporarySession).mockResolvedValue(mockSession);
-    vi.mocked(temporaryOwner).mockReturnValue({ kind: "temporary", temporarySessionId: "session-123" });
+    vi.mocked(getCurrentOwner).mockResolvedValue({ kind: "temporary", temporarySessionId: "session-123" });
     vi.mocked(getOwnedDocument).mockResolvedValue(mockDocument as any);
 
     await expect(finishDocument("doc-123")).rejects.toThrow(
@@ -295,13 +305,6 @@ describe("finishDocument", () => {
   });
 
   it("should throw error if document has no accepted pages", async () => {
-    const mockSession = {
-      id: "session-123",
-      token: "token-abc",
-      noticeAcceptedAt: new Date(),
-      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-    };
-
     const mockDocument = {
       id: "doc-123",
       title: "Test Document",
@@ -314,12 +317,10 @@ describe("finishDocument", () => {
       deletionState: "ACTIVE",
     };
 
-    const { getTemporarySession } = await import("@/lib/session/temporary");
-    const { temporaryOwner } = await import("@/lib/permissions/ownership");
+    const { getCurrentOwner } = await import("@/lib/auth/session");
     const { getOwnedDocument } = await import("@/lib/permissions/ownership");
 
-    vi.mocked(getTemporarySession).mockResolvedValue(mockSession);
-    vi.mocked(temporaryOwner).mockReturnValue({ kind: "temporary", temporarySessionId: "session-123" });
+    vi.mocked(getCurrentOwner).mockResolvedValue({ kind: "temporary", temporarySessionId: "session-123" });
     vi.mocked(getOwnedDocument).mockResolvedValue(mockDocument as any);
     vi.mocked(prisma.page.count).mockResolvedValue(0);
 
@@ -335,13 +336,6 @@ describe("retryDocumentProcessing", () => {
     vi.clearAllMocks();
   });
 
-  const mockSession = {
-    id: "session-123",
-    token: "token-abc",
-    noticeAcceptedAt: new Date(),
-    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-  };
-
   it("delegates to generateSectionsForDocument when the document is PROCESSING_FAILED", async () => {
     const mockDocument = {
       id: "doc-123",
@@ -356,13 +350,11 @@ describe("retryDocumentProcessing", () => {
     };
     const mockReadyDocument = { ...mockDocument, status: "READY" };
 
-    const { getTemporarySession } = await import("@/lib/session/temporary");
-    const { temporaryOwner } = await import("@/lib/permissions/ownership");
+    const { getCurrentOwner } = await import("@/lib/auth/session");
     const { getOwnedDocument } = await import("@/lib/permissions/ownership");
     const { revalidatePath } = await import("next/cache");
 
-    vi.mocked(getTemporarySession).mockResolvedValue(mockSession);
-    vi.mocked(temporaryOwner).mockReturnValue({ kind: "temporary", temporarySessionId: "session-123" });
+    vi.mocked(getCurrentOwner).mockResolvedValue({ kind: "temporary", temporarySessionId: "session-123" });
     vi.mocked(getOwnedDocument).mockResolvedValue(mockDocument as any);
     vi.mocked(generateSectionsForDocument).mockResolvedValue(mockReadyDocument as any);
 
@@ -376,20 +368,48 @@ describe("retryDocumentProcessing", () => {
     expect(revalidatePath).toHaveBeenCalledWith("/app/workspace");
   });
 
+  it("retries a PROCESSING_FAILED document owned by a signed-in user (resumed after ownership transfer)", async () => {
+    const mockDocument = {
+      id: "doc-123",
+      title: "Test Document",
+      status: "PROCESSING_FAILED",
+      userId: "user-123",
+      temporarySessionId: null,
+      expiresAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      deletionState: "ACTIVE",
+    };
+    const mockReadyDocument = { ...mockDocument, status: "READY" };
+
+    const { getCurrentOwner } = await import("@/lib/auth/session");
+    const { getOwnedDocument } = await import("@/lib/permissions/ownership");
+
+    vi.mocked(getCurrentOwner).mockResolvedValue({ kind: "user", userId: "user-123" });
+    vi.mocked(getOwnedDocument).mockResolvedValue(mockDocument as any);
+    vi.mocked(generateSectionsForDocument).mockResolvedValue(mockReadyDocument as any);
+
+    const result = await retryDocumentProcessing("doc-123");
+
+    expect(result.status).toBe("READY");
+    expect(generateSectionsForDocument).toHaveBeenCalledWith(
+      { kind: "user", userId: "user-123" },
+      "doc-123"
+    );
+  });
+
   it("throws if no session found", async () => {
-    const { getTemporarySession } = await import("@/lib/session/temporary");
-    vi.mocked(getTemporarySession).mockResolvedValue(null);
+    const { getCurrentOwner } = await import("@/lib/auth/session");
+    vi.mocked(getCurrentOwner).mockResolvedValue(null);
 
     await expect(retryDocumentProcessing("doc-123")).rejects.toThrow("No active session found");
   });
 
   it("throws if document not found", async () => {
-    const { getTemporarySession } = await import("@/lib/session/temporary");
-    const { temporaryOwner } = await import("@/lib/permissions/ownership");
+    const { getCurrentOwner } = await import("@/lib/auth/session");
     const { getOwnedDocument } = await import("@/lib/permissions/ownership");
 
-    vi.mocked(getTemporarySession).mockResolvedValue(mockSession);
-    vi.mocked(temporaryOwner).mockReturnValue({ kind: "temporary", temporarySessionId: "session-123" });
+    vi.mocked(getCurrentOwner).mockResolvedValue({ kind: "temporary", temporarySessionId: "session-123" });
     vi.mocked(getOwnedDocument).mockResolvedValue(null);
 
     await expect(retryDocumentProcessing("doc-123")).rejects.toThrow("Document not found");
@@ -408,12 +428,10 @@ describe("retryDocumentProcessing", () => {
       deletionState: "ACTIVE",
     };
 
-    const { getTemporarySession } = await import("@/lib/session/temporary");
-    const { temporaryOwner } = await import("@/lib/permissions/ownership");
+    const { getCurrentOwner } = await import("@/lib/auth/session");
     const { getOwnedDocument } = await import("@/lib/permissions/ownership");
 
-    vi.mocked(getTemporarySession).mockResolvedValue(mockSession);
-    vi.mocked(temporaryOwner).mockReturnValue({ kind: "temporary", temporarySessionId: "session-123" });
+    vi.mocked(getCurrentOwner).mockResolvedValue({ kind: "temporary", temporarySessionId: "session-123" });
     vi.mocked(getOwnedDocument).mockResolvedValue(mockDocument as any);
 
     await expect(retryDocumentProcessing("doc-123")).rejects.toThrow(
@@ -429,13 +447,6 @@ describe("updateDocumentTitle", () => {
   });
 
   it("renames an existing Untitled Document to a user-provided label", async () => {
-    const mockSession = {
-      id: "session-123",
-      token: "token-abc",
-      noticeAcceptedAt: new Date(),
-      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-    };
-
     const mockDocument = {
       id: "doc-123",
       title: DEFAULT_DOCUMENT_TITLE,
@@ -453,13 +464,11 @@ describe("updateDocumentTitle", () => {
       title: "Probation Conditions",
     };
 
-    const { getTemporarySession } = await import("@/lib/session/temporary");
-    const { temporaryOwner } = await import("@/lib/permissions/ownership");
+    const { getCurrentOwner } = await import("@/lib/auth/session");
     const { getOwnedDocument } = await import("@/lib/permissions/ownership");
     const { revalidatePath } = await import("next/cache");
 
-    vi.mocked(getTemporarySession).mockResolvedValue(mockSession);
-    vi.mocked(temporaryOwner).mockReturnValue({ kind: "temporary", temporarySessionId: "session-123" });
+    vi.mocked(getCurrentOwner).mockResolvedValue({ kind: "temporary", temporarySessionId: "session-123" });
     vi.mocked(getOwnedDocument).mockResolvedValue(mockDocument as any);
     vi.mocked(prisma.document.update).mockResolvedValue(mockUpdatedDocument as any);
 
@@ -473,10 +482,40 @@ describe("updateDocumentTitle", () => {
     expect(revalidatePath).toHaveBeenCalledWith("/app/workspace");
   });
 
-  it("should throw error if no session found", async () => {
-    const { getTemporarySession } = await import("@/lib/session/temporary");
+  it("renames a document owned by a signed-in user (resumed after ownership transfer)", async () => {
+    const mockDocument = {
+      id: "doc-123",
+      title: DEFAULT_DOCUMENT_TITLE,
+      status: "IN_PROGRESS",
+      userId: "user-123",
+      temporarySessionId: null,
+      expiresAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      deletionState: "ACTIVE",
+    };
+    const mockUpdatedDocument = { ...mockDocument, title: "Probation Conditions" };
 
-    vi.mocked(getTemporarySession).mockResolvedValue(null);
+    const { getCurrentOwner } = await import("@/lib/auth/session");
+    const { getOwnedDocument } = await import("@/lib/permissions/ownership");
+
+    vi.mocked(getCurrentOwner).mockResolvedValue({ kind: "user", userId: "user-123" });
+    vi.mocked(getOwnedDocument).mockResolvedValue(mockDocument as any);
+    vi.mocked(prisma.document.update).mockResolvedValue(mockUpdatedDocument as any);
+
+    const result = await updateDocumentTitle("doc-123", "Probation Conditions");
+
+    expect(result.title).toBe("Probation Conditions");
+    expect(prisma.document.update).toHaveBeenCalledWith({
+      where: { id: "doc-123", userId: "user-123" },
+      data: { title: "Probation Conditions" },
+    });
+  });
+
+  it("should throw error if no session found", async () => {
+    const { getCurrentOwner } = await import("@/lib/auth/session");
+
+    vi.mocked(getCurrentOwner).mockResolvedValue(null);
 
     await expect(updateDocumentTitle("doc-123", "New Title")).rejects.toThrow(
       "No active session found"
@@ -484,19 +523,10 @@ describe("updateDocumentTitle", () => {
   });
 
   it("should throw error if document not found", async () => {
-    const mockSession = {
-      id: "session-123",
-      token: "token-abc",
-      noticeAcceptedAt: new Date(),
-      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-    };
-
-    const { getTemporarySession } = await import("@/lib/session/temporary");
-    const { temporaryOwner } = await import("@/lib/permissions/ownership");
+    const { getCurrentOwner } = await import("@/lib/auth/session");
     const { getOwnedDocument } = await import("@/lib/permissions/ownership");
 
-    vi.mocked(getTemporarySession).mockResolvedValue(mockSession);
-    vi.mocked(temporaryOwner).mockReturnValue({ kind: "temporary", temporarySessionId: "session-123" });
+    vi.mocked(getCurrentOwner).mockResolvedValue({ kind: "temporary", temporarySessionId: "session-123" });
     vi.mocked(getOwnedDocument).mockResolvedValue(null);
 
     await expect(updateDocumentTitle("doc-123", "New Title")).rejects.toThrow(
@@ -517,20 +547,27 @@ const mockInProgressDocument = {
   deletionState: "ACTIVE",
 };
 
-const mockSession = {
-  id: "session-123",
-  token: "token-abc",
-  noticeAcceptedAt: new Date(),
-  expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-};
-
 async function setUpOwnedInProgressDocument() {
-  const { getTemporarySession } = await import("@/lib/session/temporary");
-  const { temporaryOwner, getOwnedDocument } = await import("@/lib/permissions/ownership");
+  const { getCurrentOwner } = await import("@/lib/auth/session");
+  const { getOwnedDocument } = await import("@/lib/permissions/ownership");
 
-  vi.mocked(getTemporarySession).mockResolvedValue(mockSession);
-  vi.mocked(temporaryOwner).mockReturnValue({ kind: "temporary", temporarySessionId: "session-123" });
+  vi.mocked(getCurrentOwner).mockResolvedValue({ kind: "temporary", temporarySessionId: "session-123" });
   vi.mocked(getOwnedDocument).mockResolvedValue(mockInProgressDocument as any);
+}
+
+// Mirrors the real bug found in live E2E testing: a signed-in user resuming an IN_PROGRESS
+// document (transferred from a temporary session, so temporarySessionId is now null/userId is
+// set) must be resolved via getCurrentOwner, not getTemporarySession.
+async function setUpOwnedInProgressDocumentForSignedInUser() {
+  const { getCurrentOwner } = await import("@/lib/auth/session");
+  const { getOwnedDocument } = await import("@/lib/permissions/ownership");
+
+  vi.mocked(getCurrentOwner).mockResolvedValue({ kind: "user", userId: "user-123" });
+  vi.mocked(getOwnedDocument).mockResolvedValue({
+    ...mockInProgressDocument,
+    userId: "user-123",
+    temporarySessionId: null,
+  } as any);
 }
 
 describe("acceptPage", () => {
@@ -569,14 +606,46 @@ describe("acceptPage", () => {
   });
 
   it("throws if the document is not owned by the caller", async () => {
-    const { getTemporarySession } = await import("@/lib/session/temporary");
-    const { temporaryOwner, getOwnedDocument } = await import("@/lib/permissions/ownership");
+    const { getCurrentOwner } = await import("@/lib/auth/session");
+    const { getOwnedDocument } = await import("@/lib/permissions/ownership");
 
-    vi.mocked(getTemporarySession).mockResolvedValue(mockSession);
-    vi.mocked(temporaryOwner).mockReturnValue({ kind: "temporary", temporarySessionId: "session-123" });
+    vi.mocked(getCurrentOwner).mockResolvedValue({ kind: "temporary", temporarySessionId: "session-123" });
     vi.mocked(getOwnedDocument).mockResolvedValue(null);
 
     await expect(acceptPage("doc-123", "page-123")).rejects.toThrow("Document not found");
+  });
+
+  it("throws if there is no active session or signed-in user", async () => {
+    const { getCurrentOwner } = await import("@/lib/auth/session");
+    vi.mocked(getCurrentOwner).mockResolvedValue(null);
+
+    await expect(acceptPage("doc-123", "page-123")).rejects.toThrow("No active session found");
+  });
+
+  it("accepts a page on an IN_PROGRESS document owned by a signed-in user (resumed after ownership transfer)", async () => {
+    await setUpOwnedInProgressDocumentForSignedInUser();
+
+    const mockPage = {
+      id: "page-123",
+      documentId: "doc-123",
+      status: "OCR_COMPLETE",
+      ocr: {
+        extractedText: "Report to your officer monthly.",
+        warnings: {
+          blurry: false,
+          cutOff: false,
+          sideways: false,
+          incomplete: false,
+          unreadable: false,
+        },
+      },
+    };
+    vi.mocked(prisma.page.findFirst).mockResolvedValue(mockPage as any);
+    vi.mocked(prisma.page.update).mockResolvedValue({ ...mockPage, status: "ACCEPTED" } as any);
+
+    const result = await acceptPage("doc-123", "page-123");
+
+    expect(result.status).toBe("ACCEPTED");
   });
 
   it("throws if OCR has not completed successfully", async () => {
