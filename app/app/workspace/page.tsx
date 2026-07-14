@@ -161,7 +161,14 @@ export default function WorkspacePage() {
 
       const data = await response.json();
       if (data.documents && data.documents.length > 0) {
-        const doc = data.documents[0];
+        // Prefer resuming the most recent IN_PROGRESS document (still under construction) over
+        // the most recent document overall — otherwise a signed-in user with an older unfinished
+        // document and a newer finished one would land on the finished one and be unable to
+        // resume uploading pages to the unfinished one.
+        const doc =
+          data.documents.find(
+            (d: { status: DocumentStatus }) => d.status === "IN_PROGRESS"
+          ) ?? data.documents[0];
         setDocument({
           id: doc.id,
           title: doc.title,
