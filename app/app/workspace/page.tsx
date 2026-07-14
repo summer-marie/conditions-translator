@@ -545,12 +545,24 @@ export default function WorkspacePage() {
                   </button>
                 </>
               ) : (
-                <Link
-                  href="/app/save"
-                  className="inline-flex items-center rounded-md bg-gray-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-gray-800"
-                >
-                  Save workspace
-                </Link>
+                <>
+                  {/* TODO(cleanup): "Log in" and "Save workspace" both land on /app/save and
+                      read as two near-identical buttons. This is a stopgap so a signed-out
+                      returning user has a way back in at all — the save/sign-in entry UX could
+                      use a proper pass later (see .agent-memory/OPEN_QUESTIONS.md). */}
+                  <Link
+                    href="/app/save?mode=signin"
+                    className="inline-flex items-center rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  >
+                    Log in
+                  </Link>
+                  <Link
+                    href="/app/save"
+                    className="inline-flex items-center rounded-md bg-gray-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-gray-800"
+                  >
+                    Save workspace
+                  </Link>
+                </>
               )}
             </div>
           </div>

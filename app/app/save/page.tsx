@@ -8,16 +8,31 @@
 
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { signUpAndSave, signInAndSave } from "@/lib/actions/auth";
 
 type Mode = "create" | "signin";
 
 export default function SavePage() {
+  return (
+    // useSearchParams() requires a Suspense boundary in the App Router.
+    <Suspense fallback={null}>
+      <SavePageContent />
+    </Suspense>
+  );
+}
+
+function SavePageContent() {
   const router = useRouter();
-  const [mode, setMode] = useState<Mode>("create");
+  const searchParams = useSearchParams();
+  // Supports /app/save?mode=signin so a "Log in" entry point (distinct from "Save workspace")
+  // can land directly on the sign-in tab. TODO: this mode param + the separate "Log in" button
+  // it's paired with (workspace header) is a stopgap — the save/sign-in UI could use a proper
+  // pass later (see .agent-memory/OPEN_QUESTIONS.md).
+  const initialMode: Mode = searchParams.get("mode") === "signin" ? "signin" : "create";
+  const [mode, setMode] = useState<Mode>(initialMode);
 
   // Create-account fields.
   const [email, setEmail] = useState("");
