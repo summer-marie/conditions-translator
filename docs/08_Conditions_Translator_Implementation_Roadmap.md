@@ -586,6 +586,8 @@ Suggested tests:
 # Phase E2E — End-to-End User Flow Testing and Stabilization
 Runs after Phase 8 and before Phase 9 Cleanup, Reliability, and Demo Validation. This phase validates all implemented user-facing flows (upload, OCR, READY, chat, account creation, transfer, dashboard, deletion) via realistic testing and fixes any blockers before cleanup and demo work.
 
+Phase E2E is not considered complete until the app has also been exercised on a real Vercel deployment with real phone-camera uploads, not just local browser testing — OCR latency/quality and ownership-transfer behavior can differ on deployed infrastructure. See `docs/Deployment_Vercel.md` for deployment setup and `docs/Mobile_OCR_Tests_plan.md` for the mobile OCR test cases. Findings from this pass are recorded in `docs/TESTING_GUIDE.md` (§13, Deployment and Mobile Testing) and `.agent-memory/OPEN_QUESTIONS.md`.
+
 # 12. Phase 9 — Cleanup, Reliability, and Demo Validation
 
 ## Goal

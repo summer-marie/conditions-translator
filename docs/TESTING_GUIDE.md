@@ -395,6 +395,18 @@ Add more detailed tests when:
 
 ---
 
+# 13. Deployment and Mobile Testing
+
+For Vercel deployment and mobile/phone OCR testing:
+
+- See `docs/DEPLOYMENT_VERCEL.md` for step-by-step deployment setup.
+- See `docs/MOBILE_OCR_TEST_PLAN.md` for focused phone-upload OCR tests.
+
+These are required before declaring Phase E2E complete and
+moving into Phase 9 Cleanup and Demo Validation.
+
+---
+
 # Dependencies
 
 - `01_MVP_PRD.md`
