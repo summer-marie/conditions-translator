@@ -1,13 +1,23 @@
 // Thin wrapper around @vercel/blob for the private page-image store.
 //
-// The store is private (docs/03_OCR_Specifications.md, env.example): OIDC auth is used
-// automatically on Vercel infrastructure, or via BLOB_STORE_ID + VERCEL_OIDC_TOKEN pulled
-// locally with `vercel env pull .env.local`. No static BLOB_READ_WRITE_TOKEN is used.
+// The store is private (docs/03_OCR_Specifications.md, env.example). On real Vercel
+// infrastructure, OIDC auth (BLOB_STORE_ID + VERCEL_OIDC_TOKEN) is used automatically. For local
+// development, this store's OIDC access isn't enabled for the "development" environment, so an
+// explicit BLOB_READ_WRITE_TOKEN is used instead when present. @vercel/blob checks an explicit
+// `token` option before ever consulting OIDC (verified directly against the installed SDK), so
+// passing it only when BLOB_READ_WRITE_TOKEN is set leaves production/preview (where that env
+// var is never set) on the unchanged OIDC path.
 
 import { put, get, del } from "@vercel/blob";
 import { AppError } from "@/lib/errors";
 
 const ACCESS = "private" as const;
+
+// Present only in local development (see env.example); undefined on real Vercel infrastructure,
+// where OIDC auth is used instead.
+function explicitToken(): string | undefined {
+  return process.env.BLOB_READ_WRITE_TOKEN;
+}
 
 export interface StoredPageImage {
   pathname: string;
@@ -26,6 +36,7 @@ export async function uploadPageImage(
     contentType,
     addRandomSuffix: false,
     allowOverwrite: true,
+    token: explicitToken(),
   });
 
   return { pathname: blob.pathname, url: blob.url, contentType: blob.contentType };
@@ -37,7 +48,11 @@ export async function uploadPageImage(
 export async function readPageImage(
   pathname: string
 ): Promise<{ buffer: Buffer; contentType: string }> {
-  const result = await get(pathname, { access: ACCESS, useCache: false });
+  const result = await get(pathname, {
+    access: ACCESS,
+    useCache: false,
+    token: explicitToken(),
+  });
 
   if (!result || result.statusCode !== 200 || !result.stream) {
     throw new AppError("Stored page image was not found.", 404, "BLOB_NOT_FOUND");
@@ -49,5 +64,5 @@ export async function readPageImage(
 
 // Deletes a page image. Never throws if the object no longer exists.
 export async function deletePageImage(pathname: string): Promise<void> {
-  await del(pathname);
+  await del(pathname, { token: explicitToken() });
 }

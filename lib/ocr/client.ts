@@ -43,6 +43,17 @@ export async function runPageOcr(params: {
 
   const dataUrl = `data:${params.contentType};base64,${params.imageBuffer.toString("base64")}`;
 
+  // TEMP DIAGNOSTIC (2026-07-14, remove after the OCR-502 investigation is closed): timing/size
+  // only — never logs image bytes or OCR text — to determine whether real phone photos are
+  // hitting the SDK request timeout vs. a genuine upstream error.
+  const diagStart = Date.now();
+  console.log("[ocr-diag] request start", {
+    model,
+    imageBytes: params.imageBuffer.length,
+    contentType: params.contentType,
+    dataUrlBytes: dataUrl.length,
+  });
+
   let response;
   try {
     response = await getClient().responses.parse({
@@ -59,8 +70,22 @@ export async function runPageOcr(params: {
       ],
       text: { format: zodTextFormat(OcrResultSchema, "page_ocr_result") },
     });
-  } catch {
-    // Never log the underlying error verbatim — it may echo back request content.
+    console.log("[ocr-diag] request success", { elapsedMs: Date.now() - diagStart });
+  } catch (err) {
+    // Never log the underlying error verbatim — it may echo back request content. Name/status/
+    // code are safe (OpenAI SDK error metadata, not request/response content).
+    console.log("[ocr-diag] request failed", {
+      elapsedMs: Date.now() - diagStart,
+      errorName: err instanceof Error ? err.name : typeof err,
+      status: (err as { status?: number })?.status,
+      code: (err as { code?: string })?.code,
+      isTimeout:
+        typeof OpenAI.APIConnectionTimeoutError === "function" &&
+        err instanceof OpenAI.APIConnectionTimeoutError,
+      isConnectionError:
+        typeof OpenAI.APIConnectionError === "function" &&
+        err instanceof OpenAI.APIConnectionError,
+    });
     throw new AppError("The OCR request failed.", 502, "OCR_REQUEST_FAILED");
   }
 

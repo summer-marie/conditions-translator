@@ -19,6 +19,8 @@ import {
   reuploadPage,
   deletePage,
 } from "@/lib/actions/document";
+import { signOut } from "@/lib/actions/auth";
+import { DEFAULT_DOCUMENT_TITLE, isDefaultDocumentTitle } from "@/lib/constants";
 
 interface OcrQuality {
   blurry: boolean;
@@ -86,15 +88,16 @@ function documentStatusLabel(status: DocumentStatus): string {
   }
 }
 
-function hasBlockingQuality(warnings: OcrQuality | null): boolean {
+// Mirrors lib/ocr/schema.ts's hasBlockingQualityIssue: only a genuinely unreadable or near-empty
+// extraction blocks Accept. Framing flags (blurry/cutOff/sideways/incomplete) are shown as
+// advisory badges below but don't block by themselves — real phone photos are rarely perfectly
+// framed, and the text can still be fully usable.
+const MIN_USABLE_TEXT_LENGTH = 10;
+
+function hasBlockingQuality(warnings: OcrQuality | null, extractedText: string | null): boolean {
   if (!warnings) return false;
-  return (
-    warnings.blurry ||
-    warnings.cutOff ||
-    warnings.sideways ||
-    warnings.incomplete ||
-    warnings.unreadable
-  );
+  if (warnings.unreadable) return true;
+  return (extractedText ?? "").trim().length < MIN_USABLE_TEXT_LENGTH;
 }
 
 function statusLabel(page: Page): string {
@@ -102,7 +105,9 @@ function statusLabel(page: Page): string {
     case "PENDING":
       return "Processing...";
     case "OCR_COMPLETE":
-      return hasBlockingQuality(page.ocr?.warnings ?? null) ? "Needs retake" : "Ready to accept";
+      return hasBlockingQuality(page.ocr?.warnings ?? null, page.ocr?.extractedText ?? null)
+        ? "Needs retake"
+        : "Ready to accept";
     case "OCR_FAILED":
       return "OCR failed";
     case "ACCEPTED":
@@ -128,6 +133,7 @@ export default function WorkspacePage() {
   const [expandedImagePage, setExpandedImagePage] = useState<Page | null>(null);
   // Set once the workspace is owned by a signed-in account (Phase 7). null while temporary.
   const [savedUserId, setSavedUserId] = useState<string | null>(null);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   async function initializeWorkspace() {
     try {
@@ -155,7 +161,14 @@ export default function WorkspacePage() {
 
       const data = await response.json();
       if (data.documents && data.documents.length > 0) {
-        const doc = data.documents[0];
+        // Prefer resuming the most recent IN_PROGRESS document (still under construction) over
+        // the most recent document overall — otherwise a signed-in user with an older unfinished
+        // document and a newer finished one would land on the finished one and be unable to
+        // resume uploading pages to the unfinished one.
+        const doc =
+          data.documents.find(
+            (d: { status: DocumentStatus }) => d.status === "IN_PROGRESS"
+          ) ?? data.documents[0];
         setDocument({
           id: doc.id,
           title: doc.title,
@@ -170,7 +183,7 @@ export default function WorkspacePage() {
         // is handled by the empty-state below rather than silently creating a temporary one.
         setIsCreating(true);
         try {
-          const newDoc = await createTemporaryDocument("Untitled Document");
+          const newDoc = await createTemporaryDocument(DEFAULT_DOCUMENT_TITLE);
           if (newDoc) {
             setDocument({
               id: newDoc.id,
@@ -391,6 +404,17 @@ export default function WorkspacePage() {
     }
   };
 
+  const handleSignOut = async () => {
+    setIsSigningOut(true);
+    try {
+      await signOut();
+      router.push("/");
+    } catch (error) {
+      console.error("Failed to sign out:", error);
+      setIsSigningOut(false);
+    }
+  };
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time fetch-on-mount
     initializeWorkspace();
@@ -457,15 +481,41 @@ export default function WorkspacePage() {
                   />
                 </div>
               ) : (
-                <h1
-                  className="text-2xl font-bold text-gray-900 cursor-pointer hover:text-blue-600 transition-colors"
-                  onClick={() => {
-                    setTitleInput(document.title);
-                    setIsEditingTitle(true);
-                  }}
-                >
-                  {document.title}
-                </h1>
+                <div className="flex items-center gap-2 group">
+                  <h1
+                    className="text-2xl font-bold text-gray-900 cursor-pointer hover:text-blue-600 transition-colors"
+                    onClick={() => {
+                      setTitleInput(document.title);
+                      setIsEditingTitle(true);
+                    }}
+                  >
+                    {document.title}
+                  </h1>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTitleInput(document.title);
+                      setIsEditingTitle(true);
+                    }}
+                    className="text-gray-400 hover:text-blue-600 opacity-70 group-hover:opacity-100 transition-opacity"
+                    aria-label="Rename document"
+                    title="Rename document"
+                  >
+                    <svg
+                      className="h-5 w-5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                      />
+                    </svg>
+                  </button>
+                </div>
               )}
             </div>
 
@@ -489,16 +539,37 @@ export default function WorkspacePage() {
               </span>
 
               {savedUserId ? (
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
-                  Saved to your account
-                </span>
+                <>
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                    Saved to your account
+                  </span>
+                  <button
+                    onClick={handleSignOut}
+                    disabled={isSigningOut}
+                    className="text-sm font-medium text-gray-600 hover:text-gray-900 disabled:opacity-50"
+                  >
+                    {isSigningOut ? "Signing out..." : "Sign out"}
+                  </button>
+                </>
               ) : (
-                <Link
-                  href="/app/save"
-                  className="inline-flex items-center rounded-md bg-gray-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-gray-800"
-                >
-                  Save workspace
-                </Link>
+                <>
+                  {/* TODO(cleanup): "Log in" and "Save workspace" both land on /app/save and
+                      read as two near-identical buttons. This is a stopgap so a signed-out
+                      returning user has a way back in at all — the save/sign-in entry UX could
+                      use a proper pass later (see .agent-memory/OPEN_QUESTIONS.md). */}
+                  <Link
+                    href="/app/save?mode=signin"
+                    className="inline-flex items-center rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  >
+                    Log in
+                  </Link>
+                  <Link
+                    href="/app/save"
+                    className="inline-flex items-center rounded-md bg-gray-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-gray-800"
+                  >
+                    Save workspace
+                  </Link>
+                </>
               )}
             </div>
           </div>
@@ -574,7 +645,10 @@ export default function WorkspacePage() {
                   {pages.map((page) => {
                     const isOcrRunning = !!ocrRunningIds[page.id];
                     const isActioning = actioningPageId === page.id;
-                    const blocked = hasBlockingQuality(page.ocr?.warnings ?? null);
+                    const blocked = hasBlockingQuality(
+                      page.ocr?.warnings ?? null,
+                      page.ocr?.extractedText ?? null
+                    );
                     const canAccept =
                       page.status === "OCR_COMPLETE" && !blocked && !isActioning;
                     const canReupload = page.status !== "ACCEPTED" && !isActioning;
@@ -727,6 +801,31 @@ export default function WorkspacePage() {
 
           {/* Right column - Actions */}
           <div className="space-y-6">
+            {/* Naming nudge: shown once pages exist but the document still has its default
+                title, so the user is prompted to name it before finishing. */}
+            {pages.length > 0 &&
+              document.status === "IN_PROGRESS" &&
+              isDefaultDocumentTitle(document.title) && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                  <p className="text-sm text-amber-900 font-medium mb-2">
+                    Don&apos;t forget to name your document
+                  </p>
+                  <p className="text-sm text-amber-800 mb-3">
+                    Give it a label like &quot;Probation Conditions&quot; so it&apos;s easy to
+                    find later.
+                  </p>
+                  <button
+                    onClick={() => {
+                      setTitleInput(document.title);
+                      setIsEditingTitle(true);
+                    }}
+                    className="text-sm font-semibold text-amber-900 hover:text-amber-700 underline"
+                  >
+                    Name it now
+                  </button>
+                </div>
+              )}
+
             {/* Status card */}
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">

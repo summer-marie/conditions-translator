@@ -334,6 +334,25 @@ This applies to:
 
 # 12. Local Session Memory
 
+## Session continuity and working memory
+
+Before starting or continuing any non-trivial task, Claude should review available local session-memory files (if present) and update them when useful.
+
+Use session memory to:
+- capture the task being worked on
+- record important context, assumptions, and constraints
+- note open questions, risks, or follow-up items
+- preserve handoff context if the session may be interrupted or hit context limits
+
+Guidelines:
+- Keep memory notes short, factual, and useful for future continuation
+- Update memory before or during meaningful work when the task involves debugging,
+  behavior changes, architecture decisions, environment/configuration changes,
+  multi-file edits, or unresolved questions
+- Prefer updating local gitignored memory files rather than creating extra repo docs
+  unless the information belongs in project documentation
+- Do not commit local session-memory files unless explicitly told to do so
+
 Use local memory files for long sessions and context handoff.
 
 Repository location:

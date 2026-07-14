@@ -4,47 +4,30 @@
 // Phase 4 §4.2). Server-side only; never logs raw extracted text.
 
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { prisma } from "@/lib/database/prisma";
 import { AppError } from "@/lib/errors";
 import { readPageImage } from "@/lib/storage/blob";
 import { runPageOcr } from "@/lib/ocr/client";
 import { hasBlockingQualityIssue } from "@/lib/ocr/schema";
+import { getCurrentOwner } from "@/lib/auth/session";
+import { getOwnedDocument } from "@/lib/permissions/ownership";
 
-const TMP_SESSION_COOKIE = "tmp_session";
 const DEFAULT_RETAKE_GUIDANCE =
   "The image quality was too low to extract text. Please retake the photo in good lighting with the full page visible.";
 
 export async function POST(
   request: Request,
-  { params }: { params: { documentId: string; pageId: string } }
+  { params }: { params: Promise<{ documentId: string; pageId: string }> }
 ) {
   try {
-    const { documentId, pageId } = params;
+    const { documentId, pageId } = await params;
 
-    const cookieStore = await cookies();
-    const sessionToken = cookieStore.get(TMP_SESSION_COOKIE)?.value;
-
-    if (!sessionToken) {
-      throw new AppError("No session found", 401, "NO_SESSION");
+    const owner = await getCurrentOwner();
+    if (!owner) {
+      throw new AppError("No active session found.", 401, "NO_ACTIVE_SESSION");
     }
 
-    const session = await prisma.temporarySession.findUnique({
-      where: { token: sessionToken },
-    });
-
-    if (!session) {
-      throw new AppError("Invalid session", 401, "INVALID_SESSION");
-    }
-
-    const document = await prisma.document.findFirst({
-      where: {
-        id: documentId,
-        temporarySessionId: session.id,
-        deletionState: "ACTIVE",
-      },
-    });
-
+    const document = await getOwnedDocument(owner, documentId);
     if (!document) {
       throw new AppError("Document not found", 404, "DOCUMENT_NOT_FOUND");
     }
@@ -79,6 +62,14 @@ export async function POST(
     }
 
     const { buffer, contentType } = await readPageImage(page.blobPath);
+    // TEMP DIAGNOSTIC (2026-07-14, remove after the OCR-502 investigation is closed): ids and
+    // byte size only — never image content or extracted text.
+    console.log("[ocr-diag] route invoking OCR", {
+      documentId,
+      pageId,
+      imageBytes: buffer.length,
+      contentType,
+    });
     const result = await runPageOcr({ imageBuffer: buffer, contentType });
 
     const failed = result.quality.unreadable || result.extractedText.trim().length === 0;
@@ -123,7 +114,7 @@ export async function POST(
     return NextResponse.json({
       page: updatedPage,
       ocr: ocrResult,
-      blockingQualityIssue: hasBlockingQualityIssue(result.quality),
+      blockingQualityIssue: hasBlockingQualityIssue(result.quality, result.extractedText),
     });
   } catch (error) {
     if (error instanceof AppError) {

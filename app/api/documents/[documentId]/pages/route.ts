@@ -4,14 +4,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/database/prisma";
 import { AppError } from "@/lib/errors";
-import { cookies } from "next/headers";
 import { DOCUMENT_MAX_PAGES } from "@/lib/constants";
 import { validateImageUpload } from "@/lib/validation/image";
 import { uploadPageImage } from "@/lib/storage/blob";
+import { BlobError } from "@vercel/blob";
 import { getCurrentOwner } from "@/lib/auth/session";
 import { getOwnedDocument } from "@/lib/permissions/ownership";
-
-const TMP_SESSION_COOKIE = "tmp_session";
 
 /**
  * GET /api/documents/[documentId]/pages
@@ -19,10 +17,10 @@ const TMP_SESSION_COOKIE = "tmp_session";
  */
 export async function GET(
   request: Request,
-  { params }: { params: { documentId: string } }
+  { params }: { params: Promise<{ documentId: string }> }
 ) {
   try {
-    const { documentId } = params;
+    const { documentId } = await params;
 
     const owner = await getCurrentOwner();
     if (!owner) {
@@ -66,36 +64,19 @@ export async function GET(
  */
 export async function POST(
   request: Request,
-  { params }: { params: { documentId: string } }
+  { params }: { params: Promise<{ documentId: string }> }
 ) {
   let createdPageId: string | null = null;
 
   try {
-    const { documentId } = params;
+    const { documentId } = await params;
 
-    const cookieStore = await cookies();
-    const sessionToken = cookieStore.get(TMP_SESSION_COOKIE)?.value;
-
-    if (!sessionToken) {
-      throw new AppError("No session found", 401, "NO_SESSION");
+    const owner = await getCurrentOwner();
+    if (!owner) {
+      throw new AppError("No active session found.", 401, "NO_ACTIVE_SESSION");
     }
 
-    const session = await prisma.temporarySession.findUnique({
-      where: { token: sessionToken },
-    });
-
-    if (!session) {
-      throw new AppError("Invalid session", 401, "INVALID_SESSION");
-    }
-
-    const document = await prisma.document.findFirst({
-      where: {
-        id: documentId,
-        temporarySessionId: session.id,
-        deletionState: "ACTIVE",
-      },
-    });
-
+    const document = await getOwnedDocument(owner, documentId);
     if (!document) {
       throw new AppError("Document not found", 404, "DOCUMENT_NOT_FOUND");
     }
@@ -167,7 +148,17 @@ export async function POST(
       );
     }
 
-    console.error("Error uploading page", error instanceof Error ? error.name : "unknown error");
+    // BlobError messages are storage/config diagnostics (e.g. auth/environment/content-type
+    // problems) and never contain page or document content, so they're safe to log in full —
+    // unlike other unexpected errors here, which could echo request/document content.
+    console.error(
+      "Error uploading page",
+      error instanceof BlobError
+        ? `${error.name}: ${error.message}`
+        : error instanceof Error
+          ? error.name
+          : "unknown error"
+    );
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

@@ -50,3 +50,12 @@ export const ALLOWED_IMAGE_MIME_TYPES = [
   "image/png",
   "image/webp",
 ] as const;
+
+// Default label a temporary Document is created with before the user names it (Phase 3 intake).
+// Centralized so the creation call and any "still unnamed?" check never drift apart.
+export const DEFAULT_DOCUMENT_TITLE = "Untitled Document";
+
+// True when a Document still has its unedited default title (trimmed, case-insensitive).
+export function isDefaultDocumentTitle(title: string): boolean {
+  return title.trim().toLowerCase() === DEFAULT_DOCUMENT_TITLE.toLowerCase();
+}

@@ -14,25 +14,26 @@ import {
   getOwnedDocument,
   createDocument as createOwnedDocument,
 } from "@/lib/permissions/ownership";
-import { TEMP_SESSION_TTL_HOURS } from "@/lib/constants";
+import { TEMP_SESSION_TTL_HOURS, DEFAULT_DOCUMENT_TITLE } from "@/lib/constants";
 import {
   getTemporarySession,
   isPrivacyAccepted,
 } from "@/lib/session/temporary";
+import { getCurrentOwner } from "@/lib/auth/session";
 import { validateImageUpload } from "@/lib/validation/image";
 import { uploadPageImage, deletePageImage } from "@/lib/storage/blob";
 import { hasBlockingQualityIssue } from "@/lib/ocr/schema";
 import { generateSectionsForDocument } from "@/lib/sections/generate";
 
-// Resolves the current owner (temporary session only for now; Phase 7 adds user accounts) and
-// asserts the Document exists, belongs to that owner, and is still IN_PROGRESS.
+// Resolves the current owner (a signed-in user takes precedence over a temporary session, same
+// as every owner-aware API route — docs/05_Account_Creation_and_Temporary_Access.md) and asserts
+// the Document exists, belongs to that owner, and is still IN_PROGRESS.
 async function requireInProgressOwnedDocument(documentId: string) {
-  const session = await getTemporarySession();
-  if (!session) {
+  const owner = await getCurrentOwner();
+  if (!owner) {
     throw new AppError("No active session found.", 401, "NO_ACTIVE_SESSION");
   }
 
-  const owner: Owner = temporaryOwner(session.id);
   const document = await getOwnedDocument(owner, documentId);
   if (!document) {
     throw new AppError("Document not found.", 404, "DOCUMENT_NOT_FOUND");
@@ -55,7 +56,7 @@ async function requireInProgressOwnedDocument(documentId: string) {
  * If not authenticated, uses the temporary session ID.
  */
 export async function createTemporaryDocument(
-  title: string = "Untitled Document"
+  title: string = DEFAULT_DOCUMENT_TITLE
 ) {
   // Check if privacy notice has been accepted
   const privacyAccepted = await isPrivacyAccepted();
@@ -96,16 +97,14 @@ export async function createTemporaryDocument(
  * generation failure — that is a normal, retryable outcome the caller renders in the UI).
  */
 export async function finishDocument(documentId: string) {
-  const session = await getTemporarySession();
-  if (!session) {
+  const owner = await getCurrentOwner();
+  if (!owner) {
     throw new AppError(
       "No active session found.",
       401,
       "NO_ACTIVE_SESSION"
     );
   }
-
-  const owner: Owner = temporaryOwner(session.id);
 
   const document = await getOwnedDocument(owner, documentId);
   if (!document) {
@@ -158,16 +157,14 @@ export async function finishDocument(documentId: string) {
  * or back to PROCESSING_FAILED on another failure.
  */
 export async function retryDocumentProcessing(documentId: string) {
-  const session = await getTemporarySession();
-  if (!session) {
+  const owner = await getCurrentOwner();
+  if (!owner) {
     throw new AppError(
       "No active session found.",
       401,
       "NO_ACTIVE_SESSION"
     );
   }
-
-  const owner: Owner = temporaryOwner(session.id);
 
   const document = await getOwnedDocument(owner, documentId);
   if (!document) {
@@ -202,16 +199,14 @@ export async function updateDocumentTitle(
   title: string
 ) {
   // Get owner information
-  const session = await getTemporarySession();
-  if (!session) {
+  const owner = await getCurrentOwner();
+  if (!owner) {
     throw new AppError(
       "No active session found.",
       401,
       "NO_ACTIVE_SESSION"
     );
   }
-
-  const owner: Owner = temporaryOwner(session.id);
 
   // Verify ownership and get document
   const document = await getOwnedDocument(owner, documentId);
@@ -271,7 +266,7 @@ export async function acceptPage(documentId: string, pageId: string) {
     | { blurry: boolean; cutOff: boolean; sideways: boolean; incomplete: boolean; unreadable: boolean }
     | null;
 
-  if (warnings && hasBlockingQualityIssue(warnings)) {
+  if (warnings && hasBlockingQualityIssue(warnings, page.ocr.extractedText)) {
     throw new AppError(
       "This page's image quality is too low to accept. Please retake it.",
       422,

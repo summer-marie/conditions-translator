@@ -55,7 +55,7 @@ describe("GET /api/documents/[documentId]/pages/[pageId]/image", () => {
       "http://localhost/api/documents/doc-123/pages/page-1/image"
     );
     const response = await GET(request, {
-      params: { documentId: "doc-123", pageId: "page-1" },
+      params: Promise.resolve({ documentId: "doc-123", pageId: "page-1" }),
     });
 
     expect(response.status).toBe(200);
@@ -82,7 +82,7 @@ describe("GET /api/documents/[documentId]/pages/[pageId]/image", () => {
       "http://localhost/api/documents/doc-123/pages/page-1/image"
     );
     const response = await GET(request, {
-      params: { documentId: "doc-123", pageId: "page-1" },
+      params: Promise.resolve({ documentId: "doc-123", pageId: "page-1" }),
     });
 
     expect(response.status).toBe(200);
@@ -102,7 +102,7 @@ describe("GET /api/documents/[documentId]/pages/[pageId]/image", () => {
       "http://localhost/api/documents/doc-999/pages/page-1/image"
     );
     const response = await GET(request, {
-      params: { documentId: "doc-999", pageId: "page-1" },
+      params: Promise.resolve({ documentId: "doc-999", pageId: "page-1" }),
     });
 
     expect(response.status).toBe(404);
@@ -122,7 +122,7 @@ describe("GET /api/documents/[documentId]/pages/[pageId]/image", () => {
       "http://localhost/api/documents/doc-123/pages/page-1/image"
     );
     const response = await GET(request, {
-      params: { documentId: "doc-123", pageId: "page-1" },
+      params: Promise.resolve({ documentId: "doc-123", pageId: "page-1" }),
     });
 
     expect(response.status).toBe(404);
@@ -135,7 +135,7 @@ describe("GET /api/documents/[documentId]/pages/[pageId]/image", () => {
       "http://localhost/api/documents/doc-123/pages/page-1/image"
     );
     const response = await GET(request, {
-      params: { documentId: "doc-123", pageId: "page-1" },
+      params: Promise.resolve({ documentId: "doc-123", pageId: "page-1" }),
     });
 
     expect(response.status).toBe(401);
@@ -157,7 +157,7 @@ describe("GET /api/documents/[documentId]/pages/[pageId]/image", () => {
       "http://localhost/api/documents/doc-123/pages/page-1/image"
     );
     const response = await GET(request, {
-      params: { documentId: "doc-123", pageId: "page-1" },
+      params: Promise.resolve({ documentId: "doc-123", pageId: "page-1" }),
     });
 
     expect(response.status).toBe(404);

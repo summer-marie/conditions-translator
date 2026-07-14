@@ -18,10 +18,10 @@ import { deleteDocument } from "@/lib/documents/deletion";
  */
 export async function GET(
   request: Request,
-  { params }: { params: { documentId: string } }
+  { params }: { params: Promise<{ documentId: string }> }
 ) {
   try {
-    const { documentId } = params;
+    const { documentId } = await params;
 
     const owner = await getCurrentOwner();
     if (!owner) {
@@ -65,10 +65,10 @@ export async function GET(
  */
 export async function PATCH(
   request: Request,
-  { params }: { params: { documentId: string } }
+  { params }: { params: Promise<{ documentId: string }> }
 ) {
   try {
-    const { documentId } = params;
+    const { documentId } = await params;
 
     const owner = await getCurrentOwner();
     if (!owner) {
@@ -125,10 +125,10 @@ export async function PATCH(
  */
 export async function DELETE(
   request: Request,
-  { params }: { params: { documentId: string } }
+  { params }: { params: Promise<{ documentId: string }> }
 ) {
   try {
-    const { documentId } = params;
+    const { documentId } = await params;
 
     const owner = await getCurrentOwner();
     if (!owner) {

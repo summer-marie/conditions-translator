@@ -58,7 +58,7 @@ describe("GET /api/documents/[documentId]", () => {
     vi.mocked(prisma.document.findFirst).mockResolvedValue(mockDocument as any);
 
     const request = new Request("http://localhost/api/documents/doc-123");
-    const response = await GET(request, { params: { documentId: "doc-123" } });
+    const response = await GET(request, { params: Promise.resolve({ documentId: "doc-123" }) });
     const data = await response.json();
 
     expect(response.status).toBe(200);
@@ -83,7 +83,7 @@ describe("GET /api/documents/[documentId]", () => {
     } as any);
 
     const request = new Request("http://localhost/api/documents/doc-123");
-    await GET(request, { params: { documentId: "doc-123" } });
+    await GET(request, { params: Promise.resolve({ documentId: "doc-123" }) });
 
     expect(prisma.document.findFirst).toHaveBeenCalledWith({
       where: { id: "doc-123", userId: "user-123", deletionState: "ACTIVE" },
@@ -96,7 +96,7 @@ describe("GET /api/documents/[documentId]", () => {
     vi.mocked(prisma.document.findFirst).mockResolvedValue(null);
 
     const request = new Request("http://localhost/api/documents/doc-999");
-    const response = await GET(request, { params: { documentId: "doc-999" } });
+    const response = await GET(request, { params: Promise.resolve({ documentId: "doc-999" }) });
 
     expect(response.status).toBe(404);
   });
@@ -105,7 +105,7 @@ describe("GET /api/documents/[documentId]", () => {
     vi.mocked(getCurrentOwner).mockResolvedValue(null);
 
     const request = new Request("http://localhost/api/documents/doc-123");
-    const response = await GET(request, { params: { documentId: "doc-123" } });
+    const response = await GET(request, { params: Promise.resolve({ documentId: "doc-123" }) });
 
     expect(response.status).toBe(401);
   });
@@ -136,7 +136,7 @@ describe("PATCH /api/documents/[documentId]", () => {
     } as any);
 
     const response = await PATCH(patchRequest("New Title"), {
-      params: { documentId: "doc-123" },
+      params: Promise.resolve({ documentId: "doc-123" }),
     });
     const data = await response.json();
 
@@ -160,7 +160,7 @@ describe("PATCH /api/documents/[documentId]", () => {
       title: "New Title",
     } as any);
 
-    await PATCH(patchRequest("New Title"), { params: { documentId: "doc-123" } });
+    await PATCH(patchRequest("New Title"), { params: Promise.resolve({ documentId: "doc-123" }) });
 
     expect(prisma.document.update).toHaveBeenCalledWith({
       where: { id: "doc-123", userId: "user-123" },
@@ -173,7 +173,7 @@ describe("PATCH /api/documents/[documentId]", () => {
     vi.mocked(prisma.document.findFirst).mockResolvedValue(null);
 
     const response = await PATCH(patchRequest("New Title"), {
-      params: { documentId: "doc-123" },
+      params: Promise.resolve({ documentId: "doc-123" }),
     });
 
     expect(response.status).toBe(404);
@@ -187,7 +187,7 @@ describe("PATCH /api/documents/[documentId]", () => {
       deletionState: "ACTIVE",
     } as any);
 
-    const response = await PATCH(patchRequest("   "), { params: { documentId: "doc-123" } });
+    const response = await PATCH(patchRequest("   "), { params: Promise.resolve({ documentId: "doc-123" }) });
     const data = await response.json();
 
     expect(response.status).toBe(400);
@@ -203,7 +203,7 @@ describe("PATCH /api/documents/[documentId]", () => {
     } as any);
 
     const response = await PATCH(patchRequest("a".repeat(201)), {
-      params: { documentId: "doc-123" },
+      params: Promise.resolve({ documentId: "doc-123" }),
     });
     const data = await response.json();
 
@@ -215,7 +215,7 @@ describe("PATCH /api/documents/[documentId]", () => {
     vi.mocked(getCurrentOwner).mockResolvedValue(null);
 
     const response = await PATCH(patchRequest("New Title"), {
-      params: { documentId: "doc-123" },
+      params: Promise.resolve({ documentId: "doc-123" }),
     });
 
     expect(response.status).toBe(401);
@@ -235,7 +235,7 @@ describe("DELETE /api/documents/[documentId]", () => {
     });
 
     const request = new Request("http://localhost/api/documents/doc-123", { method: "DELETE" });
-    const response = await DELETE(request, { params: { documentId: "doc-123" } });
+    const response = await DELETE(request, { params: Promise.resolve({ documentId: "doc-123" }) });
     const data = await response.json();
 
     expect(response.status).toBe(200);
@@ -251,7 +251,7 @@ describe("DELETE /api/documents/[documentId]", () => {
     });
 
     const request = new Request("http://localhost/api/documents/doc-123", { method: "DELETE" });
-    const response = await DELETE(request, { params: { documentId: "doc-123" } });
+    const response = await DELETE(request, { params: Promise.resolve({ documentId: "doc-123" }) });
     const data = await response.json();
 
     expect(response.status).toBe(200);
@@ -265,7 +265,7 @@ describe("DELETE /api/documents/[documentId]", () => {
     );
 
     const request = new Request("http://localhost/api/documents/doc-999", { method: "DELETE" });
-    const response = await DELETE(request, { params: { documentId: "doc-999" } });
+    const response = await DELETE(request, { params: Promise.resolve({ documentId: "doc-999" }) });
 
     expect(response.status).toBe(404);
   });
@@ -274,7 +274,7 @@ describe("DELETE /api/documents/[documentId]", () => {
     vi.mocked(getCurrentOwner).mockResolvedValue(null);
 
     const request = new Request("http://localhost/api/documents/doc-123", { method: "DELETE" });
-    const response = await DELETE(request, { params: { documentId: "doc-123" } });
+    const response = await DELETE(request, { params: Promise.resolve({ documentId: "doc-123" }) });
 
     expect(response.status).toBe(401);
     expect(deleteDocument).not.toHaveBeenCalled();
