@@ -10,6 +10,7 @@
     "url": "git+https://github.com/summer-marie/conditions-translator.git"
   },
   "scripts": {
+    "postinstall": "prisma generate",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
