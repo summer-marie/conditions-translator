@@ -16,9 +16,6 @@ const JPEG_BYTES = new Uint8Array([0xff, 0xd8, 0xff, 0x00, 0x00, 0x00, 0x00, 0x0
 // Mock Prisma
 vi.mock("@/lib/database/prisma", () => ({
   prisma: {
-    temporarySession: {
-      findUnique: vi.fn(),
-    },
     document: {
       findFirst: vi.fn(),
     },
@@ -32,17 +29,12 @@ vi.mock("@/lib/database/prisma", () => ({
   },
 }));
 
-// Mock cookies (still used by the POST upload path, which stays temporary-session-scoped)
-vi.mock("next/headers", () => ({
-  cookies: vi.fn(),
-}));
-
 // Mock Blob storage so no real network/OIDC credentials are needed in unit tests.
 vi.mock("@/lib/storage/blob", () => ({
   uploadPageImage: vi.fn(),
 }));
 
-// Mock owner resolution for the owner-aware GET handler.
+// Mock owner resolution for the owner-aware GET and POST handlers.
 vi.mock("@/lib/auth/session", () => ({
   getCurrentOwner: vi.fn(),
 }));
@@ -121,13 +113,6 @@ describe("POST /api/documents/[documentId]/pages", () => {
   });
 
   it("should upload a page successfully", async () => {
-    const mockSession = {
-      id: "session-123",
-      token: "token-abc",
-      noticeAcceptedAt: new Date(),
-      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-    };
-
     const mockDocument = {
       id: "doc-123",
       title: "Test Document",
@@ -153,12 +138,10 @@ describe("POST /api/documents/[documentId]/pages", () => {
 
     const mockUpdatedPage = { ...mockCreatedPage, blobPath: "conditions-translator/documents/doc-123/pages/page-123.jpeg" };
 
-    const { cookies } = await import("next/headers");
-    vi.mocked(cookies).mockResolvedValue({
-      get: vi.fn().mockReturnValue({ value: "token-abc" }),
-    } as any);
-
-    vi.mocked(prisma.temporarySession.findUnique).mockResolvedValue(mockSession as any);
+    vi.mocked(getCurrentOwner).mockResolvedValue({
+      kind: "temporary",
+      temporarySessionId: "session-123",
+    });
     vi.mocked(prisma.document.findFirst).mockResolvedValue(mockDocument as any);
     vi.mocked(prisma.page.count).mockResolvedValue(0);
     vi.mocked(prisma.page.create).mockResolvedValue(mockCreatedPage as any);
@@ -204,11 +187,8 @@ describe("POST /api/documents/[documentId]/pages", () => {
     });
   });
 
-  it("should return 401 if no session cookie", async () => {
-    const { cookies } = await import("next/headers");
-    vi.mocked(cookies).mockResolvedValue({
-      get: vi.fn().mockReturnValue(null),
-    } as any);
+  it("should return 401 when there is no active session or signed-in user", async () => {
+    vi.mocked(getCurrentOwner).mockResolvedValue(null);
 
     const formData = new FormData();
     formData.append("file", new Blob([JPEG_BYTES], { type: "image/jpeg" }), "test.jpg");
@@ -222,46 +202,14 @@ describe("POST /api/documents/[documentId]/pages", () => {
     const data = await response.json();
 
     expect(response.status).toBe(401);
-    expect(data.error).toBe("No session found");
-  });
-
-  it("should return 401 if session token is invalid", async () => {
-    const { cookies } = await import("next/headers");
-    vi.mocked(cookies).mockResolvedValue({
-      get: vi.fn().mockReturnValue({ value: "invalid-token" }),
-    } as any);
-
-    vi.mocked(prisma.temporarySession.findUnique).mockResolvedValue(null);
-
-    const formData = new FormData();
-    formData.append("file", new Blob([JPEG_BYTES], { type: "image/jpeg" }), "test.jpg");
-
-    const request = new Request("http://localhost/api/documents/doc-123/pages", {
-      method: "POST",
-      body: formData,
-    });
-
-    const response = await POST(request, { params: Promise.resolve({ documentId: "doc-123" }) });
-    const data = await response.json();
-
-    expect(response.status).toBe(401);
-    expect(data.error).toBe("Invalid session");
+    expect(data.code).toBe("NO_ACTIVE_SESSION");
   });
 
   it("should return 404 if document not found", async () => {
-    const mockSession = {
-      id: "session-123",
-      token: "token-abc",
-      noticeAcceptedAt: new Date(),
-      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-    };
-
-    const { cookies } = await import("next/headers");
-    vi.mocked(cookies).mockResolvedValue({
-      get: vi.fn().mockReturnValue({ value: "token-abc" }),
-    } as any);
-
-    vi.mocked(prisma.temporarySession.findUnique).mockResolvedValue(mockSession as any);
+    vi.mocked(getCurrentOwner).mockResolvedValue({
+      kind: "temporary",
+      temporarySessionId: "session-123",
+    });
     vi.mocked(prisma.document.findFirst).mockResolvedValue(null);
 
     const formData = new FormData();
@@ -279,14 +227,63 @@ describe("POST /api/documents/[documentId]/pages", () => {
     expect(data.error).toBe("Document not found");
   });
 
-  it("should return 400 if document is not IN_PROGRESS", async () => {
-    const mockSession = {
-      id: "session-123",
-      token: "token-abc",
-      noticeAcceptedAt: new Date(),
-      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+  it("uploads a page to an IN_PROGRESS document owned by a signed-in user (resumed after ownership transfer)", async () => {
+    const mockDocument = {
+      id: "doc-123",
+      title: "Test Document",
+      status: "IN_PROGRESS",
+      userId: "user-123",
+      temporarySessionId: null,
+      expiresAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      deletionState: "ACTIVE",
     };
 
+    const mockCreatedPage = {
+      id: "page-123",
+      documentId: "doc-123",
+      order: 0,
+      status: "PENDING",
+      ocrFailureReason: null,
+      blobPath: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const mockUpdatedPage = { ...mockCreatedPage, blobPath: "conditions-translator/documents/doc-123/pages/page-123.jpeg" };
+
+    vi.mocked(getCurrentOwner).mockResolvedValue({ kind: "user", userId: "user-123" });
+    vi.mocked(prisma.document.findFirst).mockResolvedValue(mockDocument as any);
+    vi.mocked(prisma.page.count).mockResolvedValue(0);
+    vi.mocked(prisma.page.create).mockResolvedValue(mockCreatedPage as any);
+    vi.mocked(prisma.page.update).mockResolvedValue(mockUpdatedPage as any);
+
+    const { uploadPageImage } = await import("@/lib/storage/blob");
+    vi.mocked(uploadPageImage).mockResolvedValue({
+      pathname: mockUpdatedPage.blobPath,
+      url: "https://example.private.blob.vercel-storage.com/" + mockUpdatedPage.blobPath,
+      contentType: "image/jpeg",
+    });
+
+    const formData = new FormData();
+    formData.append("file", new Blob([JPEG_BYTES], { type: "image/jpeg" }), "test.jpg");
+
+    const request = new Request("http://localhost/api/documents/doc-123/pages", {
+      method: "POST",
+      body: formData,
+    });
+
+    const response = await POST(request, { params: Promise.resolve({ documentId: "doc-123" }) });
+    const data = await response.json();
+
+    expect(response.status).toBe(201);
+    expect(data.page.blobPath).toBe(mockUpdatedPage.blobPath);
+    expect(prisma.document.findFirst).toHaveBeenCalledWith({
+      where: { id: "doc-123", userId: "user-123", deletionState: "ACTIVE" },
+    });
+  });
+
+  it("should return 400 if document is not IN_PROGRESS", async () => {
     const mockDocument = {
       id: "doc-123",
       title: "Test Document",
@@ -299,12 +296,10 @@ describe("POST /api/documents/[documentId]/pages", () => {
       deletionState: "ACTIVE",
     };
 
-    const { cookies } = await import("next/headers");
-    vi.mocked(cookies).mockResolvedValue({
-      get: vi.fn().mockReturnValue({ value: "token-abc" }),
-    } as any);
-
-    vi.mocked(prisma.temporarySession.findUnique).mockResolvedValue(mockSession as any);
+    vi.mocked(getCurrentOwner).mockResolvedValue({
+      kind: "temporary",
+      temporarySessionId: "session-123",
+    });
     vi.mocked(prisma.document.findFirst).mockResolvedValue(mockDocument as any);
 
     const formData = new FormData();
@@ -323,13 +318,6 @@ describe("POST /api/documents/[documentId]/pages", () => {
   });
 
   it("should return 422 if max pages exceeded", async () => {
-    const mockSession = {
-      id: "session-123",
-      token: "token-abc",
-      noticeAcceptedAt: new Date(),
-      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-    };
-
     const mockDocument = {
       id: "doc-123",
       title: "Test Document",
@@ -342,12 +330,10 @@ describe("POST /api/documents/[documentId]/pages", () => {
       deletionState: "ACTIVE",
     };
 
-    const { cookies } = await import("next/headers");
-    vi.mocked(cookies).mockResolvedValue({
-      get: vi.fn().mockReturnValue({ value: "token-abc" }),
-    } as any);
-
-    vi.mocked(prisma.temporarySession.findUnique).mockResolvedValue(mockSession as any);
+    vi.mocked(getCurrentOwner).mockResolvedValue({
+      kind: "temporary",
+      temporarySessionId: "session-123",
+    });
     vi.mocked(prisma.document.findFirst).mockResolvedValue(mockDocument as any);
     vi.mocked(prisma.page.count).mockResolvedValue(10); // Already at max
 
@@ -368,13 +354,6 @@ describe("POST /api/documents/[documentId]/pages", () => {
   });
 
   it("should return 400 if no file provided", async () => {
-    const mockSession = {
-      id: "session-123",
-      token: "token-abc",
-      noticeAcceptedAt: new Date(),
-      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-    };
-
     const mockDocument = {
       id: "doc-123",
       title: "Test Document",
@@ -387,12 +366,10 @@ describe("POST /api/documents/[documentId]/pages", () => {
       deletionState: "ACTIVE",
     };
 
-    const { cookies } = await import("next/headers");
-    vi.mocked(cookies).mockResolvedValue({
-      get: vi.fn().mockReturnValue({ value: "token-abc" }),
-    } as any);
-
-    vi.mocked(prisma.temporarySession.findUnique).mockResolvedValue(mockSession as any);
+    vi.mocked(getCurrentOwner).mockResolvedValue({
+      kind: "temporary",
+      temporarySessionId: "session-123",
+    });
     vi.mocked(prisma.document.findFirst).mockResolvedValue(mockDocument as any);
     vi.mocked(prisma.page.count).mockResolvedValue(0);
 
@@ -412,13 +389,6 @@ describe("POST /api/documents/[documentId]/pages", () => {
   });
 
   it("should return 400 for a file with no recognizable image header", async () => {
-    const mockSession = {
-      id: "session-123",
-      token: "token-abc",
-      noticeAcceptedAt: new Date(),
-      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-    };
-
     const mockDocument = {
       id: "doc-123",
       title: "Test Document",
@@ -431,12 +401,10 @@ describe("POST /api/documents/[documentId]/pages", () => {
       deletionState: "ACTIVE",
     };
 
-    const { cookies } = await import("next/headers");
-    vi.mocked(cookies).mockResolvedValue({
-      get: vi.fn().mockReturnValue({ value: "token-abc" }),
-    } as any);
-
-    vi.mocked(prisma.temporarySession.findUnique).mockResolvedValue(mockSession as any);
+    vi.mocked(getCurrentOwner).mockResolvedValue({
+      kind: "temporary",
+      temporarySessionId: "session-123",
+    });
     vi.mocked(prisma.document.findFirst).mockResolvedValue(mockDocument as any);
     vi.mocked(prisma.page.count).mockResolvedValue(0);
 
@@ -456,13 +424,6 @@ describe("POST /api/documents/[documentId]/pages", () => {
   });
 
   it("should return 400 for file too large", async () => {
-    const mockSession = {
-      id: "session-123",
-      token: "token-abc",
-      noticeAcceptedAt: new Date(),
-      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-    };
-
     const mockDocument = {
       id: "doc-123",
       title: "Test Document",
@@ -475,12 +436,10 @@ describe("POST /api/documents/[documentId]/pages", () => {
       deletionState: "ACTIVE",
     };
 
-    const { cookies } = await import("next/headers");
-    vi.mocked(cookies).mockResolvedValue({
-      get: vi.fn().mockReturnValue({ value: "token-abc" }),
-    } as any);
-
-    vi.mocked(prisma.temporarySession.findUnique).mockResolvedValue(mockSession as any);
+    vi.mocked(getCurrentOwner).mockResolvedValue({
+      kind: "temporary",
+      temporarySessionId: "session-123",
+    });
     vi.mocked(prisma.document.findFirst).mockResolvedValue(mockDocument as any);
     vi.mocked(prisma.page.count).mockResolvedValue(0);
 
@@ -505,13 +464,6 @@ describe("POST /api/documents/[documentId]/pages", () => {
   });
 
   it("should increment page order correctly", async () => {
-    const mockSession = {
-      id: "session-123",
-      token: "token-abc",
-      noticeAcceptedAt: new Date(),
-      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-    };
-
     const mockDocument = {
       id: "doc-123",
       title: "Test Document",
@@ -535,12 +487,10 @@ describe("POST /api/documents/[documentId]/pages", () => {
       updatedAt: new Date(),
     };
 
-    const { cookies } = await import("next/headers");
-    vi.mocked(cookies).mockResolvedValue({
-      get: vi.fn().mockReturnValue({ value: "token-abc" }),
-    } as any);
-
-    vi.mocked(prisma.temporarySession.findUnique).mockResolvedValue(mockSession as any);
+    vi.mocked(getCurrentOwner).mockResolvedValue({
+      kind: "temporary",
+      temporarySessionId: "session-123",
+    });
     vi.mocked(prisma.document.findFirst).mockResolvedValue(mockDocument as any);
     vi.mocked(prisma.page.count).mockResolvedValue(5); // 5 pages already
     vi.mocked(prisma.page.create).mockResolvedValue(mockCreatedPage as any);
