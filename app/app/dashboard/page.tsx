@@ -13,6 +13,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { signOut } from "@/lib/actions/auth";
 
 type DocumentStatus =
   | "IN_PROGRESS"
@@ -58,11 +60,15 @@ interface SectionsModalState {
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [state, setState] = useState<DashboardState>({
     documents: [],
     isLoading: true,
     error: null,
   });
+  // Set once the dashboard is viewed by a signed-in account (Phase 7). null while temporary.
+  const [savedUserId, setSavedUserId] = useState<string | null>(null);
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const [deleteModal, setDeleteModal] = useState<{
     isOpen: boolean;
     document: Document | null;
@@ -116,6 +122,36 @@ export default function DashboardPage() {
       isMounted = false;
     };
   }, [fetchDocuments]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    fetch("/api/session/status")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((status) => {
+        if (isMounted && status) {
+          setSavedUserId(status.userId ?? null);
+        }
+      })
+      .catch(() => {
+        // Non-fatal: the sign-out button simply won't show if this fails.
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const handleSignOut = async () => {
+    setIsSigningOut(true);
+    try {
+      await signOut();
+      router.push("/");
+    } catch (error) {
+      console.error("Failed to sign out:", error);
+      setIsSigningOut(false);
+    }
+  };
 
   const handleDeleteClick = (document: Document) => {
     setDeleteModal({ isOpen: true, document, isDeleting: false, error: null });
@@ -329,11 +365,22 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">My Documents</h1>
-          <p className="text-gray-600">
-            {state.documents.length} document{state.documents.length !== 1 ? "s" : ""}
-          </p>
+        <div className="mb-8 flex items-start justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">My Documents</h1>
+            <p className="text-gray-600">
+              {state.documents.length} document{state.documents.length !== 1 ? "s" : ""}
+            </p>
+          </div>
+          {savedUserId && (
+            <button
+              onClick={handleSignOut}
+              disabled={isSigningOut}
+              className="text-sm font-medium text-gray-600 hover:text-gray-900 disabled:opacity-50"
+            >
+              {isSigningOut ? "Signing out..." : "Sign out"}
+            </button>
+          )}
         </div>
 
         {/* Document grid */}

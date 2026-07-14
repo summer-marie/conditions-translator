@@ -19,6 +19,7 @@ import {
   reuploadPage,
   deletePage,
 } from "@/lib/actions/document";
+import { signOut } from "@/lib/actions/auth";
 import { DEFAULT_DOCUMENT_TITLE, isDefaultDocumentTitle } from "@/lib/constants";
 
 interface OcrQuality {
@@ -132,6 +133,7 @@ export default function WorkspacePage() {
   const [expandedImagePage, setExpandedImagePage] = useState<Page | null>(null);
   // Set once the workspace is owned by a signed-in account (Phase 7). null while temporary.
   const [savedUserId, setSavedUserId] = useState<string | null>(null);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   async function initializeWorkspace() {
     try {
@@ -395,6 +397,17 @@ export default function WorkspacePage() {
     }
   };
 
+  const handleSignOut = async () => {
+    setIsSigningOut(true);
+    try {
+      await signOut();
+      router.push("/");
+    } catch (error) {
+      console.error("Failed to sign out:", error);
+      setIsSigningOut(false);
+    }
+  };
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time fetch-on-mount
     initializeWorkspace();
@@ -519,9 +532,18 @@ export default function WorkspacePage() {
               </span>
 
               {savedUserId ? (
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
-                  Saved to your account
-                </span>
+                <>
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                    Saved to your account
+                  </span>
+                  <button
+                    onClick={handleSignOut}
+                    disabled={isSigningOut}
+                    className="text-sm font-medium text-gray-600 hover:text-gray-900 disabled:opacity-50"
+                  >
+                    {isSigningOut ? "Signing out..." : "Sign out"}
+                  </button>
+                </>
               ) : (
                 <Link
                   href="/app/save"
