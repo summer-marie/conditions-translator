@@ -292,22 +292,24 @@ export default function DashboardPage() {
   // Loading skeleton
   if (state.isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
+      <div className="min-h-screen bg-[var(--color-background-page)] p-4 sm:p-6 lg:p-8">
         <div className="max-w-7xl mx-auto">
           <div className="mb-8">
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">My Documents</h1>
-            <p className="text-gray-600">Loading your documents...</p>
+            <h1 className="text-[var(--font-size-h1)] font-[var(--font-weight-h1)] text-[var(--color-text-heading)] mb-2" style={{ fontSize: 'var(--font-size-h1)' }}>
+              My Documents
+            </h1>
+            <p className="text-[var(--color-text-body)] text-[var(--font-size-body)]">Loading your documents...</p>
           </div>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="bg-white rounded-lg shadow p-6 space-y-4">
-                <div className="h-6 bg-gray-200 rounded animate-pulse"></div>
-                <div className="h-4 bg-gray-200 rounded w-2/3 animate-pulse"></div>
-                <div className="h-4 bg-gray-200 rounded w-1/2 animate-pulse"></div>
+              <div key={i} className="bg-[var(--color-background-card)] rounded-lg shadow-sm border border-[var(--color-border-card)] p-6 space-y-4">
+                <div className="h-6 bg-[var(--color-background-subtle)] rounded animate-pulse"></div>
+                <div className="h-4 bg-[var(--color-background-subtle)] rounded w-2/3 animate-pulse"></div>
+                <div className="h-4 bg-[var(--color-background-subtle)] rounded w-1/2 animate-pulse"></div>
                 <div className="space-y-2 pt-4">
-                  <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
-                  <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
+                  <div className="h-8 bg-[var(--color-background-subtle)] rounded animate-pulse"></div>
+                  <div className="h-8 bg-[var(--color-background-subtle)] rounded animate-pulse"></div>
                 </div>
               </div>
             ))}
@@ -320,19 +322,16 @@ export default function DashboardPage() {
   // Error state
   if (state.error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="text-center max-w-md">
-          <div className="text-red-600 text-5xl mb-4">⚠️</div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+      <div className="min-h-screen bg-[var(--color-background-page)] flex items-center justify-center p-4">
+        <div className="text-center max-w-md bg-[var(--color-background-card)] rounded-lg shadow-sm border border-[var(--color-border-card)] p-8">
+          <div className="text-[var(--color-accent-destructive)] text-5xl mb-4">⚠️</div>
+          <h2 className="text-[var(--font-size-h2)] font-[var(--font-weight-h2)] text-[var(--color-text-heading)] mb-2" style={{ fontSize: 'var(--font-size-h2)' }}>
             Unable to load documents
           </h2>
-          <p className="text-gray-600 mb-6">{state.error}</p>
-          <button
-            onClick={fetchDocuments}
-            className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700"
-          >
+          <p className="text-[var(--color-text-body)] text-[var(--font-size-body)] mb-6">{state.error}</p>
+          <Button onClick={fetchDocuments} variant="primary" size="md">
             Try again
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -341,21 +340,20 @@ export default function DashboardPage() {
   // Empty state
   if (state.documents.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="text-center max-w-md">
-          <div className="text-gray-400 text-6xl mb-4">📄</div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+      <div className="min-h-screen bg-[var(--color-background-page)] flex items-center justify-center p-4">
+        <div className="text-center max-w-md bg-[var(--color-background-card)] rounded-lg shadow-sm border border-[var(--color-border-card)] p-8">
+          <div className="text-[var(--color-text-meta)] text-6xl mb-4">📄</div>
+          <h2 className="text-[var(--font-size-h2)] font-[var(--font-weight-h2)] text-[var(--color-text-heading)] mb-2" style={{ fontSize: 'var(--font-size-h2)' }}>
             No documents yet
           </h2>
-          <p className="text-gray-600 mb-6">
+          <p className="text-[var(--color-text-body)] text-[var(--font-size-body)] mb-6">
             Upload your first supervision document to get started with AI-powered
             explanations.
           </p>
-          <Link
-            href="/app/workspace"
-            className="inline-block bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700"
-          >
-            Create new document
+          <Link href="/app/workspace" className="inline-block">
+            <Button variant="primary" size="md">
+              Create new document
+            </Button>
           </Link>
         </div>
       </div>
@@ -364,13 +362,15 @@ export default function DashboardPage() {
 
   // Main dashboard with documents
   return (
-    <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
+    <div className="min-h-screen bg-[var(--color-background-page)] p-4 sm:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-8 flex items-start justify-between">
+        <div className="mb-8 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">My Documents</h1>
-            <p className="text-gray-600">
+            <h1 className="text-[var(--font-size-h1)] font-[var(--font-weight-h1)] text-[var(--color-text-heading)] mb-2" style={{ fontSize: 'var(--font-size-h1)' }}>
+              My Documents
+            </h1>
+            <p className="text-[var(--color-text-body)] text-[var(--font-size-body)]">
               {state.documents.length} document{state.documents.length !== 1 ? "s" : ""}
             </p>
           </div>
@@ -378,7 +378,7 @@ export default function DashboardPage() {
             <button
               onClick={handleSignOut}
               disabled={isSigningOut}
-              className="text-sm font-medium text-gray-600 hover:text-gray-900 disabled:opacity-50"
+              className="text-sm font-medium text-[var(--color-text-body)] hover:text-[var(--color-text-heading)] disabled:opacity-50 self-start sm:self-auto"
             >
               {isSigningOut ? "Signing out..." : "Sign out"}
             </button>
@@ -395,22 +395,23 @@ export default function DashboardPage() {
             return (
               <div
                 key={document.id}
-                className="bg-white rounded-lg shadow p-6 flex flex-col"
+                className="bg-[var(--color-background-card)] rounded-lg shadow-sm border border-[var(--color-border-card)] p-6 flex flex-col hover:shadow-md transition-shadow"
               >
                 {/* Document header */}
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex-1 min-w-0 pr-2">
                     <h3
-                      className="text-lg font-semibold text-gray-900 truncate"
+                      className="text-[var(--font-size-h3)] font-[var(--font-weight-h3)] text-[var(--color-text-heading)] truncate"
                       title={document.title}
+                      style={{ fontSize: 'var(--font-size-h3)' }}
                     >
                       {document.title}
                     </h3>
-                    <p className="text-sm text-gray-500 mt-1">
+                    <p className="text-sm text-[var(--color-text-meta)] mt-1">
                       {document._count.pages} page{document._count.pages !== 1 ? "s" : ""}
                     </p>
                     {isDuplicate && (
-                      <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-1 bg-amber-50 text-amber-800 rounded text-xs font-medium">
+                      <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-1 bg-[var(--color-accent-warning-bg)] text-[var(--color-accent-warning)] rounded text-xs font-medium">
                         <span aria-hidden="true">⚠️</span>
                         <span>Similar document name</span>
                       </div>
@@ -422,13 +423,13 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Document metadata */}
-                <div className="text-sm text-gray-500 mb-4">
+                <div className="text-sm text-[var(--color-text-meta)] mb-4">
                   Created {formatDate(document.createdAt)}
                 </div>
 
                 {/* Document info */}
                 {hasSections && (
-                  <div className="text-sm text-gray-600 mb-4">
+                  <div className="text-sm text-[var(--color-text-body)] mb-4">
                     {document.sections.length} section{document.sections.length !== 1 ? "s" : ""}
                   </div>
                 )}
@@ -439,29 +440,36 @@ export default function DashboardPage() {
                     <>
                       <Link
                         href={`/app/chat`}
-                        className="block w-full text-center bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
+                        className="block"
                       >
-                        Start chat
+                        <Button variant="primary" size="md" fullWidth>
+                          Start chat
+                        </Button>
                       </Link>
                       {hasSections && (
-                        <button
+                        <Button
                           onClick={() => handleViewSections(document)}
-                          className="block w-full text-center bg-gray-100 text-gray-700 px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-200 transition-colors"
+                          variant="secondary"
+                          size="md"
+                          fullWidth
                         >
                           View sections
-                        </button>
+                        </Button>
                       )}
                     </>
                   )}
 
                   {/* Delete button - always available */}
-                  <button
+                  <Button
                     onClick={() => handleDeleteClick(document)}
-                    className="block w-full text-center bg-red-50 text-red-700 px-4 py-2 rounded-md text-sm font-medium hover:bg-red-100 transition-colors"
+                    variant="ghost"
+                    size="md"
+                    fullWidth
+                    className="text-[var(--color-accent-destructive)] hover:bg-[var(--color-accent-destructive-bg)] hover:text-[var(--color-accent-destructive)]"
                     aria-label={`Delete ${document.title}`}
                   >
                     Delete
-                  </button>
+                  </Button>
                 </div>
               </div>
             );
