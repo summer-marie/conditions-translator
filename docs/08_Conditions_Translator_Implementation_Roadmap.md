@@ -588,6 +588,22 @@ Runs after Phase 8 and before Phase 9 Cleanup, Reliability, and Demo Validation.
 
 Phase E2E is not considered complete until the app has also been exercised on a real Vercel deployment with real phone-camera uploads, not just local browser testing — OCR latency/quality and ownership-transfer behavior can differ on deployed infrastructure. See `docs/Deployment_Vercel.md` for deployment setup and `docs/Mobile_OCR_Tests_plan.md` for the mobile OCR test cases. Findings from this pass are recorded in `docs/TESTING_GUIDE.md` (§13, Deployment and Mobile Testing) and `.agent-memory/OPEN_QUESTIONS.md`.
 
+---
+
+# Phase Wireframe Implementation — UI Design Handoff
+
+Between Phase E2E and Phase 9, finalized wireframes are added to `docs/Wireframe_Implementation.md`, which becomes the central reference for all UI/UX implementation tasks. See that document for:
+
+- Links to final wireframe designs (Figma exports, PDFs, or mockups)
+- Screen-by-screen implementation notes and responsive behavior specs
+- State machine reference (loading, empty, success, error states)
+- Component and page file locations
+- Deferred items and open UX questions
+
+All agents implementing features from wireframes must read `AGENTS.md`, `CLAUDE.md`, and session-memory files before starting, per the required reading order in `Wireframe_Implementation.md`.
+
+---
+
 # 12. Phase 9 — Cleanup, Reliability, and Demo Validation
 
 ## Goal
