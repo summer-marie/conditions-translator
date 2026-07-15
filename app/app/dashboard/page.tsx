@@ -15,6 +15,8 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signOut } from "@/lib/actions/auth";
+import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
 
 type DocumentStatus =
   | "IN_PROGRESS"
@@ -262,19 +264,19 @@ export default function DashboardPage() {
     }
   };
 
-  const getStatusBadgeColor = (status: DocumentStatus): string => {
+  const getStatusBadgeVariant = (status: DocumentStatus): "success" | "warning" | "destructive" | "processing" | "neutral" => {
     switch (status) {
       case "READY":
-        return "bg-green-100 text-green-800";
+        return "success";
       case "PROCESSING_FAILED":
-        return "bg-red-100 text-red-800";
+        return "destructive";
       case "COMPLETED":
       case "PROCESSING":
-        return "bg-blue-100 text-blue-800";
+        return "processing";
       case "IN_PROGRESS":
-        return "bg-yellow-100 text-yellow-800";
+        return "warning";
       default:
-        return "bg-gray-100 text-gray-800";
+        return "neutral";
     }
   };
 
@@ -414,13 +416,9 @@ export default function DashboardPage() {
                       </div>
                     )}
                   </div>
-                  <span
-                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium shrink-0 ${getStatusBadgeColor(
-                    document.status
-                  )}`}
-                  >
+                  <Badge variant={getStatusBadgeVariant(document.status)} size="sm">
                     {documentStatusLabel(document.status)}
-                  </span>
+                  </Badge>
                 </div>
 
                 {/* Document metadata */}
