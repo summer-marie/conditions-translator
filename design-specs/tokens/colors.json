@@ -35,26 +35,26 @@
   },
   "dark": {
     "brand": {
-      "primary": "#E2E8F0",
-      "primaryDark": "#CBD5E1",
-      "primaryLight": "#F1F5F9"
+      "primary": "#FAFAFA",
+      "primaryDark": "#D4D4D8",
+      "primaryLight": "#FFFFFF"
     },
     "background": {
-      "page": "#111827",
-      "card": "#1F2937",
-      "sidebar": "#111827",
-      "elevated": "#374151"
+      "page": "#18181B",
+      "card": "#27272A",
+      "sidebar": "#18181B",
+      "elevated": "#27272A"
     },
     "border": {
-      "card": "#374151",
-      "divider": "#4B5563",
-      "focusRing": "rgba(45, 212, 191, 0.3)"
+      "card": "#3F3F46",
+      "divider": "#3F3F46",
+      "focusRing": "rgba(250, 250, 250, 0.18)"
     },
     "text": {
-      "heading": "#F9FAFB",
-      "body": "#D1D5DB",
-      "meta": "#9CA3AF",
-      "muted": "#6B7280"
+      "heading": "#FAFAFA",
+      "body": "#D4D4D8",
+      "meta": "#A1A1AA",
+      "muted": "#71717A"
     },
     "accent": {
       "success": "#059669",

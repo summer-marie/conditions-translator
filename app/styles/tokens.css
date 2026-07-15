@@ -1,0 +1,109 @@
+/* Design Tokens - CSS Custom Properties */
+/* Generated from design-specs/tokens/ */
+
+:root {
+  /* Brand Colors */
+  --color-brand-primary: #1E3A5F;
+  --color-brand-primary-dark: #0F1D2F;
+  --color-brand-primary-light: #2D5A8E;
+
+  /* Background Colors - Light Mode */
+  --color-background-page: #FFFFFF;
+  --color-background-card: #EDF2F7;
+  --color-background-sidebar: #F1F5F9;
+  --color-background-subtle: #F8FAFC;
+
+  /* Border Colors - Light Mode */
+  --color-border-card: #CBD5E1;
+  --color-border-divider: #E2E8F0;
+  --color-border-focus-ring: rgba(30, 58, 95, 0.3);
+
+  /* Text Colors - Light Mode */
+  --color-text-heading: #1E3A5F;
+  --color-text-body: #475569;
+  --color-text-meta: #94A3B8;
+  --color-text-inverse: #FFFFFF;
+
+  /* Accent Colors */
+  --color-accent-success: #059669;
+  --color-accent-success-bg: rgba(5, 150, 105, 0.1);
+  --color-accent-warning: #D97706;
+  --color-accent-warning-bg: rgba(217, 119, 6, 0.1);
+  --color-accent-destructive: #B91C1C;
+  --color-accent-destructive-bg: rgba(185, 28, 28, 0.1);
+  --color-accent-processing: #0D9488;
+  --color-accent-processing-bg: rgba(13, 148, 136, 0.1);
+
+  /* Typography */
+  --font-family-primary: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-family-mono: JetBrains Mono, 'Geist Mono', 'Fira Code', monospace;
+
+  /* Font Sizes */
+  --font-size-display: 32px;
+  --font-size-h1: 24px;
+  --font-size-h2: 20px;
+  --font-size-h3: 16px;
+  --font-size-body: 14px;
+  --font-size-caption: 12px;
+  --font-size-mono: 12px;
+
+  /* Font Weights */
+  --font-weight-display: 700;
+  --font-weight-h1: 700;
+  --font-weight-h2: 600;
+  --font-weight-h3: 600;
+  --font-weight-body: 400;
+  --font-weight-caption: 400;
+  --font-weight-mono: 400;
+
+  /* Line Heights */
+  --line-height-display: 1.2;
+  --line-height-h1: 1.3;
+  --line-height-h2: 1.4;
+  --line-height-h3: 1.4;
+  --line-height-body: 1.5;
+  --line-height-caption: 1.4;
+  --line-height-mono: 1.5;
+
+  /* Letter Spacing */
+  --letter-spacing-display: -0.02em;
+
+  /* Spacing Scale */
+  --spacing-1: 0.25rem;  /* 4px */
+  --spacing-2: 0.5rem;   /* 8px */
+  --spacing-3: 0.75rem;  /* 12px */
+  --spacing-4: 1rem;     /* 16px */
+  --spacing-6: 1.5rem;   /* 24px */
+  --spacing-8: 2rem;     /* 32px */
+  --spacing-12: 3rem;    /* 48px */
+}
+
+[data-theme="dark"] {
+  /* Brand Colors - Dark Mode */
+  --color-brand-primary: #FAFAFA;
+  --color-brand-primary-dark: #D4D4D8;
+  --color-brand-primary-light: #FFFFFF;
+
+  /* Background Colors - Dark Mode */
+  --color-background-page: #18181B;
+  --color-background-card: #27272A;
+  --color-background-sidebar: #18181B;
+  --color-background-subtle: #27272A;
+
+  /* Border Colors - Dark Mode */
+  --color-border-card: #3F3F46;
+  --color-border-divider: #3F3F46;
+  --color-border-focus-ring: rgba(250, 250, 250, 0.18);
+
+  /* Text Colors - Dark Mode */
+  --color-text-heading: #FAFAFA;
+  --color-text-body: #D4D4D8;
+  --color-text-meta: #A1A1AA;
+  --color-text-inverse: #000000;
+
+  /* Accent Colors - Dark Mode Backgrounds */
+  --color-accent-success-bg: rgba(5, 150, 105, 0.15);
+  --color-accent-warning-bg: rgba(217, 119, 6, 0.15);
+  --color-accent-destructive-bg: rgba(185, 28, 28, 0.15);
+  --color-accent-processing-bg: rgba(13, 148, 136, 0.15);
+}
