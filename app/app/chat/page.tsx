@@ -7,9 +7,11 @@
 
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { startChat, sendMessage } from "@/lib/actions/chat";
+import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
 
 type DocumentStatus =
   | "IN_PROGRESS"
@@ -167,90 +169,150 @@ export default function ChatPage() {
   // ---- Selection screen -----------------------------------------------------
   if (!chatSessionId) {
     return (
-      <div className="max-w-2xl mx-auto p-4 sm:p-6">
+      <div className="max-w-2xl mx-auto p-4 md:p-6">
         <div className="flex items-center justify-between mb-4">
-          <h1 className="text-xl font-semibold text-gray-900">Ask about your documents</h1>
+          <h1
+            className="font-[var(--font-weight-h2)]"
+            style={{ fontSize: 'var(--font-size-h2)', color: 'var(--color-text-heading)' }}
+          >
+            Ask about your documents
+          </h1>
           <div className="flex items-center gap-3">
             {savedUserId ? (
-              <span className="text-xs font-medium text-green-700">Saved</span>
+              <Badge variant="success" size="sm">Saved</Badge>
             ) : (
-              <Link href="/app/save" className="text-sm font-medium text-gray-900 hover:underline">
+              <Link
+                href="/app/save"
+                className="font-medium hover:underline"
+                style={{ fontSize: 'var(--font-size-body)', color: 'var(--color-text-body)' }}
+              >
                 Save workspace
               </Link>
             )}
-            <Link href="/app/workspace" className="text-sm text-blue-600 hover:underline">
+            <Link
+              href="/app/workspace"
+              className="hover:underline"
+              style={{ fontSize: 'var(--font-size-body)', color: 'var(--color-accent-processing)' }}
+            >
               Back to workspace
             </Link>
           </div>
         </div>
 
-        <p className="text-sm text-gray-600 mb-4">
+        <p
+          className="mb-4"
+          style={{ fontSize: 'var(--font-size-body)', color: 'var(--color-text-body)' }}
+        >
           Select up to {MAX_DOCUMENTS} ready documents. Answers come only from the text in the
           documents you choose.
         </p>
 
         {error && (
-          <div className="mb-4 rounded-md bg-red-50 border border-red-200 p-3 text-sm text-red-800">
-            {error}
+          <div 
+            className="mb-4 rounded-md p-3" 
+            style={{ 
+              backgroundColor: 'var(--color-accent-destructive-bg)', 
+              borderColor: 'var(--color-border-card)' 
+            }}
+          >
+            <p 
+              className="text-sm" 
+              style={{ color: 'var(--color-accent-destructive)' }}
+            >
+              {error}
+            </p>
           </div>
         )}
 
         {isLoadingDocuments ? (
-          <p className="text-sm text-gray-500">Loading your documents…</p>
+          <p 
+            className="text-sm" 
+            style={{ color: 'var(--color-text-meta)' }}
+          >
+            Loading your documents…
+          </p>
         ) : readyDocuments.length === 0 ? (
-          <div className="rounded-lg border border-gray-200 p-6 text-center">
-            <p className="text-sm text-gray-700">
+          <div 
+            className="rounded-lg p-6 text-center" 
+            style={{ 
+              backgroundColor: 'var(--color-background-card)', 
+              borderColor: 'var(--color-border-card)' 
+            }}
+          >
+            <p 
+              className="text-sm" 
+              style={{ color: 'var(--color-text-body)' }}
+            >
               You don&apos;t have any ready documents yet. Finish a document to chat about it.
             </p>
             <Link
               href="/app/workspace"
-              className="inline-block mt-3 text-sm font-medium text-blue-600 hover:underline"
+              className="inline-block mt-3 font-medium hover:underline"
+              style={{ color: 'var(--color-accent-processing)' }}
             >
               Go to workspace
             </Link>
           </div>
         ) : (
           <>
-            <ul className="space-y-2">
+            <ul 
+              className="space-y-2" 
+              style={{ listStyle: 'none', padding: 0, margin: 0 }}
+            >
               {readyDocuments.map((doc) => {
                 const checked = selectedIds.includes(doc.id);
                 const disabled = !checked && selectedIds.length >= MAX_DOCUMENTS;
                 return (
                   <li key={doc.id}>
                     <label
-                      className={`flex items-center gap-3 rounded-lg border p-3 cursor-pointer ${
+                      className={`flex items-center gap-3 rounded-lg p-3 cursor-pointer ${
                         checked
-                          ? "border-blue-500 bg-blue-50"
+                          ? "border-2"
                           : disabled
-                          ? "border-gray-200 opacity-50 cursor-not-allowed"
-                          : "border-gray-200 hover:border-gray-300"
+                          ? "opacity-50 cursor-not-allowed"
+                          : "hover:shadow-md transition-shadow"
                       }`}
+                      style={{
+                        borderColor: checked ? 'var(--color-brand-primary)' : 'var(--color-border-card)',
+                        backgroundColor: checked ? 'var(--color-accent-processing-bg)' : 'var(--color-background-card)'
+                      }}
                     >
                       <input
                         type="checkbox"
                         checked={checked}
                         disabled={disabled}
                         onChange={() => toggleDocument(doc.id)}
-                        className="h-4 w-4"
+                        className="h-4 w-4 accent-[var(--color-brand-primary)]"
                       />
-                      <span className="text-sm font-medium text-gray-900">{doc.title}</span>
+                      <span 
+                        className="text-sm font-medium" 
+                        style={{ color: 'var(--color-text-heading)' }}
+                      >
+                        {doc.title}
+                      </span>
                     </label>
                   </li>
                 );
               })}
             </ul>
 
-            <p className="mt-2 text-xs text-gray-500">
+            <p 
+              className="mt-2" 
+              style={{ color: 'var(--color-text-meta)', fontSize: 'var(--font-size-caption)' }}
+            >
               {selectedIds.length} of {MAX_DOCUMENTS} selected
             </p>
 
-            <button
+            <Button
               onClick={handleStartChat}
-              disabled={selectedIds.length === 0 || isStarting}
-              className="mt-4 w-full rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+              disabled={selectedIds.length === 0}
+              isLoading={isStarting}
+              fullWidth
+              variant="primary"
+              className="mt-4"
             >
-              {isStarting ? "Starting…" : "Start chat"}
-            </button>
+              Start chat
+            </Button>
           </>
         )}
       </div>
@@ -259,18 +321,31 @@ export default function ChatPage() {
 
   // ---- Chat screen ----------------------------------------------------------
   return (
-    <div className="max-w-2xl mx-auto flex flex-col h-dvh p-4 sm:p-6">
+    <div className="max-w-2xl mx-auto flex flex-col h-dvh p-4 md:p-6">
       <div className="flex items-center justify-between mb-2">
-        <h1 className="text-lg font-semibold text-gray-900">Chat</h1>
+        <h1
+          className="font-[var(--font-weight-h3)]"
+          style={{ fontSize: 'var(--font-size-h3)', color: 'var(--color-text-heading)' }}
+        >
+          Chat
+        </h1>
         <div className="flex items-center gap-3">
           {savedUserId ? (
-            <span className="text-xs font-medium text-green-700">Saved</span>
+            <Badge variant="success" size="sm">Saved</Badge>
           ) : (
-            <Link href="/app/save" className="text-sm font-medium text-gray-900 hover:underline">
+            <Link
+              href="/app/save"
+              className="font-medium hover:underline"
+              style={{ fontSize: 'var(--font-size-body)', color: 'var(--color-text-body)' }}
+            >
               Save workspace
             </Link>
           )}
-          <Link href="/app/workspace" className="text-sm text-blue-600 hover:underline">
+          <Link
+            href="/app/workspace"
+            className="hover:underline"
+            style={{ fontSize: 'var(--font-size-body)', color: 'var(--color-accent-processing)' }}
+          >
             Back to workspace
           </Link>
         </div>
@@ -278,18 +353,24 @@ export default function ChatPage() {
 
       <div className="mb-3 flex flex-wrap gap-2">
         {activeDocuments.map((doc) => (
-          <span
-            key={doc.documentId}
-            className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700"
-          >
+          <Badge key={doc.documentId} variant="neutral" size="sm">
             {doc.title}
-          </span>
+          </Badge>
         ))}
       </div>
 
-      <div className="flex-1 overflow-y-auto rounded-lg border border-gray-200 p-3 space-y-3">
+      <div 
+        className="flex-1 overflow-y-auto rounded-lg p-3 space-y-3"
+        style={{ 
+          backgroundColor: 'var(--color-background-card)', 
+          border: '1px solid var(--color-border-card)' 
+        }}
+      >
         {messages.length === 0 && (
-          <p className="text-sm text-gray-500">
+          <p 
+            className="text-sm text-center py-8" 
+            style={{ color: 'var(--color-text-body)' }}
+          >
             Ask a question about your selected documents to get started.
           </p>
         )}
@@ -301,22 +382,36 @@ export default function ChatPage() {
             <div
               className={`inline-block max-w-[85%] rounded-lg px-3 py-2 text-sm whitespace-pre-wrap ${
                 message.role === "USER"
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-100 text-gray-900"
+                  ? "rounded-br-md"
+                  : "rounded-bl-md"
               }`}
+              style={{
+                backgroundColor: message.role === "USER" 
+                  ? 'var(--color-brand-primary)' 
+                  : 'var(--color-background-subtle)',
+                color: message.role === "USER" 
+                  ? 'var(--color-text-inverse)' 
+                  : 'var(--color-text-body)'
+              }}
             >
               {message.content}
             </div>
             {message.role === "ASSISTANT" && message.sources.length > 0 && (
-              <div className="mt-1 text-xs text-gray-500">
-                Sources:{" "}
-                {message.sources
-                  .map((source) =>
-                    source.pageNumber
-                      ? `${source.documentTitle} (page ${source.pageNumber})`
-                      : source.documentTitle
-                  )
-                  .join(", ")}
+              <div 
+                className="mt-1 flex flex-wrap gap-1 items-center"
+                style={{ fontSize: 'var(--font-size-caption)', color: 'var(--color-text-meta)' }}
+              >
+                <span>Sources:</span>
+                {message.sources.map((source, index) => (
+                  <React.Fragment key={`${source.documentId}-${source.pageId}`}>
+                    {index > 0 && <span className="mx-1">,</span>}
+                    <Badge variant="processing" size="sm">
+                      {source.pageNumber
+                        ? `${source.documentTitle}, Page ${source.pageNumber}`
+                        : source.documentTitle}
+                    </Badge>
+                  </React.Fragment>
+                ))}
               </div>
             )}
           </div>
@@ -325,21 +420,50 @@ export default function ChatPage() {
       </div>
 
       {limits?.approachingLimit && !limits.limitReached && (
-        <p className="mt-2 text-xs text-amber-700">
-          This chat is getting long. For the clearest answers, you may want to start a fresh chat
-          soon.
-        </p>
+        <div 
+          className="mt-2 p-2 rounded-md" 
+          style={{ backgroundColor: 'var(--color-accent-warning-bg)' }}
+        >
+          <p 
+            style={{ 
+              color: 'var(--color-accent-warning)', 
+              fontSize: 'var(--font-size-caption)' 
+            }}
+          >
+            This chat is getting long. For the clearest answers, you may want to start a fresh chat
+            soon.
+          </p>
+        </div>
       )}
 
       {error && (
-        <div className="mt-2 rounded-md bg-red-50 border border-red-200 p-2 text-sm text-red-800">
-          {error}
+        <div 
+          className="mt-2 rounded-md p-2" 
+          style={{ 
+            backgroundColor: 'var(--color-accent-destructive-bg)', 
+            borderColor: 'var(--color-border-card)' 
+          }}
+        >
+          <p 
+            className="text-sm" 
+            style={{ color: 'var(--color-accent-destructive)' }}
+          >
+            {error}
+          </p>
         </div>
       )}
 
       {limits?.limitReached ? (
-        <div className="mt-3 rounded-md bg-gray-100 p-3 text-center text-sm text-gray-700">
-          This chat has reached its limit. Start a new chat for more questions.
+        <div 
+          className="mt-3 rounded-md p-3 text-center" 
+          style={{ 
+            backgroundColor: 'var(--color-background-subtle)', 
+            color: 'var(--color-text-body)' 
+          }}
+        >
+          <p className="text-sm">
+            This chat has reached its limit. Start a new chat for more questions.
+          </p>
         </div>
       ) : (
         <div className="mt-3 flex gap-2">
@@ -355,15 +479,21 @@ export default function ChatPage() {
             }}
             placeholder="Ask a question…"
             disabled={isSending}
-            className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm"
+            className="flex-1 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2"
+            style={{
+              border: '1px solid var(--color-border-card)',
+              color: 'var(--color-text-body)',
+              backgroundColor: 'var(--color-background-page)'
+            }}
           />
-          <button
+          <Button
             onClick={handleSend}
-            disabled={isSending || !input.trim()}
-            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+            disabled={!input.trim()}
+            isLoading={isSending}
+            variant="primary"
           >
-            {isSending ? "…" : "Send"}
-          </button>
+            Send
+          </Button>
         </div>
       )}
     </div>
