@@ -73,6 +73,12 @@ Provide a reusable reference for implementing and refining UI components based o
 - **Body**: 14px, weight 400, 1.5 line height
 - **Caption/Meta**: 12px, weight 400
 
+### Tailwind/CSS Syntax Conventions
+- Use current Tailwind syntax for the version actually installed (check `tailwindcss` in `package.json`, currently v4) — do not rely on remembered v3 patterns without checking current docs.
+- Reference design-token CSS custom properties with the explicit bracket form: `bg-[var(--color-x)]`, `text-[var(--color-x)]`, `border-[var(--color-x)]`. This matches `components/ui/Button.tsx` and `components/ui/Badge.tsx`. Tailwind v4's shorter `bg-(--color-x)` shorthand compiles identically but must not be mixed in — pick one form per file/component family and keep it consistent with the shared components.
+- **Known trap**: the `text-` prefix is ambiguous between text-color and font-size. `text-[var(--font-size-h1)]` (or the shorthand equivalent) silently compiles to `color: var(--font-size-h1)` instead of `font-size` — Tailwind cannot introspect a CSS variable's value at build time and guesses wrong for this prefix specifically. Set font-size via inline `style={{ fontSize: 'var(--font-size-x)' }}` instead of a `text-*` class whenever the token is a font-size, not a color. (Found and fixed in both the dashboard and chat page token migrations — see commit history on `feature/design-token-integration`.)
+- A successful `npm run build` does **not** guarantee an ambiguous-prefix class compiled to the intended CSS property. After adding or changing a token-based utility class, spot-check the compiled output in `.next/static/chunks/*.css` for the property you expect.
+
 ### Spacing (from design-specs/README.md)
 - Use consistent spacing scale (specific values in `design-specs/tokens/spacing.json`)
 - Section spacing: 48px desktop, 32px mobile
