@@ -13,7 +13,7 @@ export function Badge({ variant, size = "md", className = "", children }: BadgeP
     warning: "bg-[var(--color-accent-warning-bg)] text-[var(--color-accent-warning)]",
     destructive: "bg-[var(--color-accent-destructive-bg)] text-[var(--color-accent-destructive)]",
     processing: "bg-[var(--color-accent-processing-bg)] text-[var(--color-accent-processing)]",
-    neutral: "bg-gray-100 text-gray-800",
+    neutral: "bg-[var(--color-background-subtle)] text-[var(--color-text-body)]",
   };
   
   const sizeStyles = {
