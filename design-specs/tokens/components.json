@@ -1,0 +1,96 @@
+{
+  "button": {
+    "primary": {
+      "background": "#059669",
+      "text": "#FFFFFF",
+      "borderRadius": "8px",
+      "paddingX": "16px",
+      "paddingY": "10px",
+      "fontSize": "14px",
+      "fontWeight": 600,
+      "hoverBackground": "#047857",
+      "activeBackground": "#065F46"
+    },
+    "secondary": {
+      "background": "#FFFFFF",
+      "text": "#1E3A5F",
+      "border": "1px solid #1E3A5F",
+      "borderRadius": "8px",
+      "hoverBackground": "#F1F5F9"
+    },
+    "destructive": {
+      "background": "#B91C1C",
+      "text": "#FFFFFF",
+      "borderRadius": "8px",
+      "hoverBackground": "#991B1B"
+    },
+    "ghost": {
+      "background": "transparent",
+      "text": "#1E3A5F",
+      "hoverBackground": "#F1F5F9"
+    }
+  },
+  "input": {
+    "background": "#FFFFFF",
+    "border": "1px solid #CBD5E1",
+    "borderRadius": "8px",
+    "padding": "12px",
+    "fontSize": "14px",
+    "focusBorder": "#1E3A5F",
+    "focusRing": "0 0 0 3px rgba(30, 58, 95, 0.1)",
+    "placeholder": "#94A3B8",
+    "errorBorder": "#B91C1C"
+  },
+  "badge": {
+    "borderRadius": "9999px",
+    "paddingX": "8px",
+    "paddingY": "2px",
+    "fontSize": "12px",
+    "fontWeight": 500,
+    "variants": {
+      "ready": { "background": "rgba(5, 150, 105, 0.1)", "text": "#059669" },
+      "inProgress": {
+        "background": "rgba(217, 119, 6, 0.1)",
+        "text": "#D97706"
+      },
+      "processing": {
+        "background": "rgba(13, 148, 136, 0.1)",
+        "text": "#0D9488"
+      },
+      "error": { "background": "rgba(185, 28, 28, 0.1)", "text": "#B91C1C" }
+    }
+  },
+  "card": {
+    "background": "#EDF2F7",
+    "border": "1px solid #CBD5E1",
+    "borderRadius": "12px",
+    "padding": "16px",
+    "shadow": "0 4px 12px rgba(30, 58, 95, 0.04)",
+    "hoverShadow": "0 8px 24px rgba(30, 58, 95, 0.08)",
+    "selectedBorderLeft": "3px solid #1E3A5F"
+  },
+  "navbar": {
+    "height": "64px",
+    "background": "#FFFFFF",
+    "borderBottom": "1px solid #E2E8F0",
+    "logoColor": "#1E3A5F",
+    "padding": "0 32px"
+  },
+  "sidebar": {
+    "width": "240px",
+    "background": "#F1F5F9",
+    "padding": "16px",
+    "itemHeight": "36px",
+    "itemBorderRadius": "6px",
+    "activeItemBackground": "#059669",
+    "activeItemText": "#FFFFFF",
+    "hoverItemBackground": "#E2E8F0"
+  },
+  "modal": {
+    "overlayBackground": "rgba(15, 23, 42, 0.5)",
+    "background": "#FFFFFF",
+    "borderRadius": "16px",
+    "padding": "24px",
+    "shadow": "0 24px 64px rgba(30, 58, 95, 0.2)"
+  }
+}
