@@ -23,16 +23,6 @@ const HIDDEN_ROUTES = ["/app/save", "/app/start"];
 const THEME_STORAGE_KEY = "theme";
 type Theme = "light" | "dark";
 
-// Mirrors the blocking inline script in app/layout.tsx -- keep both in sync so the
-// lazy useState initializer below agrees with whatever data-theme the script already
-// set on <html> before hydration runs.
-function getInitialTheme(): Theme {
-  if (typeof window === "undefined") return "light";
-  const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
-  if (stored === "light" || stored === "dark") return stored;
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-}
-
 function isActiveRoute(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
@@ -41,7 +31,27 @@ export function AppNav({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
-  const [theme, setTheme] = useState<Theme>(getInitialTheme);
+  // Always starts "light" to exactly match the server render (server has no access to
+  // localStorage/matchMedia). Reading those during the initial client render instead
+  // would make this component's hydrated output differ from the server's, which forces
+  // React to discard and client-render the whole tree from the nearest boundary --
+  // that recovery skips re-running the blocking theme script in app/layout.tsx and
+  // resets <html data-theme> back to its server-rendered "light" default. Confirmed via
+  // a real production-build reproduction: every route that renders AppNav lost dark
+  // mode on load, while routes that don't (save, start) kept it correctly. Syncing from
+  // the DOM after mount (below) avoids ever creating that mismatch in the first place.
+  const [theme, setTheme] = useState<Theme>("light");
+
+  // One-time sync from the DOM attribute the blocking script in app/layout.tsx already
+  // set before hydration; can't be known without reading the DOM, so this can't be
+  // derived without an effect.
+  useEffect(() => {
+    const current = document.documentElement.getAttribute("data-theme");
+    if (current === "light" || current === "dark") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setTheme(current);
+    }
+  }, []);
 
   function toggleTheme() {
     const next: Theme = theme === "dark" ? "light" : "dark";
