@@ -1,2 +1,10 @@
 @import "tailwindcss";
 @import "./styles/tokens.css";
+
+/* Without this, <body> has no background of its own (transparent), so any page area
+   not covered by that page's own styled container falls through to the browser's
+   default white canvas -- visible as a white gap/page in dark mode wherever a page's
+   root element doesn't happen to set its own full-height themed background. */
+body {
+  background-color: var(--color-background-page);
+}
