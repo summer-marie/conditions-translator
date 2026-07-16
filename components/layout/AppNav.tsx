@@ -11,6 +11,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 
 const NAV_ITEMS = [
   { href: "/app/dashboard", label: "Dashboard", icon: DashboardIcon },
@@ -21,6 +22,7 @@ const NAV_ITEMS = [
 const HIDDEN_ROUTES = ["/app/save", "/app/start"];
 
 const THEME_STORAGE_KEY = "theme";
+const SIDEBAR_COLLAPSED_STORAGE_KEY = "sidebar-collapsed";
 type Theme = "light" | "dark";
 
 function isActiveRoute(pathname: string, href: string): boolean {
@@ -31,6 +33,8 @@ export function AppNav({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
+  const mobileMenuRef = useRef<HTMLElement | null>(null);
+  useFocusTrap(menuOpen, mobileMenuRef);
   // Always starts "light" to exactly match the server render (server has no access to
   // localStorage/matchMedia). Reading those during the initial client render instead
   // would make this component's hydrated output differ from the server's, which forces
@@ -53,6 +57,30 @@ export function AppNav({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // Same reasoning as theme above: starts "false" (expanded) to exactly match the server
+  // render, then syncs from localStorage after mount rather than during the initial client
+  // render, so this component's hydrated output never diverges from the server's.
+  const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
+    try {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setCollapsed(window.localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === "true");
+    } catch {
+      // localStorage unavailable (e.g. private browsing) -- stays expanded this session
+    }
+  }, []);
+
+  function toggleCollapsed() {
+    const next = !collapsed;
+    setCollapsed(next);
+    try {
+      window.localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, String(next));
+    } catch {
+      // localStorage unavailable -- collapse still applies this session
+    }
+  }
+
   function toggleTheme() {
     const next: Theme = theme === "dark" ? "light" : "dark";
     setTheme(next);
@@ -67,9 +95,9 @@ export function AppNav({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!menuOpen) return;
     function handleKeyDown(e: KeyboardEvent) {
+      // Focus restore to the trigger on close is handled by useFocusTrap's cleanup.
       if (e.key === "Escape") {
         setMenuOpen(false);
-        menuButtonRef.current?.focus();
       }
     }
     document.addEventListener("keydown", handleKeyDown);
@@ -77,24 +105,57 @@ export function AppNav({ children }: { children: React.ReactNode }) {
   }, [menuOpen]);
 
   if (HIDDEN_ROUTES.includes(pathname)) {
-    return <>{children}</>;
+    return <main id="main-content">{children}</main>;
   }
 
   return (
     <div className="md:flex md:min-h-screen">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-(--color-background-page) focus:px-4 focus:py-2 focus:text-(--color-text-heading) focus:outline-none focus:ring-2 focus:ring-(--color-border-focus-ring)"
+      >
+        Skip to main content
+      </a>
+
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex md:w-60 md:shrink-0 md:flex-col border-r border-(--color-border-divider) bg-(--color-background-sidebar)">
-        <div className="flex h-16 items-center justify-between border-b border-(--color-border-divider) px-4">
-          <Link
-            href="/app/dashboard"
-            className="font-(--font-weight-h3) focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-border-focus-ring) rounded"
-            style={{ fontSize: "var(--font-size-h3)", color: "var(--color-text-heading)" }}
-          >
-            Conditions Translator
-          </Link>
-          <ThemeToggleButton theme={theme} onToggle={toggleTheme} />
+      <aside
+        className={`hidden md:flex md:shrink-0 md:flex-col border-r border-(--color-border-divider) bg-(--color-background-sidebar) transition-[width] duration-200 ease-in-out ${
+          collapsed ? "md:w-16" : "md:w-60"
+        }`}
+      >
+        <div
+          className={`flex h-16 items-center border-b border-(--color-border-divider) ${
+            collapsed ? "justify-center px-2" : "justify-between px-4"
+          }`}
+        >
+          {!collapsed && (
+            <Link
+              href="/app/dashboard"
+              className="truncate font-(--font-weight-h3) focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-border-focus-ring) rounded"
+              style={{ fontSize: "var(--font-size-h3)", color: "var(--color-text-heading)" }}
+            >
+              Conditions Translator
+            </Link>
+          )}
+          <div className="flex items-center gap-1">
+            {!collapsed && <ThemeToggleButton theme={theme} onToggle={toggleTheme} />}
+            <button
+              type="button"
+              onClick={toggleCollapsed}
+              aria-expanded={!collapsed}
+              aria-controls="desktop-sidebar-nav"
+              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-(--color-text-body) hover:bg-(--color-border-divider) focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-border-focus-ring)"
+            >
+              {collapsed ? <ChevronRightIcon /> : <ChevronLeftIcon />}
+            </button>
+          </div>
         </div>
-        <nav className="flex-1 space-y-1 p-4" aria-label="Main navigation">
+        <nav
+          id="desktop-sidebar-nav"
+          className={`flex-1 space-y-1 ${collapsed ? "px-2 py-4" : "p-4"}`}
+          aria-label="Main navigation"
+        >
           {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
             const active = isActiveRoute(pathname, href);
             return (
@@ -102,14 +163,18 @@ export function AppNav({ children }: { children: React.ReactNode }) {
                 key={href}
                 href={href}
                 aria-current={active ? "page" : undefined}
-                className={`flex h-9 items-center gap-3 rounded-md px-3 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-border-focus-ring) ${
+                aria-label={collapsed ? label : undefined}
+                title={collapsed ? label : undefined}
+                className={`flex h-9 items-center gap-3 rounded-md text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-border-focus-ring) ${
+                  collapsed ? "justify-center px-0" : "px-3"
+                } ${
                   active
                     ? "bg-(--color-accent-success) text-(--color-text-inverse)"
                     : "text-(--color-text-body) hover:bg-(--color-border-divider)"
                 }`}
               >
                 <Icon />
-                {label}
+                {!collapsed && label}
               </Link>
             );
           })}
@@ -150,6 +215,7 @@ export function AppNav({ children }: { children: React.ReactNode }) {
           />
           <nav
             id="mobile-nav-menu"
+            ref={mobileMenuRef}
             className="md:hidden fixed inset-x-0 top-14 z-40 space-y-1 border-b border-(--color-border-divider) bg-(--color-background-page) p-2 shadow-lg"
             aria-label="Main navigation"
           >
@@ -200,7 +266,9 @@ export function AppNav({ children }: { children: React.ReactNode }) {
       </nav>
 
       {/* Page content */}
-      <div className="min-w-0 flex-1 pt-14 pb-16 md:pt-0 md:pb-0">{children}</div>
+      <main id="main-content" className="min-w-0 flex-1 pt-14 pb-16 md:pt-0 md:pb-0">
+        {children}
+      </main>
     </div>
   );
 }
@@ -330,6 +398,36 @@ function MenuIcon() {
       strokeWidth="1.5"
     >
       <path d="M3 5h14M3 10h14M3 15h14" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function ChevronLeftIcon() {
+  return (
+    <svg
+      className="h-5 w-5 shrink-0"
+      aria-hidden="true"
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+    >
+      <path d="M12.5 4.5L7 10l5.5 5.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function ChevronRightIcon() {
+  return (
+    <svg
+      className="h-5 w-5 shrink-0"
+      aria-hidden="true"
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+    >
+      <path d="M7.5 4.5L13 10l-5.5 5.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
