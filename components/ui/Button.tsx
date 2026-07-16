@@ -20,7 +20,11 @@ export function Button({
   const variantStyles = {
     primary: "bg-(--color-accent-success) text-white hover:bg-emerald-700 focus:ring-(--color-accent-success)",
     secondary: "border border-(--color-border-card) text-(--color-text-body) hover:bg-(--color-background-subtle) focus:ring-(--color-border-card)",
-    danger: "bg-(--color-accent-destructive) text-white hover:bg-red-700 focus:ring-(--color-accent-destructive)",
+    // A solid button's own bg/text contrast is self-contained and shouldn't shift with
+    // page theme, unlike text-on-page-background uses of --color-accent-destructive
+    // (which does need a lighter dark-mode value -- see tokens.css). Uses the token's
+    // original light-mode value directly so this button looks identical in both themes.
+    danger: "bg-red-700 text-white hover:bg-red-800 focus:ring-(--color-accent-destructive)",
     ghost: "text-(--color-text-body) hover:bg-(--color-background-subtle) focus:ring-(--color-border-card)",
   };
   

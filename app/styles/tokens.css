@@ -123,4 +123,11 @@
   --color-accent-warning-bg: rgba(217, 119, 6, 0.15);
   --color-accent-destructive-bg: rgba(185, 28, 28, 0.15);
   --color-accent-processing-bg: rgba(13, 148, 136, 0.15);
+
+  /* --color-accent-destructive (#B91C1C) is used as text/icon color throughout the
+     app (Alert, Badge, buttons). Against dark backgrounds it measures ~2.7:1 contrast,
+     failing WCAG AA even for large text (needs 3:1). The other three accent colors
+     (success/warning/processing) all pass AA unchanged, so only destructive needs a
+     dark-mode-specific override here. */
+  --color-accent-destructive: #F87171;
 }
