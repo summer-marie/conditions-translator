@@ -12,6 +12,7 @@ import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signUpAndSave, signInAndSave } from "@/lib/actions/auth";
+import { Button } from "@/components/ui/Button";
 
 type Mode = "create" | "signin";
 
@@ -92,9 +93,11 @@ function SavePageContent() {
   if (savedCount !== null) {
     return (
       <div className="max-w-md mx-auto p-4 sm:p-6">
-        <div className="rounded-lg border border-green-200 bg-green-50 p-6 text-center">
-          <h1 className="text-xl font-semibold text-green-900 mb-2">Workspace saved</h1>
-          <p className="text-sm text-green-800">
+        <div className="rounded-lg border border-(--color-accent-success) bg-(--color-accent-success-bg) p-6 text-center">
+          <h1 className="text-(length:--font-size-h2) font-(--font-weight-h2) text-(--color-accent-success) mb-2">
+            Workspace saved
+          </h1>
+          <p className="text-sm text-(--color-accent-success)">
             {savedCount === 0
               ? "Your account is ready. Your documents are now saved to it."
               : `${savedCount} document${savedCount === 1 ? "" : "s"} ${
@@ -102,13 +105,15 @@ function SavePageContent() {
                 } now saved to your account and will no longer expire.`}
           </p>
           <div className="mt-4 flex flex-col gap-2">
-            <Link
-              href="/app/chat"
-              className="rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
-            >
-              Continue to chat
+            <Link href="/app/chat">
+              <Button variant="primary" size="md" fullWidth>
+                Continue to chat
+              </Button>
             </Link>
-            <Link href="/app/workspace" className="text-sm text-green-700 hover:underline">
+            <Link
+              href="/app/workspace"
+              className="text-sm text-(--color-accent-success) hover:underline"
+            >
               Back to workspace
             </Link>
           </div>
@@ -121,22 +126,24 @@ function SavePageContent() {
   return (
     <div className="max-w-md mx-auto p-4 sm:p-6">
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-xl font-semibold text-gray-900">Save your workspace</h1>
+        <h1 className="text-(length:--font-size-h2) font-(--font-weight-h2) text-(--color-text-heading)">
+          Save your workspace
+        </h1>
         <button
           type="button"
           onClick={() => router.back()}
-          className="text-sm text-gray-600 hover:underline"
+          className="text-sm text-(--color-text-body) hover:underline"
         >
           Cancel
         </button>
       </div>
 
-      <p className="text-sm text-gray-600 mb-4">
+      <p className="text-sm text-(--color-text-body) mb-4">
         Create an account or sign in to keep your documents. Your documents and current chat are
         preserved either way — if you cancel, you stay in temporary mode.
       </p>
 
-      <div className="mb-4 flex rounded-md border border-gray-200 p-1 text-sm">
+      <div className="mb-4 flex rounded-md border border-(--color-border-card) p-1 text-sm">
         <button
           type="button"
           onClick={() => {
@@ -144,7 +151,9 @@ function SavePageContent() {
             setError(null);
           }}
           className={`flex-1 rounded px-3 py-1.5 font-medium ${
-            mode === "create" ? "bg-blue-600 text-white" : "text-gray-700"
+            mode === "create"
+              ? "bg-(--color-brand-primary) text-(--color-text-inverse)"
+              : "text-(--color-text-body)"
           }`}
         >
           Create account
@@ -156,7 +165,9 @@ function SavePageContent() {
             setError(null);
           }}
           className={`flex-1 rounded px-3 py-1.5 font-medium ${
-            mode === "signin" ? "bg-blue-600 text-white" : "text-gray-700"
+            mode === "signin"
+              ? "bg-(--color-brand-primary) text-(--color-text-inverse)"
+              : "text-(--color-text-body)"
           }`}
         >
           Sign in
@@ -164,7 +175,7 @@ function SavePageContent() {
       </div>
 
       {error && (
-        <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+        <div className="mb-4 rounded-md border border-(--color-accent-destructive) bg-(--color-accent-destructive-bg) p-3 text-sm text-(--color-accent-destructive)">
           {error}
         </div>
       )}
@@ -172,65 +183,65 @@ function SavePageContent() {
       {mode === "create" ? (
         <form onSubmit={handleCreate} className="space-y-3">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <label className="block text-sm font-medium text-(--color-text-body) mb-1">Email</label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              className="w-full rounded-md border border-(--color-border-card) px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-(--color-border-focus-ring) focus:border-(--color-brand-primary)"
               autoComplete="email"
             />
           </div>
 
-          <p className="text-center text-xs text-gray-400">or</p>
+          <p className="text-center text-xs text-(--color-text-meta)">or</p>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+            <label className="block text-sm font-medium text-(--color-text-body) mb-1">Username</label>
             <input
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               placeholder="username"
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              className="w-full rounded-md border border-(--color-border-card) px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-(--color-border-focus-ring) focus:border-(--color-brand-primary)"
               autoComplete="username"
             />
-            <p className="mt-1 text-xs text-gray-500">Provide at least an email or a username.</p>
+            <p className="mt-1 text-xs text-(--color-text-meta)">Provide at least an email or a username.</p>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+            <label className="block text-sm font-medium text-(--color-text-body) mb-1">Password</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="At least 8 characters"
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              className="w-full rounded-md border border-(--color-border-card) px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-(--color-border-focus-ring) focus:border-(--color-brand-primary)"
               autoComplete="new-password"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Recovery email <span className="text-gray-400">(optional)</span>
+            <label className="block text-sm font-medium text-(--color-text-body) mb-1">
+              Recovery email <span className="text-(--color-text-meta)">(optional)</span>
             </label>
             <input
               type="email"
               value={recoveryEmail}
               onChange={(e) => setRecoveryEmail(e.target.value)}
               placeholder="backup@example.com"
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              className="w-full rounded-md border border-(--color-border-card) px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-(--color-border-focus-ring) focus:border-(--color-brand-primary)"
               autoComplete="email"
             />
           </div>
 
           {needsRecoveryAck && (
-            <label className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+            <label className="flex items-start gap-2 rounded-md border border-(--color-accent-warning) bg-(--color-accent-warning-bg) p-3 text-sm text-(--color-accent-warning)">
               <input
                 type="checkbox"
                 checked={acknowledgedNoRecovery}
                 onChange={(e) => setAcknowledgedNoRecovery(e.target.checked)}
-                className="mt-0.5 h-4 w-4"
+                className="mt-0.5 h-4 w-4 accent-(--color-brand-primary)"
               />
               <span>
                 I understand that with no email or recovery email, my account cannot be recovered if
@@ -239,45 +250,37 @@ function SavePageContent() {
             </label>
           )}
 
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-          >
-            {isSubmitting ? "Saving…" : "Create account & save"}
-          </button>
+          <Button type="submit" disabled={isSubmitting} isLoading={isSubmitting} variant="primary" fullWidth>
+            Create account & save
+          </Button>
         </form>
       ) : (
         <form onSubmit={handleSignIn} className="space-y-3">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email or username</label>
+            <label className="block text-sm font-medium text-(--color-text-body) mb-1">Email or username</label>
             <input
               type="text"
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              className="w-full rounded-md border border-(--color-border-card) px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-(--color-border-focus-ring) focus:border-(--color-brand-primary)"
               autoComplete="username"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+            <label className="block text-sm font-medium text-(--color-text-body) mb-1">Password</label>
             <input
               type="password"
               value={signInPassword}
               onChange={(e) => setSignInPassword(e.target.value)}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              className="w-full rounded-md border border-(--color-border-card) px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-(--color-border-focus-ring) focus:border-(--color-brand-primary)"
               autoComplete="current-password"
             />
           </div>
 
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-          >
-            {isSubmitting ? "Signing in…" : "Sign in & save"}
-          </button>
+          <Button type="submit" disabled={isSubmitting} isLoading={isSubmitting} variant="primary" fullWidth>
+            Sign in & save
+          </Button>
         </form>
       )}
     </div>
