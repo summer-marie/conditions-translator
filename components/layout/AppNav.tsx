@@ -33,9 +33,9 @@ export function AppNav({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="lg:flex lg:min-h-screen">
+    <div className="md:flex md:min-h-screen">
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex lg:w-60 lg:shrink-0 lg:flex-col border-r border-(--color-border-divider) bg-(--color-background-sidebar)">
+      <aside className="hidden md:flex md:w-60 md:shrink-0 md:flex-col border-r border-(--color-border-divider) bg-(--color-background-sidebar)">
         <Link
           href="/app/dashboard"
           className="flex h-16 items-center px-4 border-b border-(--color-border-divider) font-(--font-weight-h3)"
@@ -66,7 +66,7 @@ export function AppNav({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Mobile top bar */}
-      <header className="lg:hidden fixed inset-x-0 top-0 z-40 flex h-14 items-center gap-3 border-b border-(--color-border-divider) bg-(--color-background-page) px-4">
+      <header className="md:hidden fixed inset-x-0 top-0 z-40 flex h-14 items-center gap-3 border-b border-(--color-border-divider) bg-(--color-background-page) px-4">
         <button
           type="button"
           onClick={() => setMenuOpen((open) => !open)}
@@ -90,12 +90,12 @@ export function AppNav({ children }: { children: React.ReactNode }) {
       {menuOpen && (
         <>
           <div
-            className="lg:hidden fixed inset-0 z-30 bg-black/30"
+            className="md:hidden fixed inset-0 z-30 bg-black/30"
             onClick={() => setMenuOpen(false)}
             aria-hidden="true"
           />
           <nav
-            className="lg:hidden fixed inset-x-0 top-14 z-40 space-y-1 border-b border-(--color-border-divider) bg-(--color-background-page) p-2 shadow-lg"
+            className="md:hidden fixed inset-x-0 top-14 z-40 space-y-1 border-b border-(--color-border-divider) bg-(--color-background-page) p-2 shadow-lg"
             aria-label="Main navigation"
           >
             {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
@@ -123,7 +123,7 @@ export function AppNav({ children }: { children: React.ReactNode }) {
 
       {/* Mobile bottom tab bar */}
       <nav
-        className="lg:hidden fixed inset-x-0 bottom-0 z-40 flex border-t border-(--color-border-divider) bg-(--color-background-page)"
+        className="md:hidden fixed inset-x-0 bottom-0 z-40 flex border-t border-(--color-border-divider) bg-(--color-background-page)"
         aria-label="Main navigation"
       >
         {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
@@ -145,7 +145,7 @@ export function AppNav({ children }: { children: React.ReactNode }) {
       </nav>
 
       {/* Page content */}
-      <div className="min-w-0 flex-1 pt-14 pb-16 lg:pt-0 lg:pb-0">{children}</div>
+      <div className="min-w-0 flex-1 pt-14 pb-16 md:pt-0 md:pb-0">{children}</div>
     </div>
   );
 }
