@@ -237,6 +237,17 @@ export default function DashboardPage() {
     });
   };
 
+  useEffect(() => {
+    if (!deleteModal.isOpen && !sectionsModal.isOpen) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key !== "Escape") return;
+      if (deleteModal.isOpen) handleDeleteCancel();
+      if (sectionsModal.isOpen) handleCloseSectionsModal();
+    }
+    window.document.addEventListener("keydown", handleKeyDown);
+    return () => window.document.removeEventListener("keydown", handleKeyDown);
+  }, [deleteModal.isOpen, sectionsModal.isOpen]);
+
   // Simple duplicate detection: case-insensitive equality with whitespace normalization
   const normalizeTitle = (title: string): string => {
     return title.trim().toLowerCase().replace(/\s+/g, " ");

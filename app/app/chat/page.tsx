@@ -267,7 +267,7 @@ export default function ChatPage() {
                 return (
                   <li key={doc.id}>
                     <label
-                      className={`flex items-center gap-3 rounded-lg p-3 cursor-pointer ${
+                      className={`flex items-center gap-3 rounded-lg p-3 cursor-pointer focus-within:ring-2 focus-within:ring-(--color-border-focus-ring) ${
                         checked
                           ? "border-2"
                           : disabled

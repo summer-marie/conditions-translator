@@ -425,6 +425,15 @@ export default function WorkspacePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- initializeWorkspace is stable per mount
   }, []);
 
+  useEffect(() => {
+    if (!expandedImagePage) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setExpandedImagePage(null);
+    }
+    window.document.addEventListener("keydown", handleKeyDown);
+    return () => window.document.removeEventListener("keydown", handleKeyDown);
+  }, [expandedImagePage]);
+
   if (isLoading) {
     return (
       <div 
@@ -769,7 +778,7 @@ export default function WorkspacePage() {
                         <div className="flex items-start gap-3">
                           <button
                             onClick={() => setExpandedImagePage(page)}
-                            className="shrink-0 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
+                            className="shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-border-focus-ring) rounded"
                           >
                             {/* eslint-disable-next-line @next/next/no-img-element -- Dynamic authenticated API route with private Blob storage */}
                             <img
@@ -1227,11 +1236,14 @@ export default function WorkspacePage() {
         <div
           className="fixed inset-0 bg-black/75 flex items-center justify-center z-50 p-4"
           onClick={() => setExpandedImagePage(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Page ${expandedImagePage.order + 1} enlarged`}
         >
           <div className="relative max-w-4xl max-h-[90vh]">
             <button
               onClick={() => setExpandedImagePage(null)}
-              className="absolute -top-12 right-0 text-white text-4xl font-bold hover:text-gray-300 focus:outline-none"
+              className="absolute -top-12 right-0 text-white text-4xl font-bold hover:text-gray-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-white rounded"
               aria-label="Close"
             >
               ×

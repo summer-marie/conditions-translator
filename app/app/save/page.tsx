@@ -151,7 +151,8 @@ function SavePageContent() {
             setMode("create");
             setError(null);
           }}
-          className={`flex-1 rounded px-3 py-1.5 font-medium ${
+          aria-pressed={mode === "create"}
+          className={`flex-1 rounded px-3 py-1.5 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-border-focus-ring) ${
             mode === "create"
               ? "bg-(--color-brand-primary) text-(--color-text-inverse)"
               : "text-(--color-text-body)"
@@ -165,7 +166,8 @@ function SavePageContent() {
             setMode("signin");
             setError(null);
           }}
-          className={`flex-1 rounded px-3 py-1.5 font-medium ${
+          aria-pressed={mode === "signin"}
+          className={`flex-1 rounded px-3 py-1.5 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-border-focus-ring) ${
             mode === "signin"
               ? "bg-(--color-brand-primary) text-(--color-text-inverse)"
               : "text-(--color-text-body)"

@@ -8,7 +8,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -27,6 +27,19 @@ function isActiveRoute(pathname: string, href: string): boolean {
 export function AppNav({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setMenuOpen(false);
+        menuButtonRef.current?.focus();
+      }
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [menuOpen]);
 
   if (HIDDEN_ROUTES.includes(pathname)) {
     return <>{children}</>;
@@ -38,7 +51,7 @@ export function AppNav({ children }: { children: React.ReactNode }) {
       <aside className="hidden md:flex md:w-60 md:shrink-0 md:flex-col border-r border-(--color-border-divider) bg-(--color-background-sidebar)">
         <Link
           href="/app/dashboard"
-          className="flex h-16 items-center px-4 border-b border-(--color-border-divider) font-(--font-weight-h3)"
+          className="flex h-16 items-center px-4 border-b border-(--color-border-divider) font-(--font-weight-h3) focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-(--color-border-focus-ring)"
           style={{ fontSize: "var(--font-size-h3)", color: "var(--color-text-heading)" }}
         >
           Conditions Translator
@@ -51,7 +64,7 @@ export function AppNav({ children }: { children: React.ReactNode }) {
                 key={href}
                 href={href}
                 aria-current={active ? "page" : undefined}
-                className={`flex h-9 items-center gap-3 rounded-md px-3 text-sm font-medium transition-colors ${
+                className={`flex h-9 items-center gap-3 rounded-md px-3 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-border-focus-ring) ${
                   active
                     ? "bg-(--color-accent-success) text-(--color-text-inverse)"
                     : "text-(--color-text-body) hover:bg-(--color-border-divider)"
@@ -68,18 +81,20 @@ export function AppNav({ children }: { children: React.ReactNode }) {
       {/* Mobile top bar */}
       <header className="md:hidden fixed inset-x-0 top-0 z-40 flex h-14 items-center gap-3 border-b border-(--color-border-divider) bg-(--color-background-page) px-4">
         <button
+          ref={menuButtonRef}
           type="button"
           onClick={() => setMenuOpen((open) => !open)}
           aria-label={menuOpen ? "Close menu" : "Open menu"}
           aria-expanded={menuOpen}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-(--color-text-body) hover:bg-(--color-border-divider)"
+          aria-controls="mobile-nav-menu"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-(--color-text-body) hover:bg-(--color-border-divider) focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-border-focus-ring)"
         >
           {menuOpen ? <CloseIcon /> : <MenuIcon />}
         </button>
         <Link
           href="/app/dashboard"
           onClick={() => setMenuOpen(false)}
-          className="truncate font-(--font-weight-h3)"
+          className="truncate font-(--font-weight-h3) focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-border-focus-ring) rounded"
           style={{ fontSize: "var(--font-size-h3)", color: "var(--color-text-heading)" }}
         >
           Conditions Translator
@@ -95,6 +110,7 @@ export function AppNav({ children }: { children: React.ReactNode }) {
             aria-hidden="true"
           />
           <nav
+            id="mobile-nav-menu"
             className="md:hidden fixed inset-x-0 top-14 z-40 space-y-1 border-b border-(--color-border-divider) bg-(--color-background-page) p-2 shadow-lg"
             aria-label="Main navigation"
           >
@@ -106,7 +122,7 @@ export function AppNav({ children }: { children: React.ReactNode }) {
                   href={href}
                   onClick={() => setMenuOpen(false)}
                   aria-current={active ? "page" : undefined}
-                  className={`flex h-10 items-center gap-3 rounded-md px-3 text-sm font-medium ${
+                  className={`flex h-10 items-center gap-3 rounded-md px-3 text-sm font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-border-focus-ring) ${
                     active
                       ? "bg-(--color-accent-success) text-(--color-text-inverse)"
                       : "text-(--color-text-body) hover:bg-(--color-border-divider)"
@@ -133,7 +149,7 @@ export function AppNav({ children }: { children: React.ReactNode }) {
               key={href}
               href={href}
               aria-current={active ? "page" : undefined}
-              className={`flex min-h-[44px] flex-1 flex-col items-center justify-center gap-0.5 py-1.5 text-xs font-medium ${
+              className={`flex min-h-[44px] flex-1 flex-col items-center justify-center gap-0.5 py-1.5 text-xs font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-(--color-border-focus-ring) ${
                 active ? "text-(--color-accent-success)" : "text-(--color-text-meta)"
               }`}
             >
