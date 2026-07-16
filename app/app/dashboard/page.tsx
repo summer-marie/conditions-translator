@@ -292,10 +292,10 @@ export default function DashboardPage() {
   // Loading skeleton
   if (state.isLoading) {
     return (
-      <div className="min-h-screen bg-[var(--color-background-page)] p-4 sm:p-6 lg:p-8">
+      <div className="min-h-screen bg-(--color-background-page) p-4 sm:p-6 lg:p-8">
         <div className="max-w-7xl mx-auto">
           <div className="mb-8">
-            <h1 className="font-[var(--font-weight-h1)] mb-2" style={{ fontSize: 'var(--font-size-h1)', color: 'var(--color-text-heading)' }}>
+            <h1 className="font-(--font-weight-h1) mb-2" style={{ fontSize: 'var(--font-size-h1)', color: 'var(--color-text-heading)' }}>
               My Documents
             </h1>
             <p style={{ fontSize: 'var(--font-size-body)', color: 'var(--color-text-body)' }}>Loading your documents...</p>
@@ -303,13 +303,13 @@ export default function DashboardPage() {
           
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="bg-[var(--color-background-card)] rounded-lg shadow-sm border border-[var(--color-border-card)] p-6 space-y-4">
-                <div className="h-6 bg-[var(--color-background-subtle)] rounded animate-pulse"></div>
-                <div className="h-4 bg-[var(--color-background-subtle)] rounded w-2/3 animate-pulse"></div>
-                <div className="h-4 bg-[var(--color-background-subtle)] rounded w-1/2 animate-pulse"></div>
+              <div key={i} className="bg-(--color-background-card) rounded-lg shadow-sm border border-(--color-border-card) p-6 space-y-4">
+                <div className="h-6 bg-(--color-background-subtle) rounded animate-pulse"></div>
+                <div className="h-4 bg-(--color-background-subtle) rounded w-2/3 animate-pulse"></div>
+                <div className="h-4 bg-(--color-background-subtle) rounded w-1/2 animate-pulse"></div>
                 <div className="space-y-2 pt-4">
-                  <div className="h-8 bg-[var(--color-background-subtle)] rounded animate-pulse"></div>
-                  <div className="h-8 bg-[var(--color-background-subtle)] rounded animate-pulse"></div>
+                  <div className="h-8 bg-(--color-background-subtle) rounded animate-pulse"></div>
+                  <div className="h-8 bg-(--color-background-subtle) rounded animate-pulse"></div>
                 </div>
               </div>
             ))}
@@ -322,10 +322,10 @@ export default function DashboardPage() {
   // Error state
   if (state.error) {
     return (
-      <div className="min-h-screen bg-[var(--color-background-page)] flex items-center justify-center p-4">
-        <div className="text-center max-w-md bg-[var(--color-background-card)] rounded-lg shadow-sm border border-[var(--color-border-card)] p-8">
-          <div className="text-[var(--color-accent-destructive)] text-5xl mb-4">⚠️</div>
-          <h2 className="font-[var(--font-weight-h2)] mb-2" style={{ fontSize: 'var(--font-size-h2)', color: 'var(--color-text-heading)' }}>
+      <div className="min-h-screen bg-(--color-background-page) flex items-center justify-center p-4">
+        <div className="text-center max-w-md bg-(--color-background-card) rounded-lg shadow-sm border border-(--color-border-card) p-8">
+          <div className="text-(--color-accent-destructive) text-5xl mb-4">⚠️</div>
+          <h2 className="font-(--font-weight-h2) mb-2" style={{ fontSize: 'var(--font-size-h2)', color: 'var(--color-text-heading)' }}>
             Unable to load documents
           </h2>
           <p style={{ fontSize: 'var(--font-size-body)', color: 'var(--color-text-body)' }} className="mb-6">{state.error}</p>
@@ -340,10 +340,10 @@ export default function DashboardPage() {
   // Empty state
   if (state.documents.length === 0) {
     return (
-      <div className="min-h-screen bg-[var(--color-background-page)] flex items-center justify-center p-4">
-        <div className="text-center max-w-md bg-[var(--color-background-card)] rounded-lg shadow-sm border border-[var(--color-border-card)] p-8">
-          <div className="text-[var(--color-text-meta)] text-6xl mb-4">📄</div>
-          <h2 className="font-[var(--font-weight-h2)] mb-2" style={{ fontSize: 'var(--font-size-h2)', color: 'var(--color-text-heading)' }}>
+      <div className="min-h-screen bg-(--color-background-page) flex items-center justify-center p-4">
+        <div className="text-center max-w-md bg-(--color-background-card) rounded-lg shadow-sm border border-(--color-border-card) p-8">
+          <div className="text-(--color-text-meta) text-6xl mb-4">📄</div>
+          <h2 className="font-(--font-weight-h2) mb-2" style={{ fontSize: 'var(--font-size-h2)', color: 'var(--color-text-heading)' }}>
             No documents yet
           </h2>
             <p style={{ fontSize: 'var(--font-size-body)', color: 'var(--color-text-body)' }} className="mb-6">
@@ -362,12 +362,12 @@ export default function DashboardPage() {
 
   // Main dashboard with documents
   return (
-    <div className="min-h-screen bg-[var(--color-background-page)] p-4 sm:p-6 lg:p-8">
+    <div className="min-h-screen bg-(--color-background-page) p-4 sm:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
           <div>
-            <h1 className="font-[var(--font-weight-h1)] mb-2" style={{ fontSize: 'var(--font-size-h1)', color: 'var(--color-text-heading)' }}>
+            <h1 className="font-(--font-weight-h1) mb-2" style={{ fontSize: 'var(--font-size-h1)', color: 'var(--color-text-heading)' }}>
               My Documents
             </h1>
             <p style={{ fontSize: 'var(--font-size-body)', color: 'var(--color-text-body)' }}>
@@ -378,7 +378,7 @@ export default function DashboardPage() {
             <button
               onClick={handleSignOut}
               disabled={isSigningOut}
-              className="text-sm font-medium text-[var(--color-text-body)] hover:text-[var(--color-text-heading)] disabled:opacity-50 self-start sm:self-auto"
+              className="text-sm font-medium text-(--color-text-body) hover:text-(--color-text-heading) disabled:opacity-50 self-start sm:self-auto"
             >
               {isSigningOut ? "Signing out..." : "Sign out"}
             </button>
@@ -395,23 +395,23 @@ export default function DashboardPage() {
             return (
               <div
                 key={document.id}
-                className="bg-[var(--color-background-card)] rounded-lg shadow-sm border border-[var(--color-border-card)] p-6 flex flex-col hover:shadow-md transition-shadow"
+                className="bg-(--color-background-card) rounded-lg shadow-sm border border-(--color-border-card) p-6 flex flex-col hover:shadow-md transition-shadow"
               >
                 {/* Document header */}
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex-1 min-w-0 pr-2">
                     <h3
-                      className="font-[var(--font-weight-h3)] truncate"
+                      className="font-(--font-weight-h3) truncate"
                       title={document.title}
                       style={{ fontSize: 'var(--font-size-h3)', color: 'var(--color-text-heading)' }}
                     >
                       {document.title}
                     </h3>
-                    <p className="text-sm text-[var(--color-text-meta)] mt-1">
+                    <p className="text-sm text-(--color-text-meta) mt-1">
                       {document._count.pages} page{document._count.pages !== 1 ? "s" : ""}
                     </p>
                     {isDuplicate && (
-                      <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-1 bg-[var(--color-accent-warning-bg)] text-[var(--color-accent-warning)] rounded text-xs font-medium">
+                      <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-1 bg-(--color-accent-warning-bg) text-(--color-accent-warning) rounded text-xs font-medium">
                         <span aria-hidden="true">⚠️</span>
                         <span>Similar document name</span>
                       </div>
@@ -423,13 +423,13 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Document metadata */}
-                <div className="text-sm text-[var(--color-text-meta)] mb-4">
+                <div className="text-sm text-(--color-text-meta) mb-4">
                   Created {formatDate(document.createdAt)}
                 </div>
 
                 {/* Document info */}
                 {hasSections && (
-                  <div className="text-sm text-[var(--color-text-body)] mb-4">
+                  <div className="text-sm text-(--color-text-body) mb-4">
                     {document.sections.length} section{document.sections.length !== 1 ? "s" : ""}
                   </div>
                 )}
@@ -465,7 +465,7 @@ export default function DashboardPage() {
                     variant="ghost"
                     size="md"
                     fullWidth
-                    className="text-[var(--color-accent-destructive)] hover:bg-[var(--color-accent-destructive-bg)] hover:text-[var(--color-accent-destructive)]"
+                    className="text-(--color-accent-destructive) hover:bg-(--color-accent-destructive-bg) hover:text-(--color-accent-destructive)"
                     aria-label={`Delete ${document.title}`}
                   >
                     Delete
@@ -487,13 +487,13 @@ export default function DashboardPage() {
           aria-labelledby="delete-modal-title"
         >
           <div
-            className="bg-[var(--color-background-card)] rounded-lg shadow-xl max-w-md w-full p-6 border border-[var(--color-border-card)]"
+            className="bg-(--color-background-card) rounded-lg shadow-xl max-w-md w-full p-6 border border-(--color-border-card)"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-4">
               <h2
                 id="delete-modal-title"
-                className="font-[var(--font-weight-h2)] mb-2"
+                className="font-(--font-weight-h2) mb-2"
                 style={{ fontSize: 'var(--font-size-h2)', color: 'var(--color-text-heading)' }}
               >
                 Delete document?
@@ -504,7 +504,7 @@ export default function DashboardPage() {
                 its pages. This action cannot be undone.
               </p>
               {deleteModal.error && (
-                <p className="text-[var(--color-accent-destructive)] text-sm mt-2">{deleteModal.error}</p>
+                <p className="text-(--color-accent-destructive) text-sm mt-2">{deleteModal.error}</p>
               )}
             </div>
 
@@ -541,22 +541,22 @@ export default function DashboardPage() {
           aria-labelledby="sections-modal-title"
         >
           <div
-            className="bg-[var(--color-background-card)] rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col border border-[var(--color-border-card)]"
+            className="bg-(--color-background-card) rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col border border-(--color-border-card)"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal header */}
-            <div className="p-6 border-b border-[var(--color-border-divider)]">
+            <div className="p-6 border-b border-(--color-border-divider)">
               <div className="flex items-center justify-between mb-4">
                 <h2
                   id="sections-modal-title"
-                  className="font-[var(--font-weight-h2)]"
+                  className="font-(--font-weight-h2)"
                   style={{ fontSize: 'var(--font-size-h2)', color: 'var(--color-text-heading)' }}
                 >
                   {sectionsModal.document.title}
                 </h2>
                 <button
                   onClick={handleCloseSectionsModal}
-                  className="text-[var(--color-text-meta)] hover:text-[var(--color-text-heading)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus-ring)] rounded p-1"
+                  className="text-(--color-text-meta) hover:text-(--color-text-heading) focus:outline-none focus:ring-2 focus:ring-(--color-border-focus-ring) rounded p-1"
                   aria-label="Close"
                 >
                   <svg
@@ -580,13 +580,13 @@ export default function DashboardPage() {
             <div className="p-6 overflow-y-auto flex-1">
               {sectionsModal.isLoading ? (
                 <div className="text-center py-8">
-                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--color-accent-processing)]"></div>
-                  <p className="mt-4 text-[var(--color-text-body)]">Loading sections...</p>
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-(--color-accent-processing)"></div>
+                  <p className="mt-4 text-(--color-text-body)">Loading sections...</p>
                 </div>
               ) : sectionsModal.error ? (
                 <div className="text-center py-8">
-                  <div className="text-[var(--color-accent-destructive)] text-5xl mb-4">⚠️</div>
-                  <p className="text-[var(--color-text-body)]">{sectionsModal.error}</p>
+                  <div className="text-(--color-accent-destructive) text-5xl mb-4">⚠️</div>
+                  <p className="text-(--color-text-body)">{sectionsModal.error}</p>
                   <Button
                     onClick={() => handleViewSections(sectionsModal.document!)}
                     variant="primary"
@@ -598,21 +598,21 @@ export default function DashboardPage() {
                 </div>
               ) : !sectionsModal.sections || sectionsModal.sections.length === 0 ? (
                 <div className="text-center py-8">
-                  <div className="text-[var(--color-text-meta)] text-6xl mb-4">📄</div>
-                  <p className="text-[var(--color-text-body)]">No sections available for this document</p>
+                  <div className="text-(--color-text-meta) text-6xl mb-4">📄</div>
+                  <p className="text-(--color-text-body)">No sections available for this document</p>
                 </div>
               ) : (
                 <div className="space-y-6">
                   {sectionsModal.sections.map((section) => (
-                    <div key={section.id} className="border-b border-[var(--color-border-divider)] pb-6 last:border-0">
-                      <h3 className="font-[var(--font-weight-h3)] mb-2" style={{ fontSize: 'var(--font-size-h3)', color: 'var(--color-text-heading)' }}>
+                    <div key={section.id} className="border-b border-(--color-border-divider) pb-6 last:border-0">
+                      <h3 className="font-(--font-weight-h3) mb-2" style={{ fontSize: 'var(--font-size-h3)', color: 'var(--color-text-heading)' }}>
                         {section.order + 1}. {section.heading}
                       </h3>
-                      <p className="text-[var(--color-text-body)] whitespace-pre-wrap leading-relaxed">
+                      <p className="text-(--color-text-body) whitespace-pre-wrap leading-relaxed">
                         {section.body}
                       </p>
                       {section.sources && section.sources.length > 0 && (
-                        <div className="mt-3 text-sm text-[var(--color-text-meta)]">
+                        <div className="mt-3 text-sm text-(--color-text-meta)">
                           <span className="font-medium">Source pages:</span>{" "}
                           {section.sources.map((source, idx) => (
                             <span key={source.pageId}>
@@ -629,7 +629,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Modal footer */}
-            <div className="p-6 border-t border-[var(--color-border-divider)] flex justify-end">
+            <div className="p-6 border-t border-(--color-border-divider) flex justify-end">
               <Button
                 onClick={handleCloseSectionsModal}
                 variant="secondary"

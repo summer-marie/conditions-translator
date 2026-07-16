@@ -172,7 +172,7 @@ export default function ChatPage() {
       <div className="max-w-2xl mx-auto p-4 md:p-6">
         <div className="flex items-center justify-between mb-4">
           <h1
-            className="font-[var(--font-weight-h2)]"
+            className="font-(--font-weight-h2)"
             style={{ fontSize: 'var(--font-size-h2)', color: 'var(--color-text-heading)' }}
           >
             Ask about your documents
@@ -282,7 +282,7 @@ export default function ChatPage() {
                         checked={checked}
                         disabled={disabled}
                         onChange={() => toggleDocument(doc.id)}
-                        className="h-4 w-4 accent-[var(--color-brand-primary)]"
+                        className="h-4 w-4 accent-(--color-brand-primary)"
                       />
                       <span 
                         className="text-sm font-medium" 
@@ -324,7 +324,7 @@ export default function ChatPage() {
     <div className="max-w-2xl mx-auto flex flex-col h-dvh p-4 md:p-6">
       <div className="flex items-center justify-between mb-2">
         <h1
-          className="font-[var(--font-weight-h3)]"
+          className="font-(--font-weight-h3)"
           style={{ fontSize: 'var(--font-size-h3)', color: 'var(--color-text-heading)' }}
         >
           Chat

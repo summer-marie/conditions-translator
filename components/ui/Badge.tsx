@@ -9,11 +9,11 @@ export function Badge({ variant, size = "md", className = "", children }: BadgeP
   const baseStyles = "inline-flex items-center px-2.5 py-0.5 rounded-full font-medium";
   
   const variantStyles = {
-    success: "bg-[var(--color-accent-success-bg)] text-[var(--color-accent-success)]",
-    warning: "bg-[var(--color-accent-warning-bg)] text-[var(--color-accent-warning)]",
-    destructive: "bg-[var(--color-accent-destructive-bg)] text-[var(--color-accent-destructive)]",
-    processing: "bg-[var(--color-accent-processing-bg)] text-[var(--color-accent-processing)]",
-    neutral: "bg-[var(--color-background-subtle)] text-[var(--color-text-body)]",
+    success: "bg-(--color-accent-success-bg) text-(--color-accent-success)",
+    warning: "bg-(--color-accent-warning-bg) text-(--color-accent-warning)",
+    destructive: "bg-(--color-accent-destructive-bg) text-(--color-accent-destructive)",
+    processing: "bg-(--color-accent-processing-bg) text-(--color-accent-processing)",
+    neutral: "bg-(--color-background-subtle) text-(--color-text-body)",
   };
   
   const sizeStyles = {

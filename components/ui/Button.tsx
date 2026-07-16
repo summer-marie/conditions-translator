@@ -18,10 +18,10 @@ export function Button({
   const baseStyles = "inline-flex items-center justify-center rounded-md font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed";
   
   const variantStyles = {
-    primary: "bg-[var(--color-accent-success)] text-white hover:bg-emerald-700 focus:ring-[var(--color-accent-success)]",
-    secondary: "border border-[var(--color-border-card)] text-[var(--color-text-body)] hover:bg-[var(--color-background-subtle)] focus:ring-[var(--color-border-card)]",
-    danger: "bg-[var(--color-accent-destructive)] text-white hover:bg-red-700 focus:ring-[var(--color-accent-destructive)]",
-    ghost: "text-[var(--color-text-body)] hover:bg-[var(--color-background-subtle)] focus:ring-[var(--color-border-card)]",
+    primary: "bg-(--color-accent-success) text-white hover:bg-emerald-700 focus:ring-(--color-accent-success)",
+    secondary: "border border-(--color-border-card) text-(--color-text-body) hover:bg-(--color-background-subtle) focus:ring-(--color-border-card)",
+    danger: "bg-(--color-accent-destructive) text-white hover:bg-red-700 focus:ring-(--color-accent-destructive)",
+    ghost: "text-(--color-text-body) hover:bg-(--color-background-subtle) focus:ring-(--color-border-card)",
   };
   
   const sizeStyles = {
