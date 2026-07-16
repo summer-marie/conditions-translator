@@ -17,6 +17,7 @@ import { useRouter } from "next/navigation";
 import { signOut } from "@/lib/actions/auth";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
+import { Card } from "@/components/ui/Card";
 
 type DocumentStatus =
   | "IN_PROGRESS"
@@ -303,7 +304,7 @@ export default function DashboardPage() {
           
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="bg-(--color-background-card) rounded-lg shadow-sm border border-(--color-border-card) p-6 space-y-4">
+              <Card key={i} className="space-y-4">
                 <div className="h-6 bg-(--color-background-subtle) rounded animate-pulse"></div>
                 <div className="h-4 bg-(--color-background-subtle) rounded w-2/3 animate-pulse"></div>
                 <div className="h-4 bg-(--color-background-subtle) rounded w-1/2 animate-pulse"></div>
@@ -311,7 +312,7 @@ export default function DashboardPage() {
                   <div className="h-8 bg-(--color-background-subtle) rounded animate-pulse"></div>
                   <div className="h-8 bg-(--color-background-subtle) rounded animate-pulse"></div>
                 </div>
-              </div>
+              </Card>
             ))}
           </div>
         </div>
@@ -323,7 +324,7 @@ export default function DashboardPage() {
   if (state.error) {
     return (
       <div className="min-h-screen bg-(--color-background-page) flex items-center justify-center p-4">
-        <div className="text-center max-w-md bg-(--color-background-card) rounded-lg shadow-sm border border-(--color-border-card) p-8">
+        <Card padding="lg" className="text-center max-w-md">
           <div className="text-(--color-accent-destructive) text-5xl mb-4">⚠️</div>
           <h2 className="font-(--font-weight-h2) mb-2" style={{ fontSize: 'var(--font-size-h2)', color: 'var(--color-text-heading)' }}>
             Unable to load documents
@@ -332,7 +333,7 @@ export default function DashboardPage() {
           <Button onClick={fetchDocuments} variant="primary" size="md">
             Try again
           </Button>
-        </div>
+        </Card>
       </div>
     );
   }
@@ -341,7 +342,7 @@ export default function DashboardPage() {
   if (state.documents.length === 0) {
     return (
       <div className="min-h-screen bg-(--color-background-page) flex items-center justify-center p-4">
-        <div className="text-center max-w-md bg-(--color-background-card) rounded-lg shadow-sm border border-(--color-border-card) p-8">
+        <Card padding="lg" className="text-center max-w-md">
           <div className="text-(--color-text-meta) text-6xl mb-4">📄</div>
           <h2 className="font-(--font-weight-h2) mb-2" style={{ fontSize: 'var(--font-size-h2)', color: 'var(--color-text-heading)' }}>
             No documents yet
@@ -355,7 +356,7 @@ export default function DashboardPage() {
               Create new document
             </Button>
           </Link>
-        </div>
+        </Card>
       </div>
     );
   }
@@ -393,9 +394,10 @@ export default function DashboardPage() {
             const isDuplicate = hasDuplicateTitle(document, state.documents);
 
             return (
-              <div
+              <Card
                 key={document.id}
-                className="bg-(--color-background-card) rounded-lg shadow-sm border border-(--color-border-card) p-6 flex flex-col hover:shadow-md transition-shadow"
+                hover
+                className="flex flex-col"
               >
                 {/* Document header */}
                 <div className="flex items-start justify-between mb-4">
@@ -471,7 +473,7 @@ export default function DashboardPage() {
                     Delete
                   </Button>
                 </div>
-              </div>
+              </Card>
             );
           })}
         </div>

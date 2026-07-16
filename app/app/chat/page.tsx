@@ -13,6 +13,7 @@ import { startChat, sendMessage } from "@/lib/actions/chat";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Input } from "@/components/ui/Input";
+import { Card } from "@/components/ui/Card";
 
 type DocumentStatus =
   | "IN_PROGRESS"
@@ -360,12 +361,11 @@ export default function ChatPage() {
         ))}
       </div>
 
-      <div 
-        className="flex-1 overflow-y-auto rounded-lg p-3 space-y-3"
-        style={{ 
-          backgroundColor: 'var(--color-background-card)', 
-          border: '1px solid var(--color-border-card)' 
-        }}
+      <Card
+        variant="default"
+        padding="sm"
+        shadow={false}
+        className="flex-1 overflow-y-auto space-y-3"
       >
         {messages.length === 0 && (
           <p 
@@ -418,7 +418,7 @@ export default function ChatPage() {
           </div>
         ))}
         <div ref={messagesEndRef} />
-      </div>
+      </Card>
 
       {limits?.approachingLimit && !limits.limitReached && (
         <div 

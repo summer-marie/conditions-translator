@@ -24,6 +24,7 @@ import { DEFAULT_DOCUMENT_TITLE, isDefaultDocumentTitle } from "@/lib/constants"
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Input } from "@/components/ui/Input";
+import { Card } from "@/components/ui/Card";
 
 interface OcrQuality {
   blurry: boolean;
@@ -623,15 +624,8 @@ export default function WorkspacePage() {
           <div className="lg:col-span-2 space-y-6">
             {/* Upload section */}
             {canUpload && (
-              <div 
-                className="rounded-lg p-6"
-                style={{
-                  backgroundColor: 'var(--color-background-page)',
-                  boxShadow: 'var(--shadow-sm)',
-                  padding: 'var(--spacing-6)'
-                }}
-              >
-                <h2 
+              <Card variant="panel">
+                <h2
                   className="mb-4"
                   style={{
                     fontSize: 'var(--font-size-h3)',
@@ -720,19 +714,12 @@ export default function WorkspacePage() {
                     </span>
                   </div>
                 )}
-              </div>
+              </Card>
             )}
 
             {/* Pages list */}
-            <div 
-              className="rounded-lg p-6"
-              style={{
-                backgroundColor: 'var(--color-background-page)',
-                boxShadow: 'var(--shadow-sm)',
-                padding: 'var(--spacing-6)'
-              }}
-            >
-              <h2 
+            <Card variant="panel">
+              <h2
                 className="mb-4"
                 style={{
                   fontSize: 'var(--font-size-h3)',
@@ -919,7 +906,7 @@ export default function WorkspacePage() {
                   })}
                 </div>
               )}
-            </div>
+            </Card>
           </div>
 
           {/* Right column - Actions */}
@@ -979,14 +966,7 @@ export default function WorkspacePage() {
               )}
 
             {/* Status card */}
-            <div
-              className="rounded-lg"
-              style={{
-                backgroundColor: 'var(--color-background-page)',
-                boxShadow: 'var(--shadow-sm)',
-                padding: 'var(--spacing-6)'
-              }}
-            >
+            <Card variant="panel">
               <h2
                 style={{
                   fontSize: 'var(--font-size-h3)',
@@ -1011,18 +991,11 @@ export default function WorkspacePage() {
                   <span style={{ fontSize: 'var(--font-size-body)', fontWeight: 'var(--font-weight-h3)', color: 'var(--color-text-heading)' }}>{documentStatusLabel(document.status)}</span>
                 </div>
               </div>
-            </div>
+            </Card>
 
             {/* Actions */}
             {document.status === "IN_PROGRESS" && (
-              <div
-                className="rounded-lg"
-                style={{
-                  backgroundColor: 'var(--color-background-page)',
-                  boxShadow: 'var(--shadow-sm)',
-                  padding: 'var(--spacing-6)'
-                }}
-              >
+              <Card variant="panel">
                 <h2
                   style={{
                     fontSize: 'var(--font-size-h3)',
@@ -1055,7 +1028,7 @@ export default function WorkspacePage() {
                     Accept at least one page to finish
                   </p>
                 )}
-              </div>
+              </Card>
             )}
 
             {(isProcessing || isFinishing) && (
