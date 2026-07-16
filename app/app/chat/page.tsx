@@ -211,7 +211,7 @@ export default function ChatPage() {
         </p>
 
         {error && (
-          <Alert tone="destructive" bordered={false} padding="sm" className="mb-4">
+          <Alert tone="destructive" role="alert" bordered={false} padding="sm" className="mb-4">
             <p
               className="text-sm"
               style={{ color: 'var(--color-accent-destructive)' }}
@@ -360,6 +360,9 @@ export default function ChatPage() {
         variant="default"
         padding="sm"
         shadow={false}
+        role="log"
+        aria-label="Chat messages"
+        aria-live="polite"
         className="flex-1 overflow-y-auto space-y-3"
       >
         {messages.length === 0 && (
@@ -416,7 +419,7 @@ export default function ChatPage() {
       </Card>
 
       {limits?.approachingLimit && !limits.limitReached && (
-        <Alert tone="warning" bordered={false} padding="xs" className="mt-2">
+        <Alert tone="warning" role="status" bordered={false} padding="xs" className="mt-2">
           <p
             style={{
               color: 'var(--color-accent-warning)',
@@ -430,7 +433,7 @@ export default function ChatPage() {
       )}
 
       {error && (
-        <Alert tone="destructive" bordered={false} padding="xs" className="mt-2">
+        <Alert tone="destructive" role="alert" bordered={false} padding="xs" className="mt-2">
           <p
             className="text-sm"
             style={{ color: 'var(--color-accent-destructive)' }}
@@ -464,6 +467,7 @@ export default function ChatPage() {
                 handleSend();
               }
             }}
+            aria-label="Ask a question"
             placeholder="Ask a question…"
             disabled={isSending}
             fullWidth={false}

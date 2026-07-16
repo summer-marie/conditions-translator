@@ -11,13 +11,14 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signOut } from "@/lib/actions/auth";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 
 type DocumentStatus =
   | "IN_PROGRESS"
@@ -78,7 +79,9 @@ export default function DashboardPage() {
     isDeleting: boolean;
     error: string | null;
   }>({ isOpen: false, document: null, isDeleting: false, error: null });
-  
+  const deleteModalRef = useRef<HTMLDivElement | null>(null);
+  useFocusTrap(deleteModal.isOpen, deleteModalRef);
+
   const [sectionsModal, setSectionsModal] = useState<SectionsModalState>({
     isOpen: false,
     document: null,
@@ -86,6 +89,8 @@ export default function DashboardPage() {
     isLoading: false,
     error: null,
   });
+  const sectionsModalRef = useRef<HTMLDivElement | null>(null);
+  useFocusTrap(sectionsModal.isOpen, sectionsModalRef);
 
   const fetchDocuments = useCallback(async () => {
     try {
@@ -413,13 +418,13 @@ export default function DashboardPage() {
                 {/* Document header */}
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex-1 min-w-0 pr-2">
-                    <h3
+                    <h2
                       className="font-(--font-weight-h3) truncate"
                       title={document.title}
                       style={{ fontSize: 'var(--font-size-h3)', color: 'var(--color-text-heading)' }}
                     >
                       {document.title}
-                    </h3>
+                    </h2>
                     <p className="text-sm text-(--color-text-meta) mt-1">
                       {document._count.pages} page{document._count.pages !== 1 ? "s" : ""}
                     </p>
@@ -500,6 +505,7 @@ export default function DashboardPage() {
           aria-labelledby="delete-modal-title"
         >
           <div
+            ref={deleteModalRef}
             className="bg-(--color-background-card) rounded-lg shadow-xl max-w-md w-full p-6 border border-(--color-border-card)"
             onClick={(e) => e.stopPropagation()}
           >
@@ -554,6 +560,7 @@ export default function DashboardPage() {
           aria-labelledby="sections-modal-title"
         >
           <div
+            ref={sectionsModalRef}
             className="bg-(--color-background-card) rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col border border-(--color-border-card)"
             onClick={(e) => e.stopPropagation()}
           >

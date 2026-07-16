@@ -8,7 +8,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -26,6 +26,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
 import { Alert } from "@/components/ui/Alert";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 
 interface OcrQuality {
   blurry: boolean;
@@ -136,6 +137,8 @@ export default function WorkspacePage() {
   const [ocrRunningIds, setOcrRunningIds] = useState<Record<string, boolean>>({});
   const [actioningPageId, setActioningPageId] = useState<string | null>(null);
   const [expandedImagePage, setExpandedImagePage] = useState<Page | null>(null);
+  const expandedImageModalRef = useRef<HTMLDivElement | null>(null);
+  useFocusTrap(expandedImagePage !== null, expandedImageModalRef);
   // Set once the workspace is owned by a signed-in account (Phase 7). null while temporary.
   const [savedUserId, setSavedUserId] = useState<string | null>(null);
   const [isSigningOut, setIsSigningOut] = useState(false);
@@ -520,6 +523,7 @@ export default function WorkspacePage() {
                     variant="heading"
                     className="max-w-md"
                     autoFocus
+                    aria-label="Document title"
                   />
                 </div>
               ) : (
@@ -1210,7 +1214,7 @@ export default function WorkspacePage() {
           aria-modal="true"
           aria-label={`Page ${expandedImagePage.order + 1} enlarged`}
         >
-          <div className="relative max-w-4xl max-h-[90vh]">
+          <div ref={expandedImageModalRef} className="relative max-w-4xl max-h-[90vh]">
             <button
               onClick={() => setExpandedImagePage(null)}
               className="absolute -top-12 right-0 text-white text-4xl font-bold hover:text-gray-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-white rounded"

@@ -4,6 +4,9 @@ interface AlertProps {
   radius?: "md" | "lg";
   padding?: "xs" | "sm" | "md" | "lg";
   className?: string;
+  // Set only on alerts that appear/change without a page navigation (errors, warnings) so
+  // screen readers announce them; omit for static, always-present status panels.
+  role?: "alert" | "status";
   children: React.ReactNode;
 }
 
@@ -13,6 +16,7 @@ export function Alert({
   radius = "md",
   padding = "lg",
   className = "",
+  role,
   children,
 }: AlertProps) {
   const toneBg = {
@@ -43,6 +47,7 @@ export function Alert({
 
   return (
     <div
+      role={role}
       className={`${radiusStyles[radius]} ${toneBg[tone]} ${paddingStyles[padding]} ${
         bordered ? `border ${toneBorder[tone]}` : ""
       } ${className}`}

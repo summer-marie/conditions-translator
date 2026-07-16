@@ -179,7 +179,10 @@ function SavePageContent() {
       </div>
 
       {error && (
-        <div className="mb-4 rounded-md border border-(--color-accent-destructive) bg-(--color-accent-destructive-bg) p-3 text-sm text-(--color-accent-destructive)">
+        <div
+          role="alert"
+          className="mb-4 rounded-md border border-(--color-accent-destructive) bg-(--color-accent-destructive-bg) p-3 text-sm text-(--color-accent-destructive)"
+        >
           {error}
         </div>
       )}
@@ -187,8 +190,9 @@ function SavePageContent() {
       {mode === "create" ? (
         <form onSubmit={handleCreate} className="space-y-3">
           <div>
-            <label className="block text-sm font-medium text-(--color-text-body) mb-1">Email</label>
+            <label htmlFor="create-email" className="block text-sm font-medium text-(--color-text-body) mb-1">Email</label>
             <Input
+              id="create-email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -200,20 +204,23 @@ function SavePageContent() {
           <p className="text-center text-xs text-(--color-text-meta)">or</p>
 
           <div>
-            <label className="block text-sm font-medium text-(--color-text-body) mb-1">Username</label>
+            <label htmlFor="create-username" className="block text-sm font-medium text-(--color-text-body) mb-1">Username</label>
             <Input
+              id="create-username"
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               placeholder="username"
               autoComplete="username"
+              aria-describedby="create-username-hint"
             />
-            <p className="mt-1 text-xs text-(--color-text-meta)">Provide at least an email or a username.</p>
+            <p id="create-username-hint" className="mt-1 text-xs text-(--color-text-meta)">Provide at least an email or a username.</p>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-(--color-text-body) mb-1">Password</label>
+            <label htmlFor="create-password" className="block text-sm font-medium text-(--color-text-body) mb-1">Password</label>
             <Input
+              id="create-password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -223,10 +230,11 @@ function SavePageContent() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-(--color-text-body) mb-1">
+            <label htmlFor="create-recovery-email" className="block text-sm font-medium text-(--color-text-body) mb-1">
               Recovery email <span className="text-(--color-text-meta)">(optional)</span>
             </label>
             <Input
+              id="create-recovery-email"
               type="email"
               value={recoveryEmail}
               onChange={(e) => setRecoveryEmail(e.target.value)}
@@ -257,8 +265,9 @@ function SavePageContent() {
       ) : (
         <form onSubmit={handleSignIn} className="space-y-3">
           <div>
-            <label className="block text-sm font-medium text-(--color-text-body) mb-1">Email or username</label>
+            <label htmlFor="signin-identifier" className="block text-sm font-medium text-(--color-text-body) mb-1">Email or username</label>
             <Input
+              id="signin-identifier"
               type="text"
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
@@ -267,8 +276,9 @@ function SavePageContent() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-(--color-text-body) mb-1">Password</label>
+            <label htmlFor="signin-password" className="block text-sm font-medium text-(--color-text-body) mb-1">Password</label>
             <Input
+              id="signin-password"
               type="password"
               value={signInPassword}
               onChange={(e) => setSignInPassword(e.target.value)}
