@@ -10,6 +10,7 @@
 import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import { GetStartedCTA } from "@/components/landing/GetStartedCTA";
+import { APP_NAME } from "@/lib/constants";
 
 const FEATURES = [
   {
@@ -46,7 +47,7 @@ export default function LandingPage() {
             className="font-(--font-weight-h3)"
             style={{ fontSize: "var(--font-size-h3)", color: "var(--color-text-heading)" }}
           >
-            Conditions Translator
+            {APP_NAME}
           </span>
           <Link
             href="/app/save?mode=signin"
@@ -157,10 +158,10 @@ export default function LandingPage() {
       <footer className="border-t border-(--color-border-divider)">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col sm:flex-row items-center justify-between gap-2">
           <p style={{ fontSize: "var(--font-size-caption)", color: "var(--color-text-meta)" }}>
-            Conditions Translator — understand your supervision documents in plain language.
+            {APP_NAME} — understand your supervision documents in plain language.
           </p>
           <p style={{ fontSize: "var(--font-size-caption)", color: "var(--color-text-meta)" }}>
-            © {new Date().getFullYear()} Conditions Translator
+            © {new Date().getFullYear()} {APP_NAME}
           </p>
         </div>
       </footer>

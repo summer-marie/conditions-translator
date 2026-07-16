@@ -12,6 +12,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
+import { APP_NAME } from "@/lib/constants";
 
 const NAV_ITEMS = [
   { href: "/app/dashboard", label: "Dashboard", icon: DashboardIcon },
@@ -134,7 +135,7 @@ export function AppNav({ children }: { children: React.ReactNode }) {
               className="truncate font-(--font-weight-h3) focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-border-focus-ring) rounded"
               style={{ fontSize: "var(--font-size-h3)", color: "var(--color-text-heading)" }}
             >
-              Conditions Translator
+              {APP_NAME}
             </Link>
           )}
           <div className="flex items-center gap-1">
@@ -200,7 +201,7 @@ export function AppNav({ children }: { children: React.ReactNode }) {
           className="truncate font-(--font-weight-h3) focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-border-focus-ring) rounded"
           style={{ fontSize: "var(--font-size-h3)", color: "var(--color-text-heading)" }}
         >
-          Conditions Translator
+          {APP_NAME}
         </Link>
         <ThemeToggleButton theme={theme} onToggle={toggleTheme} className="ml-auto" />
       </header>

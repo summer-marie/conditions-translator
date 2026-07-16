@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
+import { APP_NAME } from "@/lib/constants";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Conditions Translator",
+  title: APP_NAME,
   description:
     "Understand your supervision documents in plain language, grounded only in what you upload.",
 };
