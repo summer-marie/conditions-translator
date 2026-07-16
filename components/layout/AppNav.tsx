@@ -20,6 +20,19 @@ const NAV_ITEMS = [
 
 const HIDDEN_ROUTES = ["/app/save", "/app/start"];
 
+const THEME_STORAGE_KEY = "theme";
+type Theme = "light" | "dark";
+
+// Mirrors the blocking inline script in app/layout.tsx -- keep both in sync so the
+// lazy useState initializer below agrees with whatever data-theme the script already
+// set on <html> before hydration runs.
+function getInitialTheme(): Theme {
+  if (typeof window === "undefined") return "light";
+  const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
+  if (stored === "light" || stored === "dark") return stored;
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
 function isActiveRoute(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
@@ -28,6 +41,18 @@ export function AppNav({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
+  const [theme, setTheme] = useState<Theme>(getInitialTheme);
+
+  function toggleTheme() {
+    const next: Theme = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    document.documentElement.setAttribute("data-theme", next);
+    try {
+      window.localStorage.setItem(THEME_STORAGE_KEY, next);
+    } catch {
+      // localStorage unavailable (e.g. private browsing) -- theme still applies this session
+    }
+  }
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -49,13 +74,16 @@ export function AppNav({ children }: { children: React.ReactNode }) {
     <div className="md:flex md:min-h-screen">
       {/* Desktop sidebar */}
       <aside className="hidden md:flex md:w-60 md:shrink-0 md:flex-col border-r border-(--color-border-divider) bg-(--color-background-sidebar)">
-        <Link
-          href="/app/dashboard"
-          className="flex h-16 items-center px-4 border-b border-(--color-border-divider) font-(--font-weight-h3) focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-(--color-border-focus-ring)"
-          style={{ fontSize: "var(--font-size-h3)", color: "var(--color-text-heading)" }}
-        >
-          Conditions Translator
-        </Link>
+        <div className="flex h-16 items-center justify-between border-b border-(--color-border-divider) px-4">
+          <Link
+            href="/app/dashboard"
+            className="font-(--font-weight-h3) focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-border-focus-ring) rounded"
+            style={{ fontSize: "var(--font-size-h3)", color: "var(--color-text-heading)" }}
+          >
+            Conditions Translator
+          </Link>
+          <ThemeToggleButton theme={theme} onToggle={toggleTheme} />
+        </div>
         <nav className="flex-1 space-y-1 p-4" aria-label="Main navigation">
           {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
             const active = isActiveRoute(pathname, href);
@@ -99,6 +127,7 @@ export function AppNav({ children }: { children: React.ReactNode }) {
         >
           Conditions Translator
         </Link>
+        <ThemeToggleButton theme={theme} onToggle={toggleTheme} className="ml-auto" />
       </header>
 
       {/* Mobile menu (hamburger dropdown) */}
@@ -212,6 +241,67 @@ function ChatIcon() {
     >
       <path
         d="M3 4h14v9H7l-4 3V4z"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function ThemeToggleButton({
+  theme,
+  onToggle,
+  className = "",
+}: {
+  theme: Theme;
+  onToggle: () => void;
+  className?: string;
+}) {
+  const isDark = theme === "dark";
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-pressed={isDark}
+      aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-(--color-text-body) hover:bg-(--color-border-divider) focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-border-focus-ring) ${className}`}
+    >
+      {isDark ? <SunIcon /> : <MoonIcon />}
+    </button>
+  );
+}
+
+function SunIcon() {
+  return (
+    <svg
+      className="h-5 w-5 shrink-0"
+      aria-hidden="true"
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+    >
+      <circle cx="10" cy="10" r="3.5" />
+      <path
+        d="M10 2v2M10 16v2M4.2 4.2l1.4 1.4M14.4 14.4l1.4 1.4M2 10h2M16 10h2M4.2 15.8l1.4-1.4M14.4 5.6l1.4-1.4"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function MoonIcon() {
+  return (
+    <svg
+      className="h-5 w-5 shrink-0"
+      aria-hidden="true"
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+    >
+      <path
+        d="M16 12.5A6.5 6.5 0 1 1 7.5 4a5 5 0 0 0 8.5 8.5z"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
