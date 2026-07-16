@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
+import { Alert } from "@/components/ui/Alert";
 
 type DocumentStatus =
   | "IN_PROGRESS"
@@ -210,20 +211,14 @@ export default function ChatPage() {
         </p>
 
         {error && (
-          <div 
-            className="mb-4 rounded-md p-3" 
-            style={{ 
-              backgroundColor: 'var(--color-accent-destructive-bg)', 
-              borderColor: 'var(--color-border-card)' 
-            }}
-          >
-            <p 
-              className="text-sm" 
+          <Alert tone="destructive" bordered={false} padding="sm" className="mb-4">
+            <p
+              className="text-sm"
               style={{ color: 'var(--color-accent-destructive)' }}
             >
               {error}
             </p>
-          </div>
+          </Alert>
         )}
 
         {isLoadingDocuments ? (
@@ -421,37 +416,28 @@ export default function ChatPage() {
       </Card>
 
       {limits?.approachingLimit && !limits.limitReached && (
-        <div 
-          className="mt-2 p-2 rounded-md" 
-          style={{ backgroundColor: 'var(--color-accent-warning-bg)' }}
-        >
-          <p 
-            style={{ 
-              color: 'var(--color-accent-warning)', 
-              fontSize: 'var(--font-size-caption)' 
+        <Alert tone="warning" bordered={false} padding="xs" className="mt-2">
+          <p
+            style={{
+              color: 'var(--color-accent-warning)',
+              fontSize: 'var(--font-size-caption)'
             }}
           >
             This chat is getting long. For the clearest answers, you may want to start a fresh chat
             soon.
           </p>
-        </div>
+        </Alert>
       )}
 
       {error && (
-        <div 
-          className="mt-2 rounded-md p-2" 
-          style={{ 
-            backgroundColor: 'var(--color-accent-destructive-bg)', 
-            borderColor: 'var(--color-border-card)' 
-          }}
-        >
-          <p 
-            className="text-sm" 
+        <Alert tone="destructive" bordered={false} padding="xs" className="mt-2">
+          <p
+            className="text-sm"
             style={{ color: 'var(--color-accent-destructive)' }}
           >
             {error}
           </p>
-        </div>
+        </Alert>
       )}
 
       {limits?.limitReached ? (

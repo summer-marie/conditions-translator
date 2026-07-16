@@ -14,6 +14,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { signUpAndSave, signInAndSave } from "@/lib/actions/auth";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { Alert } from "@/components/ui/Alert";
 
 type Mode = "create" | "signin";
 
@@ -94,7 +95,7 @@ function SavePageContent() {
   if (savedCount !== null) {
     return (
       <div className="max-w-md mx-auto p-4 sm:p-6">
-        <div className="rounded-lg border border-(--color-accent-success) bg-(--color-accent-success-bg) p-6 text-center">
+        <Alert tone="success" radius="lg" padding="lg" className="text-center">
           <h1 className="text-(length:--font-size-h2) font-(--font-weight-h2) text-(--color-accent-success) mb-2">
             Workspace saved
           </h1>
@@ -118,7 +119,7 @@ function SavePageContent() {
               Back to workspace
             </Link>
           </div>
-        </div>
+        </Alert>
       </div>
     );
   }

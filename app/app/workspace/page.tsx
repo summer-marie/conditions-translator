@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
+import { Alert } from "@/components/ui/Alert";
 
 interface OcrQuality {
   blurry: boolean;
@@ -925,14 +926,7 @@ export default function WorkspacePage() {
             {pages.length > 0 &&
               document.status === "IN_PROGRESS" &&
               isDefaultDocumentTitle(document.title) && (
-                <div
-                  className="rounded-lg p-4"
-                  style={{
-                    backgroundColor: 'var(--color-accent-warning-bg)',
-                    border: `1px solid var(--color-accent-warning)`,
-                    padding: 'var(--spacing-4)'
-                  }}
-                >
+                <Alert tone="warning" radius="lg" padding="md">
                   <p
                     className="mb-2"
                     style={{
@@ -971,7 +965,7 @@ export default function WorkspacePage() {
                   >
                     Name it now
                   </button>
-                </div>
+                </Alert>
               )}
 
             {/* Status card */}
@@ -1041,17 +1035,9 @@ export default function WorkspacePage() {
             )}
 
             {(isProcessing || isFinishing) && (
-              <div
-                className="rounded-lg p-6 text-center"
-                style={{
-                  backgroundColor: 'var(--color-accent-processing-bg)',
-                  border: `1px solid var(--color-accent-processing)`,
-                  borderRadius: 'var(--radius-md)',
-                  padding: 'var(--spacing-6)'
-                }}
-              >
-                <div 
-                  className="animate-spin rounded-full mx-auto mb-3" 
+              <Alert tone="processing" padding="lg" className="text-center">
+                <div
+                  className="animate-spin rounded-full mx-auto mb-3"
                   style={{ 
                     width: '2rem', 
                     height: '2rem', 
@@ -1077,19 +1063,11 @@ export default function WorkspacePage() {
                 >
                   We&apos;re creating sections from your accepted pages. This may take a moment.
                 </p>
-              </div>
+              </Alert>
             )}
 
             {isProcessingFailed && (
-              <div
-                className="rounded-lg"
-                style={{
-                  backgroundColor: 'var(--color-accent-destructive-bg)',
-                  border: `1px solid var(--color-accent-destructive)`,
-                  borderRadius: 'var(--radius-md)',
-                  padding: 'var(--spacing-6)'
-                }}
-              >
+              <Alert tone="destructive" padding="lg">
                 <h2
                   style={{
                     fontSize: 'var(--font-size-h3)',
@@ -1118,19 +1096,11 @@ export default function WorkspacePage() {
                 >
                   {isRetrying ? "Retrying..." : "Retry"}
                 </Button>
-              </div>
+              </Alert>
             )}
 
             {isReady && (
-              <div
-                className="rounded-lg"
-                style={{
-                  backgroundColor: 'var(--color-accent-success-bg)',
-                  border: `1px solid var(--color-accent-success)`,
-                  borderRadius: 'var(--radius-md)',
-                  padding: 'var(--spacing-6)'
-                }}
-              >
+              <Alert tone="success" padding="lg">
                 <h2
                   style={{
                     fontSize: 'var(--font-size-h3)',
@@ -1168,7 +1138,7 @@ export default function WorkspacePage() {
                 >
                   Ask about your documents
                 </Link>
-              </div>
+              </Alert>
             )}
 
             {isReady && document.sections.length > 0 && (
