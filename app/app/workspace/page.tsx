@@ -819,27 +819,27 @@ export default function WorkspacePage() {
                             {page.ocr?.warnings && (
                               <div className="flex flex-wrap gap-1 mt-2">
                                 {page.ocr.warnings.blurry && (
-                                  <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                  <span className="text-xs bg-(--color-accent-warning-bg) text-(--color-accent-warning) px-2 py-0.5 rounded-full flex items-center gap-1">
                                     <span>📷</span> Blurry
                                   </span>
                                 )}
                                 {page.ocr.warnings.cutOff && (
-                                  <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                  <span className="text-xs bg-(--color-accent-warning-bg) text-(--color-accent-warning) px-2 py-0.5 rounded-full flex items-center gap-1">
                                     <span>✂️</span> Cut off
                                   </span>
                                 )}
                                 {page.ocr.warnings.sideways && (
-                                  <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                  <span className="text-xs bg-(--color-accent-warning-bg) text-(--color-accent-warning) px-2 py-0.5 rounded-full flex items-center gap-1">
                                     <span>🔄</span> Sideways
                                   </span>
                                 )}
                                 {page.ocr.warnings.incomplete && (
-                                  <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                  <span className="text-xs bg-(--color-accent-warning-bg) text-(--color-accent-warning) px-2 py-0.5 rounded-full flex items-center gap-1">
                                     <span>📄</span> Incomplete
                                   </span>
                                 )}
                                 {page.ocr.warnings.unreadable && (
-                                  <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                  <span className="text-xs bg-(--color-accent-warning-bg) text-(--color-accent-warning) px-2 py-0.5 rounded-full flex items-center gap-1">
                                     <span>❓</span> Unreadable
                                   </span>
                                 )}
@@ -848,23 +848,23 @@ export default function WorkspacePage() {
 
                             {page.status === "OCR_FAILED" && page.ocrFailureReason && (
                               <div className="mt-2">
-                                <p className="text-sm text-red-700 font-medium">
+                                <p className="text-sm text-(--color-accent-destructive) font-medium">
                                   {page.ocrFailureReason}
                                 </p>
-                                <p className="text-xs text-gray-600 mt-1">
+                                <p className="text-xs text-(--color-text-meta) mt-1">
                                   Please try re-uploading the image with better quality.
                                 </p>
                               </div>
                             )}
 
                             {blocked && page.ocr?.warnings?.retakeGuidance && (
-                              <p className="text-sm text-red-700 mt-2 font-medium">
+                              <p className="text-sm text-(--color-accent-destructive) mt-2 font-medium">
                                 {page.ocr.warnings.retakeGuidance}
                               </p>
                             )}
 
                             {page.ocr?.extractedText && (
-                              <p className="text-xs text-gray-600 mt-1 line-clamp-3">
+                              <p className="text-xs text-(--color-text-meta) mt-1 line-clamp-3">
                                 {page.ocr.extractedText}
                               </p>
                             )}
