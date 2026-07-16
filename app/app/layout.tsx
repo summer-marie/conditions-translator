@@ -8,6 +8,7 @@
 
 import { redirect } from "next/navigation";
 import { getTemporarySession } from "@/lib/session/temporary";
+import { AppNav } from "@/components/layout/AppNav";
 
 export default async function AppLayout({
   children,
@@ -20,5 +21,5 @@ export default async function AppLayout({
     redirect("/api/session/bootstrap");
   }
 
-  return <>{children}</>;
+  return <AppNav>{children}</AppNav>;
 }
