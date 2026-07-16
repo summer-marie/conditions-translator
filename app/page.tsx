@@ -40,6 +40,13 @@ const STEPS = [
 export default function LandingPage() {
   return (
     <div className="bg-(--color-background-page) min-h-screen">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-(--color-background-page) focus:px-4 focus:py-2 focus:text-(--color-text-heading) focus:outline-none focus:ring-2 focus:ring-(--color-border-focus-ring)"
+      >
+        Skip to main content
+      </a>
+
       {/* Header */}
       <header className="border-b border-(--color-border-divider)">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -59,6 +66,7 @@ export default function LandingPage() {
         </div>
       </header>
 
+      <main id="main-content">
       {/* Hero */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 text-center">
         <h1
@@ -153,6 +161,7 @@ export default function LandingPage() {
       <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 text-center">
         <GetStartedCTA label="Add your first document" size="lg" />
       </section>
+      </main>
 
       {/* Footer */}
       <footer className="border-t border-(--color-border-divider)">

@@ -9,6 +9,7 @@ import { acceptPrivacy } from "@/lib/actions/privacy";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Alert } from "@/components/ui/Alert";
+import { APP_NAME } from "@/lib/constants";
 
 export default function StartPage() {
   return (
@@ -18,7 +19,7 @@ export default function StartPage() {
           className="font-(--font-weight-h1) mb-6"
           style={{ fontSize: "var(--font-size-h1)", color: "var(--color-text-heading)" }}
         >
-          Welcome to Conditions Translator
+          Welcome to {APP_NAME}
         </h1>
 
         <div
