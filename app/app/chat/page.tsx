@@ -321,8 +321,8 @@ export default function ChatPage() {
 
   // ---- Chat screen ----------------------------------------------------------
   return (
-    <div className="max-w-2xl mx-auto flex flex-col h-dvh p-4 md:p-6">
-      <div className="flex items-center justify-between mb-2">
+    <div className="max-w-2xl mx-auto flex flex-col h-[calc(100dvh-4rem)] lg:h-dvh p-4 md:p-6">
+      <div className="flex items-center justify-between mb-3">
         <h1
           className="font-(--font-weight-h3)"
           style={{ fontSize: 'var(--font-size-h3)', color: 'var(--color-text-heading)' }}
