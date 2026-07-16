@@ -11,10 +11,21 @@ collapse), dark mode + visual QA, and an accessibility/interaction pass are all 
 `.cline/session-memory.md` (full chronological detail) and
 `.claude/session-memory/OPEN_QUESTIONS.md` (current remaining-scope tracker) for specifics —
 this file only carries the durable planning content that doesn't change pass-to-pass.
-**Remaining**: document inspector panel (chat), landing page, app-name-as-shared-constant.
-None of these are assumed to be next without an explicit go-ahead — check
+**Remaining**: document inspector panel (chat), app-name-as-shared-constant. None of these are
+assumed to be next without an explicit go-ahead — check
 `.claude/session-memory/OPEN_QUESTIONS.md`'s "How to apply" line for the live status before
 picking one up.
+
+**Architecture note (2026-07-16, explicit product decision, not a UI-pass judgment call):** the
+site root (`/`) used to hard-redirect straight to `/app/start`, matching `docs/01_MVP_PRD.md`
+§4's documented guest journey (`Guest → Create Document → ...`, no landing-page step). That
+redirect has been replaced with a real public landing page — this is a deliberate divergence
+from the PRD's literal documented journey, approved explicitly before implementation (see
+`.cline/session-memory.md`'s "Public Marketing Landing Page" entry for the full decision
+trail). `docs/01_MVP_PRD.md` §4 itself was **not** edited and still describes the old journey
+verbatim — if it's read as the sole source of truth without this note, it will look
+inconsistent with the live app. Treat this file's note as current; update the PRD directly in
+a future pass if this divergence should become the permanent documented journey.
 
 ## Screens/Features Implemented (Phase 10 Order)
 1. **Dashboard UI refinements** — DONE: document card polish, empty/error/loading states,
@@ -40,6 +51,20 @@ picking one up.
    desktop-only. One disclosed tradeoff: the theme toggle hides while collapsed (not enough
    width for two icon buttons) — see `.cline/session-memory.md`'s "Desktop Sidebar Collapse"
    entry for the reasoning.
+8. **Start / Privacy Notice Gate refinement** — DONE: `app/app/start/page.tsx` (the consent
+   gate shown before a temporary user's first document, not the public marketing page — see
+   the two separate spec entries below) migrated to tokens and shared `Card`/`Button`/`Alert`;
+   correct in both themes; single `h1`→`h2` hierarchy preserved. Still exists unchanged as the
+   fallback route reached when workspace/chat detect an unaccepted session client-side.
+9. **Public marketing landing page** — DONE: `app/page.tsx` (the site root) now serves real
+   content instead of redirecting — header, hero, 3-card features grid, "How It Works" steps,
+   footer — using tokens and shared `Card`/`Button` throughout. The primary CTA ("Add your
+   first document") opens the *same* privacy-notice content as `app/app/start/page.tsx` (a
+   duplicated, not shared, component — see `components/landing/PrivacyGateModal.tsx`) as a
+   modal overlay; accepting it creates a session (if one doesn't exist yet) and continues into
+   `/app/workspace`, all through the existing `acceptPrivacy` Server Action. See the
+   "Architecture note" above — this replaces a hard redirect that was previously load-bearing
+   for the guest entry flow.
 
 ## Relevant Wireframe/Design-Spec Files by Screen
 
@@ -59,10 +84,39 @@ picking one up.
 - **Components**: Split layout forms, password strength indicator, email warning modal
 - **Current Implementation**: `app/app/save/page.tsx` (functional, needs refinement)
 
-### Landing Page
-- **Spec**: `design-specs/functionality/landing-spec.md`
-- **Components**: Hero section, features grid, how-it-works steps
-- **Current Implementation**: Not yet implemented (MVP may defer)
+### Landing Page (public marketing page — NOT the same as "Start" below)
+- **Spec**: `design-specs/functionality/landing-spec.md` — followed with disclosed deviations
+  (see below); the spec itself routes CTAs to `/signup`/`/login`, routes that don't exist in
+  this app, and was never reconciled against the app's real auth entry points before this pass
+- **Components**: header (app name + "Log in" → `/app/save?mode=signin`, a real route), hero
+  (headline reusing `app/layout.tsx`'s existing metadata tagline verbatim, subtitle, primary
+  CTA opening the privacy-gate modal, secondary anchor-scroll link), 3-card features grid
+  (shared `Card`), numbered "How It Works" steps, a repeated bottom CTA, minimal footer
+- **Deviations from the spec, disclosed**: dropped the nav's "Pricing" link (no pricing model
+  exists anywhere in this product); dropped the "Social Proof / Trust" section (no real
+  testimonials/usage stats exist — fabricating them would misrepresent the product); dropped
+  the footer's Privacy Policy/Terms/Contact links (none of those pages exist). CTAs route to
+  `/app/save` variants and the privacy-gate modal, never to the spec's nonexistent
+  `/signup`/`/login`.
+- **Current Implementation**: `app/page.tsx` — DONE. See the "Public marketing landing page"
+  item above and the "Architecture note" earlier in this file for the redirect-removal
+  decision.
+
+### Start / Privacy Notice Gate (mid-flow consent screen — NOT the public landing page above)
+- **Spec**: none dedicated — defined by the page's own code comment and the PRD's consent
+  requirement (`docs/01_MVP_PRD.md`, `docs/05_Account_Creation_and_Temporary_Access.md`); not
+  covered by `landing-spec.md`
+- **Components**: Shared `Card` (centered content box), `Alert` (tone="processing", the privacy
+  bullet list), `Button` (primary, "I Understand" submitting the `acceptPrivacy` Server Action)
+- **Current Implementation**: `app/app/start/page.tsx` — DONE (token-migrated). Not wrapped in
+  the shared nav shell (`HIDDEN_ROUTES` in `components/layout/AppNav.tsx`), same as
+  `/app/save`. Two ways to reach the same underlying gate now: this standalone route (still
+  used as a fallback when workspace/chat detect an unaccepted session and `router.push` here
+  client-side), and `components/landing/PrivacyGateModal.tsx` (same notice copy, duplicated
+  not shared, presented as an overlay from the landing page's primary CTA instead). Both submit
+  the same `acceptPrivacy` Server Action (`lib/actions/privacy.ts`), which now get-or-creates
+  the temp session rather than requiring one to already exist, since the landing-page path has
+  no prior guarantee one does.
 
 ### Color Theme
 - **File**: `design-specs/tokens/colors.json`
@@ -252,9 +306,13 @@ Implemented" section above for what actually happened and which commits/passes d
   `app/layout.tsx` metadata (two copies, not one). Worth resolving into a single shared
   constant before the name actually changes, or the two could drift. Deliberately not done in
   any UI pass so far — each one explicitly flagged it as out of scope for itself.
-- **Landing page scope**: Still not implemented; still unclear whether it's MVP-critical or can
-  stay deferred. `design-specs/functionality/landing-spec.md` exists if/when this is picked up.
 - **Document inspector panel** (chat's right-side panel, `chat-spec.md`): still not built.
+- **`docs/01_MVP_PRD.md` §4 now reads as stale**: it documents `Guest → Create Document → ...`
+  with no landing-page step, but the site root now serves a real landing page by explicit
+  product decision (see "Architecture note" near the top of this file). The PRD itself was
+  deliberately not edited (per project policy, the PRD is not touched during UI passes) — this
+  is flagged here as a doc that needs the decision-maker's attention, not silently left
+  inconsistent.
 - **Illustrations**: Specific illustration assets for empty states were never specified; current
   empty states use plain emoji (📄, ⚠️) instead, not real illustration assets.
 - **Cross-browser testing**: All UI verification this phase used Chromium via Playwright only —
@@ -272,6 +330,10 @@ Implemented" section above for what actually happened and which commits/passes d
 - **Form library**: Manual `useState` — no React Hook Form or similar was added anywhere.
 - **Sidebar collapse persistence**: Same `localStorage` pattern as theme, same SSR-safe
   init-then-sync-in-effect shape to avoid a hydration mismatch.
+- **Landing page**: Built (see the "Public marketing landing page" item above) as an explicit
+  product decision to override the PRD's documented redirect-only guest entry. Privacy-gate
+  entry via a modal, not a route-intercepting page — simple local `useState`, since the modal
+  has no shareable URL and nothing to deep-link to.
 
 ### No longer applicable
 - **Font loading (CDN vs. self-hosted)**: Not resolved or revisited during Phase 10; not
