@@ -35,9 +35,10 @@ Section - AI generates document sections after the document is finished.
 
 # 4. User Journey
 
-Guest → Create Document → Upload Page → OCR → Confirm Page → Upload More
-Pages → Finish Document → AI Sections → Ask Questions → Create Account →
-Promote Documents → Dashboard
+Guest → Landing Page → Accept Privacy Notice → Create Document → Upload
+Page → OCR → Confirm Page → Upload More Pages → Finish Document → AI
+Sections → Ask Questions → Create Account → Promote Documents →
+Dashboard
 
 # 5. Document Model
 

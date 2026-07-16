@@ -11,10 +11,10 @@ collapse), dark mode + visual QA, and an accessibility/interaction pass are all 
 `.cline/session-memory.md` (full chronological detail) and
 `.claude/session-memory/OPEN_QUESTIONS.md` (current remaining-scope tracker) for specifics —
 this file only carries the durable planning content that doesn't change pass-to-pass.
-**Remaining**: document inspector panel (chat), app-name-as-shared-constant. None of these are
-assumed to be next without an explicit go-ahead — check
-`.claude/session-memory/OPEN_QUESTIONS.md`'s "How to apply" line for the live status before
-picking one up.
+**Remaining**: none of Phase 10's planned slices — document inspector panel (chat, desktop-only)
+and app-name-as-shared-constant both shipped 2026-07-16. Check
+`.claude/session-memory/OPEN_QUESTIONS.md`'s "How to apply" line for any smaller follow-ups
+(mobile inspector behavior, a seeded live-verification pass) before assuming there's nothing left.
 
 **Architecture note (2026-07-16, explicit product decision, not a UI-pass judgment call):** the
 site root (`/`) used to hard-redirect straight to `/app/start`, matching `docs/01_MVP_PRD.md`
@@ -31,8 +31,12 @@ a future pass if this divergence should become the permanent documented journey.
 1. **Dashboard UI refinements** — DONE: document card polish, empty/error/loading states,
    shared `Card`/`Button`/`Badge`, heading-hierarchy fix, modal focus traps.
 2. **Chat interface refinements** — DONE: message threading polish, citation display, dark-mode
-   verification with a real message/citation. **Document inspector panel — NOT built**, still
-   deferred (a different, page-specific feature from global nav).
+   verification with a real message/citation. **Document inspector panel — DONE** (2026-07-16):
+   `components/chat/DocumentInspector.tsx`, desktop-only (`md:`, 320px), stacked per-document page
+   lists with accepted-pages-only numbering matched to `lib/chat/context.ts`'s citation numbering,
+   persistent cited-page styling, and click-to-scroll/highlight from citation pills. Mobile
+   citation/inspector behavior remains out of scope (see Open Questions below). Not yet exercised
+   live against a seeded session — see Open Questions.
 3. **Workspace intake flow refinements** — DONE: upload UX, OCR review flow, status Alerts,
    dark-mode verified against real (seeded) data-gated states.
 4. **Login/Signup flow refinements** — DONE (scoped): token/component migration, form label
@@ -187,8 +191,9 @@ a future pass if this divergence should become the permanent documented journey.
 - **Navbar**: 64px desktop, 56px mobile
 - **Sidebar**: 240px wide expanded; collapses to a 64px icon-only rail via a toggle in the
   sidebar header (implemented — desktop-only, persisted via `localStorage`)
-- **Right panels**: 320px, collapsible (not yet built — this is the still-deferred document
-  inspector panel, a separate feature from the left sidebar above)
+- **Right panels**: 320px, collapsible — built for chat's Document Inspector
+  (`components/chat/DocumentInspector.tsx`), desktop-only, a separate feature from the left
+  sidebar above
 
 ## Shared Layout/Component Patterns to Reuse
 
@@ -281,9 +286,9 @@ Implemented" section above for what actually happened and which commits/passes d
 7. Workspace OCR review flow refinements
 8. Better page preview and accept/reject UX
 
-### Week 3: Chat & Navigation — DONE except item 10
+### Week 3: Chat & Navigation — DONE
 9. Chat message threading polish (better spacing, citation display)
-10. Document inspector panel improvements — **NOT done, still deferred** (see Remaining above)
+10. Document inspector panel improvements — **DONE 2026-07-16** (desktop-only; see Screens/Features above)
 11. Sidebar/bottom tab navigation refinement — done, including desktop sidebar collapse
 12. Mobile touch interaction improvements
 
@@ -302,21 +307,26 @@ Implemented" section above for what actually happened and which commits/passes d
 ## Open Questions / Missing Design Info
 
 ### Still open
-- **App name**: Not final — hardcoded as a literal string in both `AppNav`'s sidebar logo and
-  `app/layout.tsx` metadata (two copies, not one). Worth resolving into a single shared
-  constant before the name actually changes, or the two could drift. Deliberately not done in
-  any UI pass so far — each one explicitly flagged it as out of scope for itself.
-- **Document inspector panel** (chat's right-side panel, `chat-spec.md`): still not built.
-- **`docs/01_MVP_PRD.md` §4 now reads as stale**: it documents `Guest → Create Document → ...`
-  with no landing-page step, but the site root now serves a real landing page by explicit
-  product decision (see "Architecture note" near the top of this file). The PRD itself was
-  deliberately not edited (per project policy, the PRD is not touched during UI passes) — this
-  is flagged here as a doc that needs the decision-maker's attention, not silently left
-  inconsistent.
 - **Illustrations**: Specific illustration assets for empty states were never specified; current
   empty states use plain emoji (📄, ⚠️) instead, not real illustration assets.
 - **Cross-browser testing**: All UI verification this phase used Chromium via Playwright only —
   no Firefox/Safari check has been done.
+- **Found during the Phase 10 wrap-up review (2026-07-16), not yet fixed:**
+  - `app/app/start/page.tsx:21` still hardcodes `"Welcome to Conditions Translator"` instead of
+    using `APP_NAME` from `lib/constants.ts` — that constant's own pass deliberately scoped to
+    `app/layout.tsx`/`app/page.tsx`/`AppNav.tsx` and left this file untouched, so it's now the one
+    remaining un-migrated spot.
+  - The public landing page (`app/page.tsx`) has no `<main>` landmark or skip link. Every
+    `/app/*` screen gets both via `AppNav`'s wrapper, but the landing page (like `/app/save` and
+    `/app/start`) renders outside that wrapper and never had its own added.
+  - The landing page and `components/landing/PrivacyGateModal.tsx` were built *after* both
+    dark-mode visual-QA passes landed (dark-mode fix commits predate the landing-page commit) —
+    they use the same already-verified tokens/components (`Alert` tone="processing", `Card`-style
+    token classes) so a visual bug is unlikely, but neither surface has had its own dedicated
+    dark-mode check.
+- **`docs/01_MVP_PRD.md` §4 — RESOLVED 2026-07-16.** Updated to
+  `Guest → Landing Page → Accept Privacy Notice → Create Document → ...`, matching the
+  implemented flow. See that file directly for the current text.
 
 ### Resolved during Phase 10 (kept here for history, not open anymore)
 - **Icon set**: No library was added — hand-rolled inline SVG icons, matching the convention
@@ -334,6 +344,12 @@ Implemented" section above for what actually happened and which commits/passes d
   product decision to override the PRD's documented redirect-only guest entry. Privacy-gate
   entry via a modal, not a route-intercepting page — simple local `useState`, since the modal
   has no shareable URL and nothing to deep-link to.
+- **Document inspector panel**: Built 2026-07-16, desktop-only — see the Chat interface item
+  above.
+- **App name as shared constant**: Built 2026-07-16 — `APP_NAME` in `lib/constants.ts`, sourced
+  from `NEXT_PUBLIC_APP_NAME` with the existing string as fallback, used in `app/layout.tsx`
+  metadata, `app/page.tsx` (header/footer), and `AppNav`'s sidebar/mobile-header logo. One
+  instance intentionally left un-migrated — see "Still open" above.
 
 ### No longer applicable
 - **Font loading (CDN vs. self-hosted)**: Not resolved or revisited during Phase 10; not
