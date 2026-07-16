@@ -12,6 +12,7 @@ import Link from "next/link";
 import { startChat, sendMessage } from "@/lib/actions/chat";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
+import { Input } from "@/components/ui/Input";
 
 type DocumentStatus =
   | "IN_PROGRESS"
@@ -467,7 +468,7 @@ export default function ChatPage() {
         </div>
       ) : (
         <div className="mt-3 flex gap-2">
-          <input
+          <Input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -479,9 +480,9 @@ export default function ChatPage() {
             }}
             placeholder="Ask a question…"
             disabled={isSending}
-            className="flex-1 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2"
+            fullWidth={false}
+            className="flex-1"
             style={{
-              border: '1px solid var(--color-border-card)',
               color: 'var(--color-text-body)',
               backgroundColor: 'var(--color-background-page)'
             }}

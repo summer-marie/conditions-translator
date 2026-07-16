@@ -23,6 +23,7 @@ import { signOut } from "@/lib/actions/auth";
 import { DEFAULT_DOCUMENT_TITLE, isDefaultDocumentTitle } from "@/lib/constants";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
+import { Input } from "@/components/ui/Input";
 
 interface OcrQuality {
   blurry: boolean;
@@ -493,7 +494,7 @@ export default function WorkspacePage() {
             <div className="flex-1">
               {isEditingTitle ? (
                 <div className="flex items-center gap-2">
-                  <input
+                  <Input
                     type="text"
                     value={titleInput}
                     onChange={(e) => setTitleInput(e.target.value)}
@@ -505,13 +506,9 @@ export default function WorkspacePage() {
                       }
                     }}
                     onBlur={handleTitleSave}
-                    className="rounded px-2 py-1 w-full max-w-md focus:outline-none focus:ring-2 font-bold border-2"
+                    variant="heading"
+                    className="max-w-md"
                     autoFocus
-                    style={{
-                      fontSize: 'var(--font-size-h2)',
-                      color: 'var(--color-text-heading)',
-                      borderColor: 'var(--color-brand-primary)'
-                    }}
                   />
                 </div>
               ) : (

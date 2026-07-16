@@ -13,6 +13,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signUpAndSave, signInAndSave } from "@/lib/actions/auth";
 import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 
 type Mode = "create" | "signin";
 
@@ -184,12 +185,11 @@ function SavePageContent() {
         <form onSubmit={handleCreate} className="space-y-3">
           <div>
             <label className="block text-sm font-medium text-(--color-text-body) mb-1">Email</label>
-            <input
+            <Input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
-              className="w-full rounded-md border border-(--color-border-card) px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-(--color-border-focus-ring) focus:border-(--color-brand-primary)"
               autoComplete="email"
             />
           </div>
@@ -198,12 +198,11 @@ function SavePageContent() {
 
           <div>
             <label className="block text-sm font-medium text-(--color-text-body) mb-1">Username</label>
-            <input
+            <Input
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               placeholder="username"
-              className="w-full rounded-md border border-(--color-border-card) px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-(--color-border-focus-ring) focus:border-(--color-brand-primary)"
               autoComplete="username"
             />
             <p className="mt-1 text-xs text-(--color-text-meta)">Provide at least an email or a username.</p>
@@ -211,12 +210,11 @@ function SavePageContent() {
 
           <div>
             <label className="block text-sm font-medium text-(--color-text-body) mb-1">Password</label>
-            <input
+            <Input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="At least 8 characters"
-              className="w-full rounded-md border border-(--color-border-card) px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-(--color-border-focus-ring) focus:border-(--color-brand-primary)"
               autoComplete="new-password"
             />
           </div>
@@ -225,12 +223,11 @@ function SavePageContent() {
             <label className="block text-sm font-medium text-(--color-text-body) mb-1">
               Recovery email <span className="text-(--color-text-meta)">(optional)</span>
             </label>
-            <input
+            <Input
               type="email"
               value={recoveryEmail}
               onChange={(e) => setRecoveryEmail(e.target.value)}
               placeholder="backup@example.com"
-              className="w-full rounded-md border border-(--color-border-card) px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-(--color-border-focus-ring) focus:border-(--color-brand-primary)"
               autoComplete="email"
             />
           </div>
@@ -258,22 +255,20 @@ function SavePageContent() {
         <form onSubmit={handleSignIn} className="space-y-3">
           <div>
             <label className="block text-sm font-medium text-(--color-text-body) mb-1">Email or username</label>
-            <input
+            <Input
               type="text"
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
-              className="w-full rounded-md border border-(--color-border-card) px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-(--color-border-focus-ring) focus:border-(--color-brand-primary)"
               autoComplete="username"
             />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-(--color-text-body) mb-1">Password</label>
-            <input
+            <Input
               type="password"
               value={signInPassword}
               onChange={(e) => setSignInPassword(e.target.value)}
-              className="w-full rounded-md border border-(--color-border-card) px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-(--color-border-focus-ring) focus:border-(--color-brand-primary)"
               autoComplete="current-password"
             />
           </div>
