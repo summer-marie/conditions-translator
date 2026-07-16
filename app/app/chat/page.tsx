@@ -7,7 +7,7 @@
 
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import { startChat, sendMessage } from "@/lib/actions/chat";
 import { Button } from "@/components/ui/Button";
@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
 import { Alert } from "@/components/ui/Alert";
+import { DocumentInspector } from "@/components/chat/DocumentInspector";
 
 type DocumentStatus =
   | "IN_PROGRESS"
@@ -72,8 +73,22 @@ export default function ChatPage() {
   const [isSending, setIsSending] = useState(false);
   const [input, setInput] = useState("");
   const [error, setError] = useState<string | null>(null);
+  // Desktop-only Document Inspector: which page a clicked citation should scroll to/highlight,
+  // and whether the panel is expanded (component-local to this screen, not persisted).
+  const [focusedPageId, setFocusedPageId] = useState<string | null>(null);
+  const [inspectorExpanded, setInspectorExpanded] = useState(true);
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+
+  const citedPageIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const message of messages) {
+      for (const source of message.sources) {
+        if (source.pageId) ids.add(source.pageId);
+      }
+    }
+    return ids;
+  }, [messages]);
 
   useEffect(() => {
     async function loadReadyDocuments() {
@@ -318,7 +333,8 @@ export default function ChatPage() {
 
   // ---- Chat screen ----------------------------------------------------------
   return (
-    <div className="max-w-2xl mx-auto flex flex-col h-[calc(100dvh-7.5rem)] md:h-dvh p-4 md:p-6">
+    <div className="flex flex-col md:flex-row md:justify-center md:gap-6 h-[calc(100dvh-7.5rem)] md:h-dvh p-4 md:p-6">
+    <div className="flex flex-col flex-1 min-w-0 max-w-2xl mx-auto md:mx-0 md:h-full">
       <div className="flex items-center justify-between mb-3">
         <h1
           className="font-(--font-weight-h3)"
@@ -401,16 +417,35 @@ export default function ChatPage() {
                 style={{ fontSize: 'var(--font-size-caption)', color: 'var(--color-text-meta)' }}
               >
                 <span>Sources:</span>
-                {message.sources.map((source, index) => (
-                  <React.Fragment key={`${source.documentId}-${source.pageId}`}>
-                    {index > 0 && <span className="mx-1">,</span>}
-                    <Badge variant="processing" size="sm">
-                      {source.pageNumber
-                        ? `${source.documentTitle}, Page ${source.pageNumber}`
-                        : source.documentTitle}
-                    </Badge>
-                  </React.Fragment>
-                ))}
+                {message.sources.map((source, index) => {
+                  const label = source.pageNumber
+                    ? `${source.documentTitle}, Page ${source.pageNumber}`
+                    : source.documentTitle;
+                  return (
+                    <React.Fragment key={`${source.documentId}-${source.pageId}`}>
+                      {index > 0 && <span className="mx-1">,</span>}
+                      {source.pageId ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFocusedPageId(source.pageId);
+                            setInspectorExpanded(true);
+                          }}
+                          aria-label={`Jump to ${label} in the document inspector`}
+                          className="rounded-full focus:outline-none focus:ring-2 focus:ring-(--color-border-focus-ring)"
+                        >
+                          <Badge variant="processing" size="sm">
+                            {label}
+                          </Badge>
+                        </button>
+                      ) : (
+                        <Badge variant="processing" size="sm">
+                          {label}
+                        </Badge>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -487,6 +522,15 @@ export default function ChatPage() {
           </Button>
         </div>
       )}
+    </div>
+    <DocumentInspector
+      documents={activeDocuments}
+      citedPageIds={citedPageIds}
+      focusedPageId={focusedPageId}
+      expanded={inspectorExpanded}
+      onToggleExpanded={() => setInspectorExpanded((prev) => !prev)}
+      className="hidden md:flex md:flex-col md:w-80 md:shrink-0 md:h-full"
+    />
     </div>
   );
 }
