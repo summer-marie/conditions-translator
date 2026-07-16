@@ -11,10 +11,14 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signOut } from "@/lib/actions/auth";
+import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
+import { Card } from "@/components/ui/Card";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 
 type DocumentStatus =
   | "IN_PROGRESS"
@@ -75,7 +79,9 @@ export default function DashboardPage() {
     isDeleting: boolean;
     error: string | null;
   }>({ isOpen: false, document: null, isDeleting: false, error: null });
-  
+  const deleteModalRef = useRef<HTMLDivElement | null>(null);
+  useFocusTrap(deleteModal.isOpen, deleteModalRef);
+
   const [sectionsModal, setSectionsModal] = useState<SectionsModalState>({
     isOpen: false,
     document: null,
@@ -83,6 +89,8 @@ export default function DashboardPage() {
     isLoading: false,
     error: null,
   });
+  const sectionsModalRef = useRef<HTMLDivElement | null>(null);
+  useFocusTrap(sectionsModal.isOpen, sectionsModalRef);
 
   const fetchDocuments = useCallback(async () => {
     try {
@@ -234,6 +242,17 @@ export default function DashboardPage() {
     });
   };
 
+  useEffect(() => {
+    if (!deleteModal.isOpen && !sectionsModal.isOpen) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key !== "Escape") return;
+      if (deleteModal.isOpen) handleDeleteCancel();
+      if (sectionsModal.isOpen) handleCloseSectionsModal();
+    }
+    window.document.addEventListener("keydown", handleKeyDown);
+    return () => window.document.removeEventListener("keydown", handleKeyDown);
+  }, [deleteModal.isOpen, sectionsModal.isOpen]);
+
   // Simple duplicate detection: case-insensitive equality with whitespace normalization
   const normalizeTitle = (title: string): string => {
     return title.trim().toLowerCase().replace(/\s+/g, " ");
@@ -262,19 +281,19 @@ export default function DashboardPage() {
     }
   };
 
-  const getStatusBadgeColor = (status: DocumentStatus): string => {
+  const getStatusBadgeVariant = (status: DocumentStatus): "success" | "warning" | "destructive" | "processing" | "neutral" => {
     switch (status) {
       case "READY":
-        return "bg-green-100 text-green-800";
+        return "success";
       case "PROCESSING_FAILED":
-        return "bg-red-100 text-red-800";
+        return "destructive";
       case "COMPLETED":
       case "PROCESSING":
-        return "bg-blue-100 text-blue-800";
+        return "processing";
       case "IN_PROGRESS":
-        return "bg-yellow-100 text-yellow-800";
+        return "warning";
       default:
-        return "bg-gray-100 text-gray-800";
+        return "neutral";
     }
   };
 
@@ -290,24 +309,26 @@ export default function DashboardPage() {
   // Loading skeleton
   if (state.isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
+      <div className="min-h-screen bg-(--color-background-page) p-4 sm:p-6 lg:p-8">
         <div className="max-w-7xl mx-auto">
           <div className="mb-8">
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">My Documents</h1>
-            <p className="text-gray-600">Loading your documents...</p>
+            <h1 className="font-(--font-weight-h1) mb-2" style={{ fontSize: 'var(--font-size-h1)', color: 'var(--color-text-heading)' }}>
+              My Documents
+            </h1>
+            <p style={{ fontSize: 'var(--font-size-body)', color: 'var(--color-text-body)' }}>Loading your documents...</p>
           </div>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="bg-white rounded-lg shadow p-6 space-y-4">
-                <div className="h-6 bg-gray-200 rounded animate-pulse"></div>
-                <div className="h-4 bg-gray-200 rounded w-2/3 animate-pulse"></div>
-                <div className="h-4 bg-gray-200 rounded w-1/2 animate-pulse"></div>
+              <Card key={i} className="space-y-4">
+                <div className="h-6 bg-(--color-background-subtle) rounded animate-pulse"></div>
+                <div className="h-4 bg-(--color-background-subtle) rounded w-2/3 animate-pulse"></div>
+                <div className="h-4 bg-(--color-background-subtle) rounded w-1/2 animate-pulse"></div>
                 <div className="space-y-2 pt-4">
-                  <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
-                  <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
+                  <div className="h-8 bg-(--color-background-subtle) rounded animate-pulse"></div>
+                  <div className="h-8 bg-(--color-background-subtle) rounded animate-pulse"></div>
                 </div>
-              </div>
+              </Card>
             ))}
           </div>
         </div>
@@ -318,20 +339,17 @@ export default function DashboardPage() {
   // Error state
   if (state.error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="text-center max-w-md">
-          <div className="text-red-600 text-5xl mb-4">⚠️</div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+      <div className="min-h-screen bg-(--color-background-page) flex items-center justify-center p-4">
+        <Card padding="lg" className="text-center max-w-md">
+          <div className="text-(--color-accent-destructive) text-5xl mb-4">⚠️</div>
+          <h2 className="font-(--font-weight-h2) mb-2" style={{ fontSize: 'var(--font-size-h2)', color: 'var(--color-text-heading)' }}>
             Unable to load documents
           </h2>
-          <p className="text-gray-600 mb-6">{state.error}</p>
-          <button
-            onClick={fetchDocuments}
-            className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700"
-          >
+          <p style={{ fontSize: 'var(--font-size-body)', color: 'var(--color-text-body)' }} className="mb-6">{state.error}</p>
+          <Button onClick={fetchDocuments} variant="primary" size="md">
             Try again
-          </button>
-        </div>
+          </Button>
+        </Card>
       </div>
     );
   }
@@ -339,36 +357,37 @@ export default function DashboardPage() {
   // Empty state
   if (state.documents.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="text-center max-w-md">
-          <div className="text-gray-400 text-6xl mb-4">📄</div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+      <div className="min-h-screen bg-(--color-background-page) flex items-center justify-center p-4">
+        <Card padding="lg" className="text-center max-w-md">
+          <div className="text-(--color-text-meta) text-6xl mb-4">📄</div>
+          <h2 className="font-(--font-weight-h2) mb-2" style={{ fontSize: 'var(--font-size-h2)', color: 'var(--color-text-heading)' }}>
             No documents yet
           </h2>
-          <p className="text-gray-600 mb-6">
-            Upload your first supervision document to get started with AI-powered
-            explanations.
-          </p>
-          <Link
-            href="/app/workspace"
-            className="inline-block bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700"
-          >
-            Create new document
+            <p style={{ fontSize: 'var(--font-size-body)', color: 'var(--color-text-body)' }} className="mb-6">
+              Upload your first supervision document to get started with AI-powered
+              explanations.
+            </p>
+          <Link href="/app/workspace" className="inline-block">
+            <Button variant="primary" size="md">
+              Create new document
+            </Button>
           </Link>
-        </div>
+        </Card>
       </div>
     );
   }
 
   // Main dashboard with documents
   return (
-    <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
+    <div className="min-h-screen bg-(--color-background-page) p-4 sm:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-8 flex items-start justify-between">
+        <div className="mb-8 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">My Documents</h1>
-            <p className="text-gray-600">
+            <h1 className="font-(--font-weight-h1) mb-2" style={{ fontSize: 'var(--font-size-h1)', color: 'var(--color-text-heading)' }}>
+              My Documents
+            </h1>
+            <p style={{ fontSize: 'var(--font-size-body)', color: 'var(--color-text-body)' }}>
               {state.documents.length} document{state.documents.length !== 1 ? "s" : ""}
             </p>
           </div>
@@ -376,7 +395,7 @@ export default function DashboardPage() {
             <button
               onClick={handleSignOut}
               disabled={isSigningOut}
-              className="text-sm font-medium text-gray-600 hover:text-gray-900 disabled:opacity-50"
+              className="text-sm font-medium text-(--color-text-body) hover:text-(--color-text-heading) disabled:opacity-50 self-start sm:self-auto"
             >
               {isSigningOut ? "Signing out..." : "Sign out"}
             </button>
@@ -391,46 +410,44 @@ export default function DashboardPage() {
             const isDuplicate = hasDuplicateTitle(document, state.documents);
 
             return (
-              <div
+              <Card
                 key={document.id}
-                className="bg-white rounded-lg shadow p-6 flex flex-col"
+                hover
+                className="flex flex-col"
               >
                 {/* Document header */}
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex-1 min-w-0 pr-2">
-                    <h3
-                      className="text-lg font-semibold text-gray-900 truncate"
+                    <h2
+                      className="font-(--font-weight-h3) truncate"
                       title={document.title}
+                      style={{ fontSize: 'var(--font-size-h3)', color: 'var(--color-text-heading)' }}
                     >
                       {document.title}
-                    </h3>
-                    <p className="text-sm text-gray-500 mt-1">
+                    </h2>
+                    <p className="text-sm text-(--color-text-meta) mt-1">
                       {document._count.pages} page{document._count.pages !== 1 ? "s" : ""}
                     </p>
                     {isDuplicate && (
-                      <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-1 bg-amber-50 text-amber-800 rounded text-xs font-medium">
+                      <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-1 bg-(--color-accent-warning-bg) text-(--color-accent-warning) rounded text-xs font-medium">
                         <span aria-hidden="true">⚠️</span>
                         <span>Similar document name</span>
                       </div>
                     )}
                   </div>
-                  <span
-                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium shrink-0 ${getStatusBadgeColor(
-                    document.status
-                  )}`}
-                  >
+                  <Badge variant={getStatusBadgeVariant(document.status)} size="sm">
                     {documentStatusLabel(document.status)}
-                  </span>
+                  </Badge>
                 </div>
 
                 {/* Document metadata */}
-                <div className="text-sm text-gray-500 mb-4">
+                <div className="text-sm text-(--color-text-meta) mb-4">
                   Created {formatDate(document.createdAt)}
                 </div>
 
                 {/* Document info */}
                 {hasSections && (
-                  <div className="text-sm text-gray-600 mb-4">
+                  <div className="text-sm text-(--color-text-body) mb-4">
                     {document.sections.length} section{document.sections.length !== 1 ? "s" : ""}
                   </div>
                 )}
@@ -441,31 +458,38 @@ export default function DashboardPage() {
                     <>
                       <Link
                         href={`/app/chat`}
-                        className="block w-full text-center bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
+                        className="block"
                       >
-                        Start chat
+                        <Button variant="primary" size="md" fullWidth>
+                          Start chat
+                        </Button>
                       </Link>
                       {hasSections && (
-                        <button
+                        <Button
                           onClick={() => handleViewSections(document)}
-                          className="block w-full text-center bg-gray-100 text-gray-700 px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-200 transition-colors"
+                          variant="secondary"
+                          size="md"
+                          fullWidth
                         >
                           View sections
-                        </button>
+                        </Button>
                       )}
                     </>
                   )}
 
                   {/* Delete button - always available */}
-                  <button
+                  <Button
                     onClick={() => handleDeleteClick(document)}
-                    className="block w-full text-center bg-red-50 text-red-700 px-4 py-2 rounded-md text-sm font-medium hover:bg-red-100 transition-colors"
+                    variant="ghost"
+                    size="md"
+                    fullWidth
+                    className="text-(--color-accent-destructive) hover:bg-(--color-accent-destructive-bg) hover:text-(--color-accent-destructive)"
                     aria-label={`Delete ${document.title}`}
                   >
                     Delete
-                  </button>
+                  </Button>
                 </div>
-              </div>
+              </Card>
             );
           })}
         </div>
@@ -474,48 +498,53 @@ export default function DashboardPage() {
       {/* Delete confirmation modal */}
       {deleteModal.isOpen && deleteModal.document && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
           onClick={handleDeleteCancel}
           role="dialog"
           aria-modal="true"
           aria-labelledby="delete-modal-title"
         >
           <div
-            className="bg-white rounded-lg shadow-xl max-w-md w-full p-6"
+            ref={deleteModalRef}
+            className="bg-(--color-background-card) rounded-lg shadow-xl max-w-md w-full p-6 border border-(--color-border-card)"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-4">
               <h2
                 id="delete-modal-title"
-                className="text-xl font-semibold text-gray-900 mb-2"
+                className="font-(--font-weight-h2) mb-2"
+                style={{ fontSize: 'var(--font-size-h2)', color: 'var(--color-text-heading)' }}
               >
                 Delete document?
               </h2>
-              <p className="text-gray-600">
+              <p style={{ fontSize: 'var(--font-size-body)', color: 'var(--color-text-body)' }}>
                 This will permanently delete{" "}
                 <span className="font-medium">{deleteModal.document.title}</span> and all
                 its pages. This action cannot be undone.
               </p>
               {deleteModal.error && (
-                <p className="text-red-600 text-sm mt-2">{deleteModal.error}</p>
+                <p className="text-(--color-accent-destructive) text-sm mt-2">{deleteModal.error}</p>
               )}
             </div>
 
             <div className="flex gap-3 justify-end">
-              <button
+              <Button
                 onClick={handleDeleteCancel}
                 disabled={deleteModal.isDeleting}
-                className="px-4 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors disabled:opacity-50"
+                variant="secondary"
+                size="md"
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={handleDeleteConfirm}
                 disabled={deleteModal.isDeleting}
-                className="px-4 py-2 rounded-md text-sm font-medium text-white bg-red-600 hover:bg-red-700 transition-colors disabled:opacity-50"
+                variant="danger"
+                size="md"
+                isLoading={deleteModal.isDeleting}
               >
-                {deleteModal.isDeleting ? "Deleting…" : "Delete"}
-              </button>
+                Delete
+              </Button>
             </div>
           </div>
         </div>
@@ -524,28 +553,30 @@ export default function DashboardPage() {
       {/* Sections view modal */}
       {sectionsModal.isOpen && sectionsModal.document && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
           onClick={handleCloseSectionsModal}
           role="dialog"
           aria-modal="true"
           aria-labelledby="sections-modal-title"
         >
           <div
-            className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col"
+            ref={sectionsModalRef}
+            className="bg-(--color-background-card) rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col border border-(--color-border-card)"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal header */}
-            <div className="p-6 border-b border-gray-200">
+            <div className="p-6 border-b border-(--color-border-divider)">
               <div className="flex items-center justify-between mb-4">
                 <h2
                   id="sections-modal-title"
-                  className="text-xl font-semibold text-gray-900"
+                  className="font-(--font-weight-h2)"
+                  style={{ fontSize: 'var(--font-size-h2)', color: 'var(--color-text-heading)' }}
                 >
                   {sectionsModal.document.title}
                 </h2>
                 <button
                   onClick={handleCloseSectionsModal}
-                  className="text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
+                  className="text-(--color-text-meta) hover:text-(--color-text-heading) focus:outline-none focus:ring-2 focus:ring-(--color-border-focus-ring) rounded p-1"
                   aria-label="Close"
                 >
                   <svg
@@ -569,37 +600,39 @@ export default function DashboardPage() {
             <div className="p-6 overflow-y-auto flex-1">
               {sectionsModal.isLoading ? (
                 <div className="text-center py-8">
-                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                  <p className="mt-4 text-gray-600">Loading sections...</p>
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-(--color-accent-processing)"></div>
+                  <p className="mt-4 text-(--color-text-body)">Loading sections...</p>
                 </div>
               ) : sectionsModal.error ? (
                 <div className="text-center py-8">
-                  <div className="text-red-600 text-5xl mb-4">⚠️</div>
-                  <p className="text-gray-600">{sectionsModal.error}</p>
-                  <button
+                  <div className="text-(--color-accent-destructive) text-5xl mb-4">⚠️</div>
+                  <p className="text-(--color-text-body)">{sectionsModal.error}</p>
+                  <Button
                     onClick={() => handleViewSections(sectionsModal.document!)}
-                    className="mt-4 text-blue-600 hover:text-blue-700 text-sm font-medium"
+                    variant="primary"
+                    size="sm"
+                    className="mt-4"
                   >
                     Try again
-                  </button>
+                  </Button>
                 </div>
               ) : !sectionsModal.sections || sectionsModal.sections.length === 0 ? (
                 <div className="text-center py-8">
-                  <div className="text-gray-400 text-6xl mb-4">📄</div>
-                  <p className="text-gray-600">No sections available for this document</p>
+                  <div className="text-(--color-text-meta) text-6xl mb-4">📄</div>
+                  <p className="text-(--color-text-body)">No sections available for this document</p>
                 </div>
               ) : (
                 <div className="space-y-6">
                   {sectionsModal.sections.map((section) => (
-                    <div key={section.id} className="border-b border-gray-200 pb-6 last:border-0">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    <div key={section.id} className="border-b border-(--color-border-divider) pb-6 last:border-0">
+                      <h3 className="font-(--font-weight-h3) mb-2" style={{ fontSize: 'var(--font-size-h3)', color: 'var(--color-text-heading)' }}>
                         {section.order + 1}. {section.heading}
                       </h3>
-                      <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">
+                      <p className="text-(--color-text-body) whitespace-pre-wrap leading-relaxed">
                         {section.body}
                       </p>
                       {section.sources && section.sources.length > 0 && (
-                        <div className="mt-3 text-sm text-gray-500">
+                        <div className="mt-3 text-sm text-(--color-text-meta)">
                           <span className="font-medium">Source pages:</span>{" "}
                           {section.sources.map((source, idx) => (
                             <span key={source.pageId}>
@@ -616,13 +649,14 @@ export default function DashboardPage() {
             </div>
 
             {/* Modal footer */}
-            <div className="p-6 border-t border-gray-200 flex justify-end">
-              <button
+            <div className="p-6 border-t border-(--color-border-divider) flex justify-end">
+              <Button
                 onClick={handleCloseSectionsModal}
-                className="px-6 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                variant="secondary"
+                size="md"
               >
                 Close
-              </button>
+              </Button>
             </div>
           </div>
         </div>

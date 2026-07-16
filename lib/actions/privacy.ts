@@ -3,19 +3,16 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { getTemporarySession, acceptPrivacyNotice } from "@/lib/session/temporary";
+import { getOrCreateTemporarySession, acceptPrivacyNotice } from "@/lib/session/temporary";
 
 /**
- * Accepts the privacy notice for the current temporary session.
+ * Accepts the privacy notice for the current temporary session, creating one first if the
+ * visitor doesn't have one yet (e.g. arriving via the landing page's privacy-gate modal,
+ * which -- unlike /app/start -- isn't reached through app/app/layout.tsx's bootstrap redirect).
  * Redirects to the workspace after acceptance.
  */
 export async function acceptPrivacy() {
-  // Get or create temporary session
-  const session = await getTemporarySession();
-  
-  if (!session) {
-    throw new Error("No active session found");
-  }
+  await getOrCreateTemporarySession();
 
   // Mark privacy notice as accepted
   await acceptPrivacyNotice();

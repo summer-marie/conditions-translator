@@ -8,7 +8,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -21,6 +21,12 @@ import {
 } from "@/lib/actions/document";
 import { signOut } from "@/lib/actions/auth";
 import { DEFAULT_DOCUMENT_TITLE, isDefaultDocumentTitle } from "@/lib/constants";
+import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
+import { Input } from "@/components/ui/Input";
+import { Card } from "@/components/ui/Card";
+import { Alert } from "@/components/ui/Alert";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 
 interface OcrQuality {
   blurry: boolean;
@@ -131,6 +137,8 @@ export default function WorkspacePage() {
   const [ocrRunningIds, setOcrRunningIds] = useState<Record<string, boolean>>({});
   const [actioningPageId, setActioningPageId] = useState<string | null>(null);
   const [expandedImagePage, setExpandedImagePage] = useState<Page | null>(null);
+  const expandedImageModalRef = useRef<HTMLDivElement | null>(null);
+  useFocusTrap(expandedImagePage !== null, expandedImageModalRef);
   // Set once the workspace is owned by a signed-in account (Phase 7). null while temporary.
   const [savedUserId, setSavedUserId] = useState<string | null>(null);
   const [isSigningOut, setIsSigningOut] = useState(false);
@@ -421,12 +429,34 @@ export default function WorkspacePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- initializeWorkspace is stable per mount
   }, []);
 
+  useEffect(() => {
+    if (!expandedImagePage) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setExpandedImagePage(null);
+    }
+    window.document.addEventListener("keydown", handleKeyDown);
+    return () => window.document.removeEventListener("keydown", handleKeyDown);
+  }, [expandedImagePage]);
+
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div 
+        className="min-h-screen flex items-center justify-center" 
+        style={{ backgroundColor: 'var(--color-background-subtle)' }}
+      >
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading workspace...</p>
+          <div 
+            className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4" 
+            style={{ borderColor: 'var(--color-accent-processing)' }}
+          ></div>
+          <p 
+            style={{ 
+              color: 'var(--color-text-body)',
+              fontSize: 'var(--font-size-body)'
+            }}
+          >
+            Loading workspace...
+          </p>
         </div>
       </div>
     );
@@ -434,15 +464,23 @@ export default function WorkspacePage() {
 
   if (!document) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div 
+        className="min-h-screen flex items-center justify-center p-4" 
+        style={{ backgroundColor: 'var(--color-background-subtle)' }}
+      >
         <div className="text-center">
-          <p className="text-gray-600 mb-4">Unable to load workspace</p>
-          <button
-            onClick={() => router.push("/app/start")}
-            className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700"
+          <p 
+            className="mb-4" 
+            style={{ 
+              color: 'var(--color-text-body)',
+              fontSize: 'var(--font-size-body)'
+            }}
           >
+            Unable to load workspace
+          </p>
+          <Button onClick={() => router.push("/app/start")} variant="primary">
             Start Over
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -456,15 +494,21 @@ export default function WorkspacePage() {
   const canUpload = document.pageCount < 10 && document.status === "IN_PROGRESS";
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div style={{ backgroundColor: 'var(--color-background-subtle)' }}>
       {/* Header */}
-      <header className="bg-white border-b border-gray-200">
+      <header 
+        className="border-b" 
+        style={{ 
+          backgroundColor: 'var(--color-background-page)',
+          borderColor: 'var(--color-border-divider)'
+        }}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div className="flex-1">
               {isEditingTitle ? (
                 <div className="flex items-center gap-2">
-                  <input
+                  <Input
                     type="text"
                     value={titleInput}
                     onChange={(e) => setTitleInput(e.target.value)}
@@ -476,18 +520,26 @@ export default function WorkspacePage() {
                       }
                     }}
                     onBlur={handleTitleSave}
-                    className="text-2xl font-bold text-gray-900 border-2 border-blue-500 rounded px-2 py-1 w-full max-w-md"
+                    variant="heading"
+                    className="max-w-md"
                     autoFocus
+                    aria-label="Document title"
                   />
                 </div>
               ) : (
                 <div className="flex items-center gap-2 group">
                   <h1
-                    className="text-2xl font-bold text-gray-900 cursor-pointer hover:text-blue-600 transition-colors"
+                    className="font-bold cursor-pointer transition-colors"
                     onClick={() => {
                       setTitleInput(document.title);
                       setIsEditingTitle(true);
                     }}
+                    style={{
+                      fontSize: 'var(--font-size-h2)',
+                      color: 'var(--color-text-heading)'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.color = 'var(--color-accent-processing)'}
+                    onMouseLeave={(e) => e.currentTarget.style.color = 'var(--color-text-heading)'}
                   >
                     {document.title}
                   </h1>
@@ -497,9 +549,14 @@ export default function WorkspacePage() {
                       setTitleInput(document.title);
                       setIsEditingTitle(true);
                     }}
-                    className="text-gray-400 hover:text-blue-600 opacity-70 group-hover:opacity-100 transition-opacity"
+                    className="opacity-70 group-hover:opacity-100 transition-opacity"
                     aria-label="Rename document"
                     title="Rename document"
+                    style={{
+                      color: 'var(--color-text-meta)'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.color = 'var(--color-accent-processing)'}
+                    onMouseLeave={(e) => e.currentTarget.style.color = 'var(--color-text-meta)'}
                   >
                     <svg
                       className="h-5 w-5"
@@ -520,33 +577,37 @@ export default function WorkspacePage() {
             </div>
 
             <div className="flex items-center gap-4">
-              <div className="text-sm text-gray-600">
+              <div 
+                className="text-sm" 
+                style={{ color: 'var(--color-text-body)' }}
+              >
                 {document.pageCount}/10 pages
               </div>
 
-              <span
-                className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                  isReady
-                    ? "bg-green-100 text-green-800"
-                    : isProcessingFailed
-                    ? "bg-red-100 text-red-800"
-                    : isProcessing
-                    ? "bg-blue-100 text-blue-800"
-                    : "bg-yellow-100 text-yellow-800"
-                }`}
+              <Badge 
+                variant={
+                  isReady ? "success" : 
+                  isProcessingFailed ? "destructive" : 
+                  isProcessing ? "processing" : 
+                  "warning"
+                }
               >
                 {documentStatusLabel(document.status)}
-              </span>
+              </Badge>
 
               {savedUserId ? (
                 <>
-                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
-                    Saved to your account
-                  </span>
+                  <Badge variant="success">Saved to your account</Badge>
                   <button
                     onClick={handleSignOut}
                     disabled={isSigningOut}
-                    className="text-sm font-medium text-gray-600 hover:text-gray-900 disabled:opacity-50"
+                    className="font-medium disabled:opacity-50"
+                    style={{
+                      color: 'var(--color-text-body)',
+                      fontSize: 'var(--font-size-body)'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.color = 'var(--color-text-heading)'}
+                    onMouseLeave={(e) => e.currentTarget.style.color = 'var(--color-text-body)'}
                   >
                     {isSigningOut ? "Signing out..." : "Sign out"}
                   </button>
@@ -557,17 +618,11 @@ export default function WorkspacePage() {
                       read as two near-identical buttons. This is a stopgap so a signed-out
                       returning user has a way back in at all — the save/sign-in entry UX could
                       use a proper pass later (see .agent-memory/OPEN_QUESTIONS.md). */}
-                  <Link
-                    href="/app/save?mode=signin"
-                    className="inline-flex items-center rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                  >
-                    Log in
+                  <Link href="/app/save?mode=signin">
+                    <Button variant="secondary" size="md">Log in</Button>
                   </Link>
-                  <Link
-                    href="/app/save"
-                    className="inline-flex items-center rounded-md bg-gray-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-gray-800"
-                  >
-                    Save workspace
+                  <Link href="/app/save">
+                    <Button variant="primary" size="md">Save workspace</Button>
                   </Link>
                 </>
               )}
@@ -583,15 +638,33 @@ export default function WorkspacePage() {
           <div className="lg:col-span-2 space-y-6">
             {/* Upload section */}
             {canUpload && (
-              <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">
+              <Card variant="panel">
+                <h2
+                  className="mb-4"
+                  style={{
+                    fontSize: 'var(--font-size-h3)',
+                    fontWeight: 'var(--font-weight-h3)',
+                    color: 'var(--color-text-heading)',
+                    marginBottom: 'var(--spacing-4)'
+                  }}
+                >
                   Upload Pages
                 </h2>
                 <div className="flex items-center justify-center w-full">
-                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                  <label 
+                    className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer"
+                    style={{
+                      borderColor: 'var(--color-border-default)',
+                      backgroundColor: 'var(--color-background-subtle)',
+                      borderRadius: 'var(--radius-md)'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--color-border-subtle)'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--color-background-subtle)'}
+                  >
                     <div className="flex flex-col items-center justify-center pt-5 pb-6">
                       <svg
-                        className="w-8 h-8 mb-4 text-gray-500"
+                        className="mb-4"
+                        style={{ width: '2rem', height: '2rem', color: 'var(--color-text-meta)', marginBottom: 'var(--spacing-2)' }}
                         aria-hidden="true"
                         xmlns="http://www.w3.org/2000/svg"
                         fill="none"
@@ -605,10 +678,22 @@ export default function WorkspacePage() {
                           d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"
                         />
                       </svg>
-                      <p className="mb-2 text-sm text-gray-500">
-                        <span className="font-semibold">Click to upload</span> or drag and drop
+                      <p 
+                        className="mb-2"
+                        style={{
+                          fontSize: 'var(--font-size-body)',
+                          color: 'var(--color-text-meta)',
+                          marginBottom: 'var(--spacing-2)'
+                        }}
+                      >
+                        <span style={{ fontWeight: 'var(--font-weight-h3)' }}>Click to upload</span> or drag and drop
                       </p>
-                      <p className="text-xs text-gray-500">
+                      <p 
+                        style={{
+                          fontSize: 'var(--font-size-caption)',
+                          color: 'var(--color-text-meta)'
+                        }}
+                      >
                         JPEG, PNG, or WEBP (MAX 10 pages total)
                       </p>
                     </div>
@@ -624,20 +709,51 @@ export default function WorkspacePage() {
                 </div>
                 {isUploading && (
                   <div className="mt-4 flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mr-2"></div>
-                    <span className="text-sm text-gray-600">Uploading...</span>
+                    <div 
+                      className="animate-spin rounded-full mr-2" 
+                      style={{ 
+                        width: '1.5rem', 
+                        height: '1.5rem', 
+                        borderBottomColor: 'var(--color-accent-processing)',
+                        marginRight: 'var(--spacing-2)'
+                      }}
+                    ></div>
+                    <span 
+                      style={{
+                        fontSize: 'var(--font-size-body)',
+                        color: 'var(--color-text-body)'
+                      }}
+                    >
+                      Uploading...
+                    </span>
                   </div>
                 )}
-              </div>
+              </Card>
             )}
 
             {/* Pages list */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">
+            <Card variant="panel">
+              <h2
+                className="mb-4"
+                style={{
+                  fontSize: 'var(--font-size-h3)',
+                  fontWeight: 'var(--font-weight-h3)',
+                  color: 'var(--color-text-heading)',
+                  marginBottom: 'var(--spacing-4)'
+                }}
+              >
                 Pages ({pages.length})
               </h2>
               {pages.length === 0 ? (
-                <p className="text-gray-500 text-center py-8">
+                <p 
+                  className="text-center py-8"
+                  style={{
+                    fontSize: 'var(--font-size-body)',
+                    color: 'var(--color-text-meta)',
+                    textAlign: 'center',
+                    padding: 'var(--spacing-8) 0'
+                  }}
+                >
                   No pages uploaded yet. Upload your document pages to get started.
                 </p>
               ) : (
@@ -657,63 +773,77 @@ export default function WorkspacePage() {
                     return (
                       <div
                         key={page.id}
-                        className="border border-gray-200 rounded-lg p-4 flex flex-col gap-3"
+                        className="flex flex-col gap-3"
+                        style={{
+                          border: `1px solid var(--color-border-card)`,
+                          borderRadius: 'var(--radius-md)',
+                          padding: 'var(--spacing-4)'
+                        }}
                       >
                         <div className="flex items-start gap-3">
                           <button
                             onClick={() => setExpandedImagePage(page)}
-                            className="shrink-0 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
+                            className="shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-border-focus-ring) rounded"
                           >
                             {/* eslint-disable-next-line @next/next/no-img-element -- Dynamic authenticated API route with private Blob storage */}
                             <img
                               src={`/api/documents/${document.id}/pages/${page.id}/image`}
                               alt={`Page ${page.order + 1} (click to enlarge)`}
-                              className="w-32 sm:w-40 aspect-3/4 object-cover bg-gray-100 rounded cursor-pointer hover:ring-2 hover:ring-blue-400 transition-all"
+                              style={{
+                                width: '8rem',
+                                height: '10.67rem',
+                                aspectRatio: '3/4',
+                                objectFit: 'cover',
+                                backgroundColor: 'var(--color-background-subtle)',
+                                borderRadius: 'var(--radius-sm)',
+                                cursor: 'pointer'
+                              }}
+                              className="hover:ring-2 hover:ring-blue-400 transition-all"
                             />
                           </button>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between">
-                              <span className="text-sm font-medium text-gray-900">
+                              <span style={{ fontSize: 'var(--font-size-body)', fontWeight: 'var(--font-weight-h3)', color: 'var(--color-text-heading)' }}>
                                 Page {page.order + 1}
                               </span>
-                              <span
-                                className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                              <Badge 
+                                variant={
                                   page.status === "ACCEPTED"
-                                    ? "bg-green-100 text-green-800"
+                                    ? "success"
                                     : page.status === "OCR_FAILED" || blocked
-                                    ? "bg-red-100 text-red-800"
-                                    : "bg-yellow-100 text-yellow-800"
-                                }`}
+                                    ? "destructive"
+                                    : "warning"
+                                }
                               >
                                 {isOcrRunning ? "Running OCR..." : statusLabel(page)}
-                              </span>
+                              </Badge>
                             </div>
 
                             {/* Quality indicators */}
                             {page.ocr?.warnings && (
                               <div className="flex flex-wrap gap-1 mt-2">
                                 {page.ocr.warnings.blurry && (
-                                  <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                  <span className="text-xs bg-(--color-accent-warning-bg) text-(--color-accent-warning) px-2 py-0.5 rounded-full flex items-center gap-1">
                                     <span>📷</span> Blurry
                                   </span>
                                 )}
                                 {page.ocr.warnings.cutOff && (
-                                  <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                  <span className="text-xs bg-(--color-accent-warning-bg) text-(--color-accent-warning) px-2 py-0.5 rounded-full flex items-center gap-1">
                                     <span>✂️</span> Cut off
                                   </span>
                                 )}
                                 {page.ocr.warnings.sideways && (
-                                  <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                  <span className="text-xs bg-(--color-accent-warning-bg) text-(--color-accent-warning) px-2 py-0.5 rounded-full flex items-center gap-1">
                                     <span>🔄</span> Sideways
                                   </span>
                                 )}
                                 {page.ocr.warnings.incomplete && (
-                                  <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                  <span className="text-xs bg-(--color-accent-warning-bg) text-(--color-accent-warning) px-2 py-0.5 rounded-full flex items-center gap-1">
                                     <span>📄</span> Incomplete
                                   </span>
                                 )}
                                 {page.ocr.warnings.unreadable && (
-                                  <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                  <span className="text-xs bg-(--color-accent-warning-bg) text-(--color-accent-warning) px-2 py-0.5 rounded-full flex items-center gap-1">
                                     <span>❓</span> Unreadable
                                   </span>
                                 )}
@@ -722,23 +852,23 @@ export default function WorkspacePage() {
 
                             {page.status === "OCR_FAILED" && page.ocrFailureReason && (
                               <div className="mt-2">
-                                <p className="text-sm text-red-700 font-medium">
+                                <p className="text-sm text-(--color-accent-destructive) font-medium">
                                   {page.ocrFailureReason}
                                 </p>
-                                <p className="text-xs text-gray-600 mt-1">
+                                <p className="text-xs text-(--color-text-meta) mt-1">
                                   Please try re-uploading the image with better quality.
                                 </p>
                               </div>
                             )}
 
                             {blocked && page.ocr?.warnings?.retakeGuidance && (
-                              <p className="text-sm text-red-700 mt-2 font-medium">
+                              <p className="text-sm text-(--color-accent-destructive) mt-2 font-medium">
                                 {page.ocr.warnings.retakeGuidance}
                               </p>
                             )}
 
                             {page.ocr?.extractedText && (
-                              <p className="text-xs text-gray-600 mt-1 line-clamp-3">
+                              <p className="text-xs text-(--color-text-meta) mt-1 line-clamp-3">
                                 {page.ocr.extractedText}
                               </p>
                             )}
@@ -746,26 +876,23 @@ export default function WorkspacePage() {
                         </div>
 
                         <div className="flex items-center gap-2">
-                          <button
+                          <Button
                             onClick={() => handleAcceptPage(page.id)}
                             disabled={!canAccept}
-                            className={`text-xs font-semibold px-3 py-1.5 rounded-md ${
-                              canAccept
-                                ? "bg-blue-600 text-white hover:bg-blue-700"
-                                : "bg-gray-200 text-gray-400 cursor-not-allowed"
-                            }`}
+                            variant="primary"
+                            size="sm"
                           >
                             Accept
-                          </button>
+                          </Button>
 
-                          <label
-                            className={`text-xs font-semibold px-3 py-1.5 rounded-md text-center ${
-                              canReupload
-                                ? "bg-gray-100 text-gray-700 hover:bg-gray-200 cursor-pointer"
-                                : "bg-gray-100 text-gray-300 cursor-not-allowed"
-                            }`}
-                          >
-                            Re-upload
+                          <label>
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              disabled={!canReupload}
+                            >
+                              <span>Re-upload</span>
+                            </Button>
                             <input
                               type="file"
                               className="hidden"
@@ -779,24 +906,21 @@ export default function WorkspacePage() {
                             />
                           </label>
 
-                          <button
+                          <Button
                             onClick={() => handleDeletePage(page.id)}
                             disabled={!canDelete}
-                            className={`text-xs font-semibold px-3 py-1.5 rounded-md ${
-                              canDelete
-                                ? "bg-red-50 text-red-700 hover:bg-red-100"
-                                : "bg-gray-100 text-gray-300 cursor-not-allowed"
-                            }`}
+                            variant="danger"
+                            size="sm"
                           >
                             Delete
-                          </button>
+                          </Button>
                         </div>
                       </div>
                     );
                   })}
                 </div>
               )}
-            </div>
+            </Card>
           </div>
 
           {/* Right column - Actions */}
@@ -806,135 +930,269 @@ export default function WorkspacePage() {
             {pages.length > 0 &&
               document.status === "IN_PROGRESS" &&
               isDefaultDocumentTitle(document.title) && (
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                  <p className="text-sm text-amber-900 font-medium mb-2">
+                <Alert tone="warning" radius="lg" padding="md">
+                  <p
+                    className="mb-2"
+                    style={{
+                      fontSize: 'var(--font-size-body)',
+                      color: 'var(--color-accent-warning)',
+                      fontWeight: 'var(--font-weight-h3)',
+                      marginBottom: 'var(--spacing-2)'
+                    }}
+                  >
                     Don&apos;t forget to name your document
                   </p>
-                  <p className="text-sm text-amber-800 mb-3">
-                    Give it a label like &quot;Probation Conditions&quot; so it&apos;s easy to
-                    find later.
+                  <p
+                    className="mb-3"
+                    style={{
+                      fontSize: 'var(--font-size-body)',
+                      color: 'var(--color-accent-warning)',
+                      marginBottom: 'var(--spacing-3)'
+                    }}
+                  >
+                  Give it a label like &ldquo;Probation Conditions&rdquo; so it&apos;s easy to
+                  find later.
                   </p>
                   <button
                     onClick={() => {
                       setTitleInput(document.title);
                       setIsEditingTitle(true);
                     }}
-                    className="text-sm font-semibold text-amber-900 hover:text-amber-700 underline"
+                    className="underline"
+                    style={{
+                      fontSize: 'var(--font-size-body)',
+                      color: 'var(--color-accent-warning)',
+                      fontWeight: 'var(--font-weight-h3)'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.color = 'var(--color-accent-processing)'}
+                    onMouseLeave={(e) => e.currentTarget.style.color = 'var(--color-accent-warning)'}
                   >
                     Name it now
                   </button>
-                </div>
+                </Alert>
               )}
 
             {/* Status card */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">
+            <Card variant="panel">
+              <h2
+                style={{
+                  fontSize: 'var(--font-size-h3)',
+                  fontWeight: 'var(--font-weight-h3)',
+                  color: 'var(--color-text-heading)',
+                  marginBottom: 'var(--spacing-4)'
+                }}
+              >
                 Document Status
               </h2>
-              <div className="space-y-2">
+              <div className="space-y-2" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-2)' }}>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Pages uploaded:</span>
-                  <span className="font-medium">{document.pageCount}/10</span>
+                  <span style={{ fontSize: 'var(--font-size-body)', color: 'var(--color-text-body)' }}>Pages uploaded:</span>
+                  <span style={{ fontSize: 'var(--font-size-body)', fontWeight: 'var(--font-weight-h3)', color: 'var(--color-text-heading)' }}>{document.pageCount}/10</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Pages accepted:</span>
-                  <span className="font-medium">{acceptedPageCount}</span>
+                  <span style={{ fontSize: 'var(--font-size-body)', color: 'var(--color-text-body)' }}>Pages accepted:</span>
+                  <span style={{ fontSize: 'var(--font-size-body)', fontWeight: 'var(--font-weight-h3)', color: 'var(--color-text-heading)' }}>{acceptedPageCount}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Status:</span>
-                  <span className="font-medium">{documentStatusLabel(document.status)}</span>
+                  <span style={{ fontSize: 'var(--font-size-body)', color: 'var(--color-text-body)' }}>Status:</span>
+                  <span style={{ fontSize: 'var(--font-size-body)', fontWeight: 'var(--font-weight-h3)', color: 'var(--color-text-heading)' }}>{documentStatusLabel(document.status)}</span>
                 </div>
               </div>
-            </div>
+            </Card>
 
             {/* Actions */}
             {document.status === "IN_PROGRESS" && (
-              <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">
+              <Card variant="panel">
+                <h2
+                  style={{
+                    fontSize: 'var(--font-size-h3)',
+                    fontWeight: 'var(--font-weight-h3)',
+                    color: 'var(--color-text-heading)',
+                    marginBottom: 'var(--spacing-4)'
+                  }}
+                >
                   Actions
                 </h2>
-                <button
+                <Button
                   onClick={handleFinishDocument}
                   disabled={!canFinish || isFinishing}
-                  className={`w-full py-3 px-4 rounded-md font-semibold transition-colors ${
-                    canFinish && !isFinishing
-                      ? "bg-blue-600 text-white hover:bg-blue-700"
-                      : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                  }`}
+                  isLoading={isFinishing}
+                  variant="primary"
+                  fullWidth
                 >
                   {isFinishing ? "Processing..." : "Finish Document"}
-                </button>
+                </Button>
                 {!canFinish && (
-                  <p className="text-sm text-gray-500 mt-2 text-center">
+                  <p 
+                    className="text-center mt-2"
+                    style={{
+                      fontSize: 'var(--font-size-caption)',
+                      color: 'var(--color-text-meta)',
+                      textAlign: 'center',
+                      marginTop: 'var(--spacing-2)'
+                    }}
+                  >
                     Accept at least one page to finish
                   </p>
                 )}
-              </div>
+              </Card>
             )}
 
             {(isProcessing || isFinishing) && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 text-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3"></div>
-                <h2 className="text-lg font-semibold text-blue-900 mb-1">
+              <Alert tone="processing" padding="lg" className="text-center">
+                <div
+                  className="animate-spin rounded-full mx-auto mb-3"
+                  style={{ 
+                    width: '2rem', 
+                    height: '2rem', 
+                    borderBottomColor: 'var(--color-accent-processing)',
+                    margin: '0 auto var(--spacing-2) auto'
+                  }}
+                ></div>
+                <h2 
+                  style={{
+                    fontSize: 'var(--font-size-h3)',
+                    fontWeight: 'var(--font-weight-h3)',
+                    color: 'var(--color-accent-processing)',
+                    marginBottom: 'var(--spacing-1)'
+                  }}
+                >
                   Organizing your document
                 </h2>
-                <p className="text-sm text-blue-700">
+                <p 
+                  style={{
+                    fontSize: 'var(--font-size-body)',
+                    color: 'var(--color-accent-processing)'
+                  }}
+                >
                   We&apos;re creating sections from your accepted pages. This may take a moment.
                 </p>
-              </div>
+              </Alert>
             )}
 
             {isProcessingFailed && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-                <h2 className="text-lg font-semibold text-red-900 mb-2">
+              <Alert tone="destructive" padding="lg">
+                <h2
+                  style={{
+                    fontSize: 'var(--font-size-h3)',
+                    fontWeight: 'var(--font-weight-h3)',
+                    color: 'var(--color-accent-destructive)',
+                    marginBottom: 'var(--spacing-1)'
+                  }}
+                >
                   We couldn&apos;t finish organizing this document
                 </h2>
-                <p className="text-sm text-red-700 mb-4">
+                <p
+                  style={{
+                    fontSize: 'var(--font-size-body)',
+                    color: 'var(--color-accent-destructive)',
+                    marginBottom: 'var(--spacing-2)'
+                  }}
+                >
                   Please try again.
                 </p>
-                <button
+                <Button
                   onClick={handleRetryProcessing}
                   disabled={isRetrying}
-                  className={`w-full py-3 px-4 rounded-md font-semibold transition-colors ${
-                    !isRetrying
-                      ? "bg-red-600 text-white hover:bg-red-700"
-                      : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                  }`}
+                  isLoading={isRetrying}
+                  variant="danger"
+                  fullWidth
                 >
                   {isRetrying ? "Retrying..." : "Retry"}
-                </button>
-              </div>
+                </Button>
+              </Alert>
             )}
 
             {isReady && (
-              <div className="bg-green-50 border border-green-200 rounded-lg p-6">
-                <h2 className="text-lg font-semibold text-green-900 mb-2">
+              <Alert tone="success" padding="lg">
+                <h2
+                  style={{
+                    fontSize: 'var(--font-size-h3)',
+                    fontWeight: 'var(--font-weight-h3)',
+                    color: 'var(--color-accent-success)',
+                    marginBottom: 'var(--spacing-1)'
+                  }}
+                >
                   Document Ready!
                 </h2>
-                <p className="text-sm text-green-700 mb-4">
+                <p
+                  style={{
+                    fontSize: 'var(--font-size-body)',
+                    color: 'var(--color-accent-success)',
+                    marginBottom: 'var(--spacing-2)'
+                  }}
+                >
                   Your document has been organized into sections below. You can now ask questions
                   about it.
                 </p>
                 <Link
                   href="/app/chat"
-                  className="inline-block rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
+                  style={{
+                    display: 'inline-block',
+                    borderRadius: 'var(--radius-md)',
+                    backgroundColor: 'var(--color-accent-success)',
+                    padding: 'var(--spacing-2) var(--spacing-4)',
+                    fontSize: 'var(--font-size-body)',
+                    fontWeight: 'var(--font-weight-h3)',
+                    color: 'var(--color-text-inverse)',
+                    textDecoration: 'none'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.opacity = '0.9'}
+                  onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
                 >
                   Ask about your documents
                 </Link>
-              </div>
+              </Alert>
             )}
 
             {isReady && document.sections.length > 0 && (
-              <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">
+              <div 
+                style={{
+                  backgroundColor: 'var(--color-background-page)',
+                  borderRadius: 'var(--radius-lg)',
+                  boxShadow: 'var(--shadow-md)',
+                  padding: 'var(--spacing-6)'
+                }}
+              >
+                <h2 
+                  style={{
+                    fontSize: 'var(--font-size-h2)',
+                    fontWeight: 'var(--font-weight-h2)',
+                    color: 'var(--color-text-heading)',
+                    marginBottom: 'var(--spacing-4)'
+                  }}
+                >
                   Sections
                 </h2>
-                <div className="space-y-4">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-4)' }}>
                   {document.sections.map((section) => (
-                    <div key={section.id} className="border-b border-gray-100 pb-4 last:border-0 last:pb-0">
-                      <h3 className="text-sm font-semibold text-gray-900">{section.heading}</h3>
-                      <p className="text-sm text-gray-700 mt-1">{section.body}</p>
-                      <p className="text-xs text-gray-400 mt-1">
+                    <div 
+                      key={section.id} 
+                      style={{
+                        borderBottom: `1px solid var(--color-border-subtle)`,
+                        paddingBottom: 'var(--spacing-4)'
+                      }}
+                      className="last:border-0 last:pb-0"
+                    >
+                      <h3 style={{ fontSize: 'var(--font-size-body)', fontWeight: 'var(--font-weight-h3)', color: 'var(--color-text-heading)' }}>
+                        {section.heading}
+                      </h3>
+                      <p 
+                        style={{ 
+                          fontSize: 'var(--font-size-body)', 
+                          color: 'var(--color-text-body)', 
+                          marginTop: 'var(--spacing-1)'
+                        }}
+                      >
+                        {section.body}
+                      </p>
+                      <p 
+                        style={{ 
+                          fontSize: 'var(--font-size-caption)', 
+                          color: 'var(--color-text-meta)', 
+                          marginTop: 'var(--spacing-1)'
+                        }}
+                      >
                         Based on {section.sources.length} accepted page
                         {section.sources.length === 1 ? "" : "s"}
                       </p>
@@ -950,13 +1208,16 @@ export default function WorkspacePage() {
       {/* Expanded image modal */}
       {expandedImagePage && document && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-black/75 flex items-center justify-center z-50 p-4"
           onClick={() => setExpandedImagePage(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Page ${expandedImagePage.order + 1} enlarged`}
         >
-          <div className="relative max-w-4xl max-h-[90vh]">
+          <div ref={expandedImageModalRef} className="relative max-w-4xl max-h-[90vh]">
             <button
               onClick={() => setExpandedImagePage(null)}
-              className="absolute -top-12 right-0 text-white text-4xl font-bold hover:text-gray-300 focus:outline-none"
+              className="absolute -top-12 right-0 text-white text-4xl font-bold hover:text-gray-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-white rounded"
               aria-label="Close"
             >
               ×
