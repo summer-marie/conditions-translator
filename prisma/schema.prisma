@@ -166,6 +166,9 @@ model OcrResult {
   id            String   @id @default(cuid())
   pageId        String   @unique
   extractedText String
+  // Raw extractedText stays immutable; accepted page text is
+  // correctedText ?? extractedText on an ACCEPTED page.
+  correctedText String?
   confidence    Float?
   warnings      Json?
   createdAt     DateTime @default(now())
