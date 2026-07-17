@@ -10,6 +10,7 @@
 import { PublicHeader } from "@/components/landing/PublicHeader";
 import { Footer } from "@/components/landing/Footer";
 import { FooterCTA } from "@/components/landing/FooterCTA";
+import { Card } from "@/components/ui/Card";
 import { APP_NAME } from "@/lib/constants";
 
 const BODY_TEXT = { fontSize: "var(--font-size-body)", color: "var(--color-text-body)" } as const;
@@ -69,6 +70,7 @@ export default function AboutPage() {
       <PublicHeader />
 
       <main id="main-content" className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
+      <Card padding="lg">
         <h1
           className="font-(--font-weight-h1) mb-6"
           style={{ fontSize: "var(--font-size-h1)", color: "var(--color-text-heading)" }}
@@ -154,6 +156,7 @@ export default function AboutPage() {
             any court, probation department, landlord, employer, school, or government agency.
           </p>
         </section>
+      </Card>
       </main>
 
       <Footer />

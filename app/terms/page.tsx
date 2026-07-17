@@ -5,6 +5,7 @@
 import { PublicHeader } from "@/components/landing/PublicHeader";
 import { Footer } from "@/components/landing/Footer";
 import { FooterCTA } from "@/components/landing/FooterCTA";
+import { Card } from "@/components/ui/Card";
 import { APP_NAME } from "@/lib/constants";
 
 const LAST_UPDATED = "July 17, 2026";
@@ -168,6 +169,7 @@ export default function TermsPage() {
       <PublicHeader />
 
       <main id="main-content" className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
+      <Card padding="lg">
         <h1
           className="font-(--font-weight-h1) mb-2"
           style={{ fontSize: "var(--font-size-h1)", color: "var(--color-text-heading)" }}
@@ -196,6 +198,7 @@ export default function TermsPage() {
             </section>
           ))}
         </div>
+      </Card>
       </main>
 
       <Footer />
