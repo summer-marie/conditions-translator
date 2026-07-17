@@ -56,6 +56,11 @@ Temporary Session
 → Dashboard
 → Delete / Retention Cleanup
 
+The uploaded image is the immutable visual source; OCR produces a proposed transcription that the
+user reviews, may correct (**OCR transcription correction**, approved post-PRD-freeze — see
+`docs/OCR_Master_Implementation_Plan.md` and `docs/Decision_Log.md` ADR-001), and approves per page.
+Only accepted page text reaches AI. Correction is approved and documented but not yet implemented.
+
 ---
 
 # Ownership Model
