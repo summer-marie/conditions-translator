@@ -11,13 +11,14 @@ import {
   retryDocumentProcessing,
   updateDocumentTitle,
   acceptPage,
+  correctPageOcr,
   reuploadPage,
   deletePage,
 } from "@/lib/actions/document";
 import { prisma } from "@/lib/database/prisma";
 import { AppError } from "@/lib/errors";
 import { generateSectionsForDocument } from "@/lib/sections/generate";
-import { DEFAULT_DOCUMENT_TITLE } from "@/lib/constants";
+import { DEFAULT_DOCUMENT_TITLE, OCR_MAX_CORRECTION_CHARACTERS } from "@/lib/constants";
 
 vi.mock("@/lib/sections/generate", () => ({
   generateSectionsForDocument: vi.fn(),
@@ -39,6 +40,7 @@ vi.mock("@/lib/database/prisma", () => ({
     },
     ocrResult: {
       deleteMany: vi.fn(),
+      update: vi.fn(),
     },
     $transaction: vi.fn(async (ops: Promise<unknown>[]) => Promise.all(ops)),
   },
@@ -733,6 +735,289 @@ describe("acceptPage", () => {
     const result = await acceptPage("doc-123", "page-123");
 
     expect(result.status).toBe("ACCEPTED");
+  });
+});
+
+describe("correctPageOcr", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  const mockOcrCompletePage = {
+    id: "page-123",
+    documentId: "doc-123",
+    status: "OCR_COMPLETE",
+    ocr: {
+      pageId: "page-123",
+      extractedText: "Report to your officer monthy.",
+      correctedText: null,
+    },
+  };
+
+  it("throws if there is no active session or signed-in user", async () => {
+    const { getCurrentOwner } = await import("@/lib/auth/session");
+    vi.mocked(getCurrentOwner).mockResolvedValue(null);
+
+    await expect(
+      correctPageOcr("doc-123", "page-123", "Report to your officer monthly.")
+    ).rejects.toThrow("No active session found");
+  });
+
+  it("throws if the document is not owned by the caller", async () => {
+    const { getCurrentOwner } = await import("@/lib/auth/session");
+    const { getOwnedDocument } = await import("@/lib/permissions/ownership");
+
+    vi.mocked(getCurrentOwner).mockResolvedValue({ kind: "temporary", temporarySessionId: "session-123" });
+    vi.mocked(getOwnedDocument).mockResolvedValue(null);
+
+    await expect(
+      correctPageOcr("doc-123", "page-123", "Report to your officer monthly.")
+    ).rejects.toThrow("Document not found");
+  });
+
+  it("throws if the document is not IN_PROGRESS", async () => {
+    const { getCurrentOwner } = await import("@/lib/auth/session");
+    const { getOwnedDocument } = await import("@/lib/permissions/ownership");
+
+    vi.mocked(getCurrentOwner).mockResolvedValue({ kind: "temporary", temporarySessionId: "session-123" });
+    vi.mocked(getOwnedDocument).mockResolvedValue({
+      ...mockInProgressDocument,
+      status: "READY",
+    } as any);
+
+    await expect(
+      correctPageOcr("doc-123", "page-123", "Report to your officer monthly.")
+    ).rejects.toThrow("Pages can only be changed while the document is in progress.");
+  });
+
+  it("throws if the page does not belong to the document (wrong document/page relationship)", async () => {
+    await setUpOwnedInProgressDocument();
+    // findFirst is scoped by { id: pageId, documentId } — a page under a different document
+    // will not be found, mirroring how Prisma would behave for a mismatched relationship.
+    vi.mocked(prisma.page.findFirst).mockResolvedValue(null);
+
+    await expect(
+      correctPageOcr("doc-123", "page-123", "Report to your officer monthly.")
+    ).rejects.toThrow("Page not found");
+    expect(prisma.page.findFirst).toHaveBeenCalledWith({
+      where: { id: "page-123", documentId: "doc-123" },
+      include: { ocr: true },
+    });
+  });
+
+  it("throws if the page is not found under the owned document", async () => {
+    await setUpOwnedInProgressDocument();
+    vi.mocked(prisma.page.findFirst).mockResolvedValue(null);
+
+    await expect(
+      correctPageOcr("doc-123", "missing-page", "Report to your officer monthly.")
+    ).rejects.toThrow("Page not found");
+  });
+
+  it("throws if the page has not completed OCR (e.g. PENDING)", async () => {
+    await setUpOwnedInProgressDocument();
+    vi.mocked(prisma.page.findFirst).mockResolvedValue({
+      id: "page-123",
+      documentId: "doc-123",
+      status: "PENDING",
+      ocr: null,
+    } as any);
+
+    await expect(
+      correctPageOcr("doc-123", "page-123", "Report to your officer monthly.")
+    ).rejects.toThrow("must complete OCR successfully");
+  });
+
+  it("throws if OCR failed", async () => {
+    await setUpOwnedInProgressDocument();
+    vi.mocked(prisma.page.findFirst).mockResolvedValue({
+      id: "page-123",
+      documentId: "doc-123",
+      status: "OCR_FAILED",
+      ocr: null,
+    } as any);
+
+    await expect(
+      correctPageOcr("doc-123", "page-123", "Report to your officer monthly.")
+    ).rejects.toThrow("must complete OCR successfully");
+  });
+
+  it("throws if the page has already been accepted (accepted pages are never OCR_COMPLETE)", async () => {
+    await setUpOwnedInProgressDocument();
+    vi.mocked(prisma.page.findFirst).mockResolvedValue({
+      id: "page-123",
+      documentId: "doc-123",
+      status: "ACCEPTED",
+      ocr: {
+        pageId: "page-123",
+        extractedText: "Report to your officer monthy.",
+        correctedText: null,
+      },
+    } as any);
+
+    await expect(
+      correctPageOcr("doc-123", "page-123", "Report to your officer monthly.")
+    ).rejects.toThrow("must complete OCR successfully");
+    expect(prisma.ocrResult.update).not.toHaveBeenCalled();
+  });
+
+  it("throws if the page has no OCR result even though status is OCR_COMPLETE (defensive)", async () => {
+    await setUpOwnedInProgressDocument();
+    vi.mocked(prisma.page.findFirst).mockResolvedValue({
+      id: "page-123",
+      documentId: "doc-123",
+      status: "OCR_COMPLETE",
+      ocr: null,
+    } as any);
+
+    await expect(
+      correctPageOcr("doc-123", "page-123", "Report to your officer monthly.")
+    ).rejects.toThrow("must complete OCR successfully");
+  });
+
+  it("throws on empty text", async () => {
+    await setUpOwnedInProgressDocument();
+    vi.mocked(prisma.page.findFirst).mockResolvedValue(mockOcrCompletePage as any);
+
+    await expect(correctPageOcr("doc-123", "page-123", "")).rejects.toThrow(
+      "Correction text cannot be empty."
+    );
+    expect(prisma.ocrResult.update).not.toHaveBeenCalled();
+  });
+
+  it("throws on whitespace-only text", async () => {
+    await setUpOwnedInProgressDocument();
+    vi.mocked(prisma.page.findFirst).mockResolvedValue(mockOcrCompletePage as any);
+
+    await expect(correctPageOcr("doc-123", "page-123", "   \n\t  ")).rejects.toThrow(
+      "Correction text cannot be empty."
+    );
+    expect(prisma.ocrResult.update).not.toHaveBeenCalled();
+  });
+
+  it("throws when text exceeds the maximum correction length", async () => {
+    await setUpOwnedInProgressDocument();
+    vi.mocked(prisma.page.findFirst).mockResolvedValue(mockOcrCompletePage as any);
+
+    const tooLong = "a".repeat(OCR_MAX_CORRECTION_CHARACTERS + 1);
+
+    await expect(correctPageOcr("doc-123", "page-123", tooLong)).rejects.toThrow(
+      `Correction text cannot exceed ${OCR_MAX_CORRECTION_CHARACTERS} characters.`
+    );
+    expect(prisma.ocrResult.update).not.toHaveBeenCalled();
+  });
+
+  it("accepts text at exactly the maximum correction length", async () => {
+    await setUpOwnedInProgressDocument();
+    vi.mocked(prisma.page.findFirst).mockResolvedValue(mockOcrCompletePage as any);
+
+    const exactlyMax = "a".repeat(OCR_MAX_CORRECTION_CHARACTERS);
+    vi.mocked(prisma.ocrResult.update).mockResolvedValue({
+      pageId: "page-123",
+      extractedText: "Report to your officer monthy.",
+      correctedText: exactlyMax,
+    } as any);
+
+    const result = await correctPageOcr("doc-123", "page-123", exactlyMax);
+
+    expect(result.correctedText).toBe(exactlyMax);
+    expect(prisma.ocrResult.update).toHaveBeenCalledWith({
+      where: { pageId: "page-123" },
+      data: { correctedText: exactlyMax },
+    });
+  });
+
+  it("trims outer whitespace before saving", async () => {
+    await setUpOwnedInProgressDocument();
+    vi.mocked(prisma.page.findFirst).mockResolvedValue(mockOcrCompletePage as any);
+    vi.mocked(prisma.ocrResult.update).mockResolvedValue({
+      pageId: "page-123",
+      extractedText: "Report to your officer monthy.",
+      correctedText: "Report to your officer monthly.",
+    } as any);
+
+    await correctPageOcr(
+      "doc-123",
+      "page-123",
+      "   Report to your officer monthly.   "
+    );
+
+    expect(prisma.ocrResult.update).toHaveBeenCalledWith({
+      where: { pageId: "page-123" },
+      data: { correctedText: "Report to your officer monthly." },
+    });
+  });
+
+  it("preserves internal spaces and line breaks", async () => {
+    await setUpOwnedInProgressDocument();
+    vi.mocked(prisma.page.findFirst).mockResolvedValue(mockOcrCompletePage as any);
+    const multilineText = "Line one.\nLine  two with double space.\n\nLine three.";
+    vi.mocked(prisma.ocrResult.update).mockResolvedValue({
+      pageId: "page-123",
+      extractedText: "Report to your officer monthy.",
+      correctedText: multilineText,
+    } as any);
+
+    await correctPageOcr("doc-123", "page-123", `  ${multilineText}  `);
+
+    expect(prisma.ocrResult.update).toHaveBeenCalledWith({
+      where: { pageId: "page-123" },
+      data: { correctedText: multilineText },
+    });
+  });
+
+  it("updates only correctedText and never touches extractedText, page status, or document status", async () => {
+    await setUpOwnedInProgressDocument();
+    vi.mocked(prisma.page.findFirst).mockResolvedValue(mockOcrCompletePage as any);
+    vi.mocked(prisma.ocrResult.update).mockResolvedValue({
+      pageId: "page-123",
+      extractedText: "Report to your officer monthy.",
+      correctedText: "Report to your officer monthly.",
+    } as any);
+
+    await correctPageOcr("doc-123", "page-123", "Report to your officer monthly.");
+
+    // The update call's data must contain correctedText only — no extractedText, blobPath,
+    // status, or any other field.
+    expect(prisma.ocrResult.update).toHaveBeenCalledWith({
+      where: { pageId: "page-123" },
+      data: { correctedText: "Report to your officer monthly." },
+    });
+    expect(prisma.page.update).not.toHaveBeenCalled();
+    expect(prisma.document.update).not.toHaveBeenCalled();
+  });
+
+  it("allows repeated saves, each one safely overwriting the prior correction", async () => {
+    await setUpOwnedInProgressDocument();
+    vi.mocked(prisma.page.findFirst).mockResolvedValue(mockOcrCompletePage as any);
+
+    vi.mocked(prisma.ocrResult.update).mockResolvedValueOnce({
+      pageId: "page-123",
+      extractedText: "Report to your officer monthy.",
+      correctedText: "First correction.",
+    } as any);
+
+    const first = await correctPageOcr("doc-123", "page-123", "First correction.");
+    expect(first.correctedText).toBe("First correction.");
+
+    vi.mocked(prisma.ocrResult.update).mockResolvedValueOnce({
+      pageId: "page-123",
+      extractedText: "Report to your officer monthy.",
+      correctedText: "Second, corrected again.",
+    } as any);
+
+    const second = await correctPageOcr("doc-123", "page-123", "Second, corrected again.");
+    expect(second.correctedText).toBe("Second, corrected again.");
+
+    expect(prisma.ocrResult.update).toHaveBeenCalledTimes(2);
+    expect(prisma.ocrResult.update).toHaveBeenNthCalledWith(1, {
+      where: { pageId: "page-123" },
+      data: { correctedText: "First correction." },
+    });
+    expect(prisma.ocrResult.update).toHaveBeenNthCalledWith(2, {
+      where: { pageId: "page-123" },
+      data: { correctedText: "Second, corrected again." },
+    });
   });
 });
 
