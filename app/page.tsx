@@ -142,7 +142,7 @@ export default function LandingPage() {
               <div
                 className="mx-auto mb-3 flex h-8 w-8 items-center justify-center rounded-full font-(--font-weight-h3)"
                 style={{
-                  backgroundColor: "var(--color-accent-success)",
+                  backgroundColor: "var(--color-brand-primary)",
                   color: "var(--color-text-inverse)",
                   fontSize: "var(--font-size-body)",
                 }}

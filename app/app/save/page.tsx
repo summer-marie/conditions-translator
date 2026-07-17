@@ -15,6 +15,7 @@ import { signUpAndSave, signInAndSave } from "@/lib/actions/auth";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Alert } from "@/components/ui/Alert";
+import { Card } from "@/components/ui/Card";
 
 type Mode = "create" | "signin";
 
@@ -127,6 +128,7 @@ function SavePageContent() {
   // ---- Account form ---------------------------------------------------------
   return (
     <div className="max-w-md mx-auto p-4 sm:p-6">
+      <Card padding="lg">
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-(length:--font-size-h2) font-(--font-weight-h2) text-(--color-text-heading)">
           Save your workspace
@@ -291,6 +293,7 @@ function SavePageContent() {
           </Button>
         </form>
       )}
+      </Card>
     </div>
   );
 }

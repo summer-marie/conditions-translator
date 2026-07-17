@@ -507,10 +507,6 @@ export default function ChatPage() {
             disabled={isSending}
             fullWidth={false}
             className="flex-1"
-            style={{
-              color: 'var(--color-text-body)',
-              backgroundColor: 'var(--color-background-page)'
-            }}
           />
           <Button
             onClick={handleSend}

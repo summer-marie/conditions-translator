@@ -719,7 +719,7 @@ export default function WorkspacePage() {
                     <Button variant="secondary" size="md">Log in</Button>
                   </Link>
                   <Link href="/app/save">
-                    <Button variant="primary" size="md">Save workspace</Button>
+                    <Button variant="confirm" size="md">Save workspace</Button>
                   </Link>
                 </>
               )}
@@ -1275,9 +1275,9 @@ export default function WorkspacePage() {
             )}
 
             {isReady && document.sections.length > 0 && (
-              <div 
+              <div
                 style={{
-                  backgroundColor: 'var(--color-background-page)',
+                  backgroundColor: 'var(--color-background-card)',
                   borderRadius: 'var(--radius-lg)',
                   boxShadow: 'var(--shadow-md)',
                   padding: 'var(--spacing-6)'
