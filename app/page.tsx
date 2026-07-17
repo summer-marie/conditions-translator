@@ -10,6 +10,9 @@
 import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import { GetStartedCTA } from "@/components/landing/GetStartedCTA";
+import { WorkspacePreviewCard } from "@/components/landing/WorkspacePreviewCard";
+import { SectioningPreviewCard } from "@/components/landing/SectioningPreviewCard";
+import { StepFeatureRow } from "@/components/landing/StepFeatureRow";
 import { APP_NAME } from "@/lib/constants";
 
 const FEATURES = [
@@ -30,11 +33,20 @@ const FEATURES = [
   },
 ];
 
-const STEPS = [
-  "Upload document page images",
-  "Review and accept OCR results",
-  "AI generates plain-language sections",
-  "Ask questions and get cited answers",
+// "Product Workspace" alternating feature rows (Option B / navy wireframe). Copy ported from
+// design-specs/wireframes/approved/desktop/browser-landingpage-navy.png -- generic workflow
+// description, no fabricated stats or claims.
+const WORKSPACE_STEPS = [
+  {
+    step: "Step 01",
+    heading: "Upload images, run instant OCR",
+    body: "Drop individual page photos or scanned sheets. Our engine instantly processes the files, isolating text fragments, labels, and handwriting with surgical accuracy.",
+  },
+  {
+    step: "Step 02",
+    heading: "Structure messy papers automatically",
+    body: `No more manual labeling. ${APP_NAME} structures pages into clean chapters, recognizing sections, clauses, and appendix notes automatically so your entire workspace stays ordered.`,
+  },
 ];
 
 export default function LandingPage() {
@@ -68,29 +80,39 @@ export default function LandingPage() {
 
       <main id="main-content">
       {/* Hero */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 text-center">
-        <h1
-          className="font-(--font-weight-h1) max-w-3xl mx-auto mb-4"
-          style={{ fontSize: "var(--font-size-h1)", color: "var(--color-text-heading)" }}
-        >
-          Understand your supervision documents in plain language
-        </h1>
-        <p
-          className="max-w-2xl mx-auto mb-8"
-          style={{ fontSize: "var(--font-size-body)", color: "var(--color-text-body)" }}
-        >
-          Upload document pages, get instant OCR, and ask questions — answered only from what
-          you uploaded. No account required to get started.
-        </p>
-        <div className="flex flex-col sm:flex-row gap-3 items-center justify-center">
-          <GetStartedCTA />
-          <a
-            href="#how-it-works"
-            className="text-sm font-medium hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-border-focus-ring) rounded"
-            style={{ color: "var(--color-accent-processing)" }}
-          >
-            See how it works
-          </a>
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+          <div className="text-center lg:text-left">
+            <h1
+              className="font-(--font-weight-h1) max-w-3xl mx-auto lg:mx-0 mb-4"
+              style={{ fontSize: "var(--font-size-h1)", color: "var(--color-text-heading)" }}
+            >
+              Understand your supervision documents in plain language
+            </h1>
+            <p
+              className="max-w-2xl mx-auto lg:mx-0 mb-8"
+              style={{ fontSize: "var(--font-size-body)", color: "var(--color-text-body)" }}
+            >
+              Upload document pages, get instant OCR, and ask questions — answered only from what
+              you uploaded. No account required to get started.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 items-center justify-center lg:justify-start">
+              <GetStartedCTA />
+              <a
+                href="#how-it-works"
+                className="text-sm font-medium hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-border-focus-ring) rounded"
+                style={{ color: "var(--color-accent-processing)" }}
+              >
+                See how it works
+              </a>
+            </div>
+          </div>
+
+          {/* Hidden below ~640px per landing-spec.md's "hero illustration hidden/scaled on
+              mobile" rule -- the 3-thumbnail grid doesn't compress well below that width. */}
+          <div className="hidden sm:block">
+            <WorkspacePreviewCard />
+          </div>
         </div>
       </section>
 
@@ -125,36 +147,78 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* How It Works */}
+      {/* How It Works — "Product Workspace" alternating rows, per the approved navy wireframe.
+          Full-bleed background uses --color-background-subtle (a step off the page canvas,
+          --color-background-page) rather than the spec doc's stale --color-background-sidebar
+          mapping, which now resolves to deep-navy nav chrome after the light-theme token re-roll
+          -- see the session decision log for the substitution rationale. */}
       <section
         id="how-it-works"
-        className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 scroll-mt-16"
+        className="scroll-mt-16"
+        style={{ backgroundColor: "var(--color-background-subtle)" }}
       >
-        <h2
-          className="font-(--font-weight-h2) text-center mb-8"
-          style={{ fontSize: "var(--font-size-h2)", color: "var(--color-text-heading)" }}
-        >
-          How it works
-        </h2>
-        <ol className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {STEPS.map((step, index) => (
-            <li key={step} className="text-center">
-              <div
-                className="mx-auto mb-3 flex h-8 w-8 items-center justify-center rounded-full font-(--font-weight-h3)"
-                style={{
-                  backgroundColor: "var(--color-brand-primary)",
-                  color: "var(--color-text-inverse)",
-                  fontSize: "var(--font-size-body)",
-                }}
-              >
-                {index + 1}
-              </div>
-              <p style={{ fontSize: "var(--font-size-body)", color: "var(--color-text-body)" }}>
-                {step}
-              </p>
-            </li>
-          ))}
-        </ol>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
+          <div className="text-center mb-10">
+            <p
+              className="font-(--font-weight-h3) mb-2 uppercase tracking-wide"
+              style={{ fontSize: "var(--font-size-caption)", color: "var(--color-brand-primary)" }}
+            >
+              Product Workspace
+            </p>
+            <h2
+              className="font-(--font-weight-h2)"
+              style={{ fontSize: "var(--font-size-h2)", color: "var(--color-text-heading)" }}
+            >
+              Designed for seamless document workflows
+            </h2>
+          </div>
+
+          <div className="flex flex-col gap-12">
+            <StepFeatureRow
+              step={WORKSPACE_STEPS[0].step}
+              heading={WORKSPACE_STEPS[0].heading}
+              body={WORKSPACE_STEPS[0].body}
+              cardPosition="start"
+              card={
+                <Card padding="md">
+                  <p
+                    className="font-(--font-weight-h3) mb-3 uppercase tracking-wide"
+                    style={{ fontSize: "var(--font-size-caption)", color: "var(--color-brand-primary)" }}
+                  >
+                    OCR Text Extraction
+                  </p>
+                  {/*
+                    IMAGE NEEDED: a screenshot (~600x360px, PNG) demonstrating OCR extraction --
+                    e.g. a side-by-side of a photographed/scanned document page next to its
+                    extracted plain text, or an annotated screenshot of the workspace's OCR
+                    review step. Replace this placeholder <div> with a real <Image> once the
+                    file is uploaded (suggested path: public/landing/ocr-extraction-preview.png).
+                  */}
+                  <div
+                    className="rounded-md aspect-16/10"
+                    style={{ backgroundColor: "var(--color-background-subtle)" }}
+                    role="img"
+                    aria-label="Placeholder for an OCR text extraction screenshot"
+                  />
+                  <p
+                    className="mt-3"
+                    style={{ fontSize: "var(--font-size-caption)", color: "var(--color-text-meta)" }}
+                  >
+                    {APP_NAME} extracts pristine machine text from messy, skewed smartphone photos.
+                  </p>
+                </Card>
+              }
+            />
+
+            <StepFeatureRow
+              step={WORKSPACE_STEPS[1].step}
+              heading={WORKSPACE_STEPS[1].heading}
+              body={WORKSPACE_STEPS[1].body}
+              cardPosition="end"
+              card={<SectioningPreviewCard />}
+            />
+          </div>
+        </div>
       </section>
 
       {/* Bottom CTA */}
