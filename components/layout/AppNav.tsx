@@ -8,10 +8,10 @@
 
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { APP_NAME } from "@/lib/constants";
 
@@ -23,6 +23,11 @@ const NAV_ITEMS = [
 
 const HIDDEN_ROUTES = ["/app/save", "/app/start"];
 
+interface FinishedDocument {
+  id: string;
+  title: string;
+}
+
 const THEME_STORAGE_KEY = "theme";
 const SIDEBAR_COLLAPSED_STORAGE_KEY = "sidebar-collapsed";
 type Theme = "light" | "dark";
@@ -32,7 +37,21 @@ function isActiveRoute(pathname: string, href: string): boolean {
 }
 
 export function AppNav({ children }: { children: React.ReactNode }) {
+  return (
+    // useSearchParams() (used below to highlight the active document link) requires a Suspense
+    // boundary in the App Router. The fallback still renders children so page content is never
+    // blocked on it -- useSearchParams() is synchronous in a client component and this only
+    // matters for the build-time static-generation check.
+    <Suspense fallback={<main id="main-content">{children}</main>}>
+      <AppNavContent>{children}</AppNavContent>
+    </Suspense>
+  );
+}
+
+function AppNavContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [finishedDocuments, setFinishedDocuments] = useState<FinishedDocument[]>([]);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
   const mobileMenuRef = useRef<HTMLElement | null>(null);
@@ -105,6 +124,35 @@ export function AppNav({ children }: { children: React.ReactNode }) {
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [menuOpen]);
+
+  // Lists the current owner's finished documents (organized/"Sections" view available) as extra
+  // sidenav destinations, alongside the fixed Dashboard/Workspace/Chat items. Reuses the existing
+  // owner-aware GET /api/documents endpoint used elsewhere (dashboard, chat, workspace) -- guests
+  // get their temporary session's documents, signed-in users get their persisted ones, with no
+  // separate nav-specific persistence. Re-fetched on route change so a document finished in the
+  // workspace shows up here without a full reload.
+  useEffect(() => {
+    if (HIDDEN_ROUTES.includes(pathname)) return;
+    let cancelled = false;
+    async function loadFinishedDocuments() {
+      try {
+        const res = await fetch("/api/documents");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (cancelled) return;
+        const finished: FinishedDocument[] = (data.documents ?? [])
+          .filter((d: { status: string }) => d.status !== "IN_PROGRESS")
+          .map((d: { id: string; title: string }) => ({ id: d.id, title: d.title }));
+        setFinishedDocuments(finished);
+      } catch {
+        // Non-fatal: the sidenav just won't show document links if this fails.
+      }
+    }
+    loadFinishedDocuments();
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname]);
 
   if (HIDDEN_ROUTES.includes(pathname)) {
     return <main id="main-content">{children}</main>;
@@ -185,6 +233,33 @@ export function AppNav({ children }: { children: React.ReactNode }) {
               </Link>
             );
           })}
+
+          {!collapsed && finishedDocuments.length > 0 && (
+            <div className="mt-4 border-t border-white/10 pt-4">
+              <p className="px-3 pb-1 text-xs font-medium uppercase tracking-wide text-(--color-surface-nav-foreground-muted)">
+                Documents
+              </p>
+              {finishedDocuments.map((doc) => {
+                const active = pathname === "/app/workspace" && searchParams.get("documentId") === doc.id;
+                return (
+                  <Link
+                    key={doc.id}
+                    href={`/app/workspace?documentId=${doc.id}`}
+                    aria-current={active ? "page" : undefined}
+                    title={doc.title}
+                    className={`flex h-9 items-center gap-3 rounded-md px-3 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-surface-nav-foreground) ${
+                      active
+                        ? "bg-(--color-surface-nav-active-bg) text-(--color-surface-nav-active-foreground)"
+                        : "text-(--color-surface-nav-foreground) hover:bg-white/10"
+                    }`}
+                  >
+                    <DocumentIcon />
+                    <span className="truncate min-w-0">{doc.title}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
         </nav>
       </aside>
 
@@ -250,6 +325,33 @@ export function AppNav({ children }: { children: React.ReactNode }) {
                 </Link>
               );
             })}
+
+            {finishedDocuments.length > 0 && (
+              <div className="mt-2 border-t border-white/10 pt-2">
+                <p className="px-3 pb-1 text-xs font-medium uppercase tracking-wide text-(--color-surface-nav-foreground-muted)">
+                  Documents
+                </p>
+                {finishedDocuments.map((doc) => {
+                  const active = pathname === "/app/workspace" && searchParams.get("documentId") === doc.id;
+                  return (
+                    <Link
+                      key={doc.id}
+                      href={`/app/workspace?documentId=${doc.id}`}
+                      onClick={() => setMenuOpen(false)}
+                      aria-current={active ? "page" : undefined}
+                      className={`flex h-10 items-center gap-3 rounded-md px-3 text-sm font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-surface-nav-foreground) ${
+                        active
+                          ? "bg-(--color-surface-nav-active-bg) text-(--color-surface-nav-active-foreground)"
+                          : "text-(--color-surface-nav-foreground) hover:bg-white/10"
+                      }`}
+                    >
+                      <DocumentIcon />
+                      <span className="truncate min-w-0">{doc.title}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
           </nav>
         </>
       )}
@@ -334,6 +436,26 @@ function ChatIcon() {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
+    </svg>
+  );
+}
+
+function DocumentIcon() {
+  return (
+    <svg
+      className="h-5 w-5 shrink-0"
+      aria-hidden="true"
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+    >
+      <path
+        d="M5 3h7l3 3v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path d="M12 3v3h3" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }

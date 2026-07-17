@@ -8,9 +8,9 @@
 
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { Suspense, useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   createTemporaryDocument,
   finishDocument,
@@ -162,9 +162,31 @@ function statusLabel(page: Page): string {
 }
 
 export default function WorkspacePage() {
+  return (
+    // useSearchParams() requires a Suspense boundary in the App Router (same pattern as
+    // app/app/save/page.tsx).
+    <Suspense fallback={null}>
+      <WorkspacePageContent />
+    </Suspense>
+  );
+}
+
+function WorkspacePageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  // Presence of ?documentId= means the user picked a finished document from the sidenav; absence
+  // means "show my active intake document" (today's default behavior, unchanged).
+  const viewedDocumentId = searchParams.get("documentId");
+
+  // The document currently rendered in the main content area -- either the active intake
+  // document (default) or a different, already-finished document selected via the sidenav.
   const [document, setDocument] = useState<Document | null>(null);
   const [pages, setPages] = useState<Page[]>([]);
+  // The user's own active IN_PROGRESS document (or null if none exists yet). Kept separate from
+  // `document` above so the Upload Pages box always targets the user's real intake document, even
+  // while `document` is showing a different, finished document browsed from the sidenav.
+  const [intakeDocument, setIntakeDocument] = useState<Document | null>(null);
+  const [isLoadingViewedDocument, setIsLoadingViewedDocument] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
@@ -213,24 +235,26 @@ export default function WorkspacePage() {
       }
 
       const data = await response.json();
+      // Resolve the user's active intake document exactly as before: prefer the most recent
+      // IN_PROGRESS document (still under construction) over the most recent document overall —
+      // otherwise a signed-in user with an older unfinished document and a newer finished one
+      // would land on the finished one and be unable to resume uploading pages to the unfinished
+      // one. This resolution is unaffected by ?documentId= -- the Upload Pages box always targets
+      // this document regardless of what's currently shown in the main content area.
+      let resolvedIntake: Document | null = null;
       if (data.documents && data.documents.length > 0) {
-        // Prefer resuming the most recent IN_PROGRESS document (still under construction) over
-        // the most recent document overall — otherwise a signed-in user with an older unfinished
-        // document and a newer finished one would land on the finished one and be unable to
-        // resume uploading pages to the unfinished one.
-        const doc =
-          data.documents.find(
-            (d: { status: DocumentStatus }) => d.status === "IN_PROGRESS"
-          ) ?? data.documents[0];
-        setDocument({
-          id: doc.id,
-          title: doc.title,
-          status: doc.status,
-          pageCount: doc._count.pages,
-          sections: doc.sections || [],
-        });
-
-        await refetchPages(doc.id);
+        const inProgress = data.documents.find(
+          (d: { status: DocumentStatus }) => d.status === "IN_PROGRESS"
+        );
+        if (inProgress) {
+          resolvedIntake = {
+            id: inProgress.id,
+            title: inProgress.title,
+            status: inProgress.status,
+            pageCount: inProgress._count.pages,
+            sections: inProgress.sections || [],
+          };
+        }
       } else if (!status.userId) {
         // Only auto-create a fresh document in temporary mode; a saved account with no documents
         // is handled by the empty-state below rather than silently creating a temporary one.
@@ -238,16 +262,39 @@ export default function WorkspacePage() {
         try {
           const newDoc = await createTemporaryDocument(DEFAULT_DOCUMENT_TITLE);
           if (newDoc) {
-            setDocument({
+            resolvedIntake = {
               id: newDoc.id,
               title: newDoc.title,
               status: newDoc.status as DocumentStatus,
               pageCount: 0,
               sections: [],
-            });
+            };
           }
         } finally {
           setIsCreating(false);
+        }
+      }
+      setIntakeDocument(resolvedIntake);
+
+      // With no ?documentId= param, the main content area shows the intake document itself
+      // (today's default behavior, unchanged). With the param present, a separate effect below
+      // fetches and shows that specific document instead.
+      if (!viewedDocumentId) {
+        if (resolvedIntake) {
+          setDocument(resolvedIntake);
+          await refetchPages(resolvedIntake.id);
+        } else if (data.documents && data.documents.length > 0) {
+          // Signed-in owner with documents but none IN_PROGRESS and no ?documentId= selected:
+          // show the most recent one so the workspace isn't blank.
+          const doc = data.documents[0];
+          setDocument({
+            id: doc.id,
+            title: doc.title,
+            status: doc.status,
+            pageCount: doc._count.pages,
+            sections: doc.sections || [],
+          });
+          await refetchPages(doc.id);
         }
       }
     } catch (error) {
@@ -262,6 +309,34 @@ export default function WorkspacePage() {
     if (pagesResponse.ok) {
       const pagesData = await pagesResponse.json();
       setPages(pagesData.pages || []);
+      return pagesData.pages || [];
+    }
+    return [];
+  };
+
+  // Loads a specific, already-finished document selected from the sidenav (?documentId=) into
+  // the main content area, independent of the user's own active intake document. Reuses the same
+  // owner-aware endpoints as the default flow -- no new persistence path for guests or accounts.
+  const loadViewedDocument = async (id: string) => {
+    setIsLoadingViewedDocument(true);
+    try {
+      const response = await fetch(`/api/documents/${id}`);
+      if (!response.ok) {
+        throw new Error("Failed to load document");
+      }
+      const data = await response.json();
+      const loadedPages = await refetchPages(id);
+      setDocument({
+        id: data.document.id,
+        title: data.document.title,
+        status: data.document.status,
+        pageCount: loadedPages.length,
+        sections: data.document.sections || [],
+      });
+    } catch (error) {
+      console.error("Failed to load selected document:", error);
+    } finally {
+      setIsLoadingViewedDocument(false);
     }
   };
 
@@ -294,7 +369,9 @@ export default function WorkspacePage() {
       }
 
       setPages((prev) =>
-        prev.map((p) => (p.id === pageId ? { ...p, ...data.page, ocr: data.ocr } : p))
+        prev.some((p) => p.id === pageId)
+          ? prev.map((p) => (p.id === pageId ? { ...p, ...data.page, ocr: data.ocr } : p))
+          : prev
       );
     } catch (error) {
       console.error("OCR error:", error);
@@ -358,13 +435,64 @@ export default function WorkspacePage() {
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (!files || !document || files.length === 0) return;
+    if (!files || files.length === 0) return;
 
-    // Check if adding these pages would exceed the limit
-    const newPageCount = document.pageCount + files.length;
+    // The Upload box always targets the user's active intake document, not necessarily whatever
+    // is currently shown in the main content area (see intakeDocument's declaration above). If
+    // `document` already IS the intake document, it's the freshest copy -- handlers like
+    // handleFinishDocument only update `document`, not the separate intakeDocument snapshot, so
+    // checking intakeDocument.status directly here would go stale the moment the active intake
+    // document finishes.
+    const liveIntake =
+      document && intakeDocument && document.id === intakeDocument.id ? document : intakeDocument;
+    let targetDocument = liveIntake && liveIntake.status === "IN_PROGRESS" ? liveIntake : null;
+
+    if (!targetDocument) {
+      // No usable active intake document (none exists yet, or the previous one just finished) --
+      // start a new one. Reuses the existing guest auto-create action (createTemporaryDocument),
+      // just triggered here instead of only on mount. Signed-in accounts hit this only if the
+      // render guard below is bypassed, which it isn't: the Upload box is disabled for them in
+      // this state (see canOfferNewDocument/newDocumentUploadDisabled), since
+      // createTemporaryDocument doesn't yet resolve an authenticated owner -- a known,
+      // pre-existing gap this change doesn't attempt to fix.
+      if (savedUserId) {
+        e.target.value = "";
+        return;
+      }
+      setIsCreating(true);
+      try {
+        const newDoc = await createTemporaryDocument(DEFAULT_DOCUMENT_TITLE);
+        if (!newDoc) {
+          e.target.value = "";
+          return;
+        }
+        targetDocument = {
+          id: newDoc.id,
+          title: newDoc.title,
+          status: newDoc.status as DocumentStatus,
+          pageCount: 0,
+          sections: [],
+        };
+        setIntakeDocument(targetDocument);
+      } finally {
+        setIsCreating(false);
+      }
+    }
+
+    const targetId = targetDocument.id;
+    const newPageCount = targetDocument.pageCount + files.length;
     if (newPageCount > 10) {
-      alert(`Cannot upload ${files.length} page(s). Maximum is 10 pages per document. You can upload ${10 - document.pageCount} more page(s).`);
+      alert(`Cannot upload ${files.length} page(s). Maximum is 10 pages per document. You can upload ${10 - targetDocument.pageCount} more page(s).`);
+      e.target.value = "";
       return;
+    }
+
+    // Switch the main view to the intake document being uploaded to, so the new page is visible
+    // immediately even if the user was browsing a different finished document via the sidenav.
+    if (document?.id !== targetId) {
+      router.push("/app/workspace");
+      setDocument(targetDocument);
+      setPages([]);
     }
 
     setIsUploading(true);
@@ -374,7 +502,7 @@ export default function WorkspacePage() {
         const formData = new FormData();
         formData.append("file", file);
 
-        const response = await fetch(`/api/documents/${document.id}/pages`, {
+        const response = await fetch(`/api/documents/${targetId}/pages`, {
           method: "POST",
           body: formData,
         });
@@ -386,9 +514,10 @@ export default function WorkspacePage() {
 
         const data = await response.json();
         setPages((prev) => [...prev, { ...data.page, ocr: null }]);
-        setDocument((prev) => prev ? { ...prev, pageCount: prev.pageCount + 1 } : null);
+        setDocument((prev) => (prev && prev.id === targetId ? { ...prev, pageCount: prev.pageCount + 1 } : prev));
+        setIntakeDocument((prev) => (prev && prev.id === targetId ? { ...prev, pageCount: prev.pageCount + 1 } : prev));
 
-        await runOcrForPage(document.id, data.page.id);
+        await runOcrForPage(targetId, data.page.id);
       }
     } catch (error) {
       console.error("Upload error:", error);
@@ -526,6 +655,24 @@ export default function WorkspacePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- initializeWorkspace is stable per mount
   }, []);
 
+  // Reacts to ?documentId= changing (sidenav navigation between finished documents, or back to
+  // the plain /app/workspace URL) without requiring a full page reload. Runs after the initial
+  // intake resolution above so a bad/foreign id can fall back to the intake document instead of
+  // leaving the page blank.
+  useEffect(() => {
+    if (isLoading) return;
+    if (viewedDocumentId) {
+      loadViewedDocument(viewedDocumentId);
+    } else if (intakeDocument && document?.id !== intakeDocument.id) {
+      // Only refetches when actually switching back from a different viewed document -- the
+      // initial load already put the intake document in place, so this avoids a redundant fetch.
+      // Fetches fresh rather than trusting the intakeDocument snapshot, which can go stale (e.g.
+      // it finished while the user was browsing a different document via the sidenav).
+      loadViewedDocument(intakeDocument.id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadViewedDocument/refetchPages are stable per render cycle; re-running on their identity would loop
+  }, [viewedDocumentId, isLoading]);
+
   useEffect(() => {
     if (!expandedImagePage) return;
     function handleKeyDown(e: KeyboardEvent) {
@@ -588,7 +735,19 @@ export default function WorkspacePage() {
   const isProcessingFailed = document.status === "PROCESSING_FAILED";
   const acceptedPageCount = pages.filter((p) => p.status === "ACCEPTED").length;
   const canFinish = acceptedPageCount > 0 && document.status === "IN_PROGRESS";
-  const canUpload = document.pageCount < 10 && document.status === "IN_PROGRESS";
+  const isViewingIntake = document.id === intakeDocument?.id;
+  // `document` is the freshest copy of the intake document whenever it's the one being viewed
+  // (kept live by the handlers above); otherwise fall back to the separately-tracked snapshot.
+  const effectiveIntake = isViewingIntake ? document : intakeDocument;
+  const hasActiveIntakeRoom =
+    !!effectiveIntake && effectiveIntake.status === "IN_PROGRESS" && effectiveIntake.pageCount < 10;
+  // Once the active intake document is finished (or none exists yet), the Upload box switches
+  // from "add a page" to "start a new document" instead of disappearing.
+  const canOfferNewDocument = !hasActiveIntakeRoom && (!effectiveIntake || effectiveIntake.status !== "IN_PROGRESS");
+  const showUploadBox = hasActiveIntakeRoom || canOfferNewDocument;
+  // createTemporaryDocument doesn't yet resolve an authenticated owner (pre-existing, tracked
+  // gap -- see .agent-memory/OPEN_QUESTIONS.md) so "start a new document" is guest-only for now.
+  const newDocumentUploadDisabled = canOfferNewDocument && !hasActiveIntakeRoom && !!savedUserId;
 
   return (
     <div style={{ backgroundColor: 'var(--color-background-subtle)' }}>
@@ -730,11 +889,22 @@ export default function WorkspacePage() {
 
       {/* Main content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {isLoadingViewedDocument && (
+          <p
+            className="mb-4"
+            style={{ fontSize: 'var(--font-size-caption)', color: 'var(--color-text-meta)' }}
+          >
+            Loading document…
+          </p>
+        )}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left column - Document info and pages */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Upload section */}
-            {canUpload && (
+            {/* Upload section: adding pages to the active intake document, or -- once that
+                document is finished (or none exists yet) -- starting a new one. Always visible
+                so the user can keep working even while browsing a different, finished document
+                below (see intakeDocument's declaration above). */}
+            {showUploadBox && (
               <Card variant="panel">
                 <h2
                   className="mb-4"
@@ -745,17 +915,17 @@ export default function WorkspacePage() {
                     marginBottom: 'var(--spacing-4)'
                   }}
                 >
-                  Upload Pages
+                  {hasActiveIntakeRoom ? "Upload Pages" : "Start a New Document"}
                 </h2>
                 <div className="flex items-center justify-center w-full">
-                  <label 
-                    className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer"
+                  <label
+                    className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg ${newDocumentUploadDisabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
                     style={{
                       borderColor: 'var(--color-border-default)',
                       backgroundColor: 'var(--color-background-subtle)',
                       borderRadius: 'var(--radius-md)'
                     }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--color-border-subtle)'}
+                    onMouseEnter={(e) => { if (!newDocumentUploadDisabled) e.currentTarget.style.backgroundColor = 'var(--color-border-subtle)'; }}
                     onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--color-background-subtle)'}
                   >
                     <div className="flex flex-col items-center justify-center pt-5 pb-6">
@@ -775,7 +945,7 @@ export default function WorkspacePage() {
                           d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"
                         />
                       </svg>
-                      <p 
+                      <p
                         className="mb-2"
                         style={{
                           fontSize: 'var(--font-size-body)',
@@ -785,7 +955,7 @@ export default function WorkspacePage() {
                       >
                         <span style={{ fontWeight: 'var(--font-weight-h3)' }}>Click to upload</span> or drag and drop
                       </p>
-                      <p 
+                      <p
                         style={{
                           fontSize: 'var(--font-size-caption)',
                           color: 'var(--color-text-meta)'
@@ -800,10 +970,18 @@ export default function WorkspacePage() {
                       accept="image/jpeg,image/png,image/webp"
                       multiple
                       onChange={handleFileUpload}
-                      disabled={isUploading}
+                      disabled={isUploading || newDocumentUploadDisabled}
                     />
                   </label>
                 </div>
+                {newDocumentUploadDisabled && (
+                  <p
+                    className="mt-2 text-center"
+                    style={{ fontSize: 'var(--font-size-caption)', color: 'var(--color-text-meta)' }}
+                  >
+                    Starting a new document isn&apos;t available for signed-in accounts yet.
+                  </p>
+                )}
                 {isUploading && (
                   <div className="mt-4 flex items-center justify-center">
                     <div 
@@ -828,7 +1006,10 @@ export default function WorkspacePage() {
               </Card>
             )}
 
-            {/* Pages list */}
+            {/* Pages list -- once the document is finished, this whole review area is replaced
+                by the organized Sections view below, since page-by-page review is no longer the
+                point of the page for a document that's already been organized. */}
+            {document.status === "IN_PROGRESS" && (
             <Card variant="panel">
               <h2
                 className="mb-4"
@@ -1050,6 +1231,79 @@ export default function WorkspacePage() {
                 </div>
               )}
             </Card>
+            )}
+
+            {/* Organized document view: replaces the Pages review area once the document is
+                finished, matching how the document reads after Finish Document -- browsing/
+                reading, not page-by-page review. */}
+            {document.status !== "IN_PROGRESS" && (
+              <Card variant="panel">
+                <h2
+                  className="mb-4"
+                  style={{
+                    fontSize: 'var(--font-size-h3)',
+                    fontWeight: 'var(--font-weight-h3)',
+                    color: 'var(--color-text-heading)',
+                    marginBottom: 'var(--spacing-4)'
+                  }}
+                >
+                  Sections
+                </h2>
+                {isReady && document.sections.length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-4)' }}>
+                    {document.sections.map((section) => (
+                      <div
+                        key={section.id}
+                        style={{
+                          borderBottom: `1px solid var(--color-border-subtle)`,
+                          paddingBottom: 'var(--spacing-4)'
+                        }}
+                        className="last:border-0 last:pb-0"
+                      >
+                        <h3 style={{ fontSize: 'var(--font-size-body)', fontWeight: 'var(--font-weight-h3)', color: 'var(--color-text-heading)' }}>
+                          {section.heading}
+                        </h3>
+                        <p
+                          style={{
+                            fontSize: 'var(--font-size-body)',
+                            color: 'var(--color-text-body)',
+                            marginTop: 'var(--spacing-1)'
+                          }}
+                        >
+                          {section.body}
+                        </p>
+                        <p
+                          style={{
+                            fontSize: 'var(--font-size-caption)',
+                            color: 'var(--color-text-meta)',
+                            marginTop: 'var(--spacing-1)'
+                          }}
+                        >
+                          Based on {section.sources.length} accepted page
+                          {section.sources.length === 1 ? "" : "s"}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p
+                    className="text-center py-8"
+                    style={{
+                      fontSize: 'var(--font-size-body)',
+                      color: 'var(--color-text-meta)',
+                      textAlign: 'center',
+                      padding: 'var(--spacing-8) 0'
+                    }}
+                  >
+                    {isReady
+                      ? "No sections were generated for this document."
+                      : isProcessingFailed
+                      ? "Organizing this document failed. Use Retry to try again."
+                      : "Your document is still being organized. Sections will appear here shortly."}
+                  </p>
+                )}
+              </Card>
+            )}
           </div>
 
           {/* Right column - Actions */}
@@ -1274,62 +1528,6 @@ export default function WorkspacePage() {
               </Alert>
             )}
 
-            {isReady && document.sections.length > 0 && (
-              <div
-                style={{
-                  backgroundColor: 'var(--color-background-card)',
-                  borderRadius: 'var(--radius-lg)',
-                  boxShadow: 'var(--shadow-md)',
-                  padding: 'var(--spacing-6)'
-                }}
-              >
-                <h2 
-                  style={{
-                    fontSize: 'var(--font-size-h2)',
-                    fontWeight: 'var(--font-weight-h2)',
-                    color: 'var(--color-text-heading)',
-                    marginBottom: 'var(--spacing-4)'
-                  }}
-                >
-                  Sections
-                </h2>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-4)' }}>
-                  {document.sections.map((section) => (
-                    <div 
-                      key={section.id} 
-                      style={{
-                        borderBottom: `1px solid var(--color-border-subtle)`,
-                        paddingBottom: 'var(--spacing-4)'
-                      }}
-                      className="last:border-0 last:pb-0"
-                    >
-                      <h3 style={{ fontSize: 'var(--font-size-body)', fontWeight: 'var(--font-weight-h3)', color: 'var(--color-text-heading)' }}>
-                        {section.heading}
-                      </h3>
-                      <p 
-                        style={{ 
-                          fontSize: 'var(--font-size-body)', 
-                          color: 'var(--color-text-body)', 
-                          marginTop: 'var(--spacing-1)'
-                        }}
-                      >
-                        {section.body}
-                      </p>
-                      <p 
-                        style={{ 
-                          fontSize: 'var(--font-size-caption)', 
-                          color: 'var(--color-text-meta)', 
-                          marginTop: 'var(--spacing-1)'
-                        }}
-                      >
-                        Based on {section.sources.length} accepted page
-                        {section.sources.length === 1 ? "" : "s"}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </main>
