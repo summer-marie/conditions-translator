@@ -96,10 +96,13 @@ export async function assembleChatContext(
       );
     }
 
+    // Accepted page text is the user-reviewed transcription: correctedText when the user edited
+    // it, otherwise the raw extraction stands as accepted-without-correction (correctedText is
+    // null). Raw extractedText itself is never sent to the model when a correction exists.
     const pages: AssembledPage[] = document.pages.map((page, index) => ({
       pageNumber: index + 1,
       pageId: page.id,
-      text: page.ocr!.extractedText,
+      text: page.ocr!.correctedText ?? page.ocr!.extractedText,
     }));
 
     for (const page of pages) {

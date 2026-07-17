@@ -91,16 +91,22 @@ export async function POST(
       });
     }
 
+    // A fresh extraction always clears any prior correctedText — the correction was reviewed
+    // against the previous extractedText, which this OCR run is about to replace, so a stale
+    // correction must not be silently carried over onto new raw output (both branches are
+    // explicit about this, even though `create` has no prior row to carry a correction from).
     const ocrResult = await prisma.ocrResult.upsert({
       where: { pageId },
       create: {
         pageId,
         extractedText: result.extractedText,
+        correctedText: null,
         confidence: result.confidence,
         warnings: { ...result.quality, retakeGuidance: result.retakeGuidance },
       },
       update: {
         extractedText: result.extractedText,
+        correctedText: null,
         confidence: result.confidence,
         warnings: { ...result.quality, retakeGuidance: result.retakeGuidance },
       },

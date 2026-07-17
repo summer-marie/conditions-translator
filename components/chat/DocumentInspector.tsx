@@ -23,7 +23,15 @@ interface InspectorPage {
 interface RawPage {
   id: string;
   status: string;
-  ocr: { extractedText: string } | null;
+  ocr: { extractedText: string; correctedText: string | null } | null;
+}
+
+// Same accepted-text source as lib/chat/context.ts and lib/sections/generate.ts: the user's
+// correction when present, otherwise the raw extraction stands as accepted-without-correction.
+// Exported so this selection can be regression-tested without a component-rendering harness
+// (this repo's vitest config runs in the "node" environment, with no jsdom/React Testing Library).
+export function acceptedPageText(ocr: { extractedText: string; correctedText: string | null }): string {
+  return ocr.correctedText ?? ocr.extractedText;
 }
 
 interface DocumentInspectorProps {
@@ -69,7 +77,9 @@ export function DocumentInspector({
             const pages: InspectorPage[] = accepted.map((page, index) => ({
               id: page.id,
               pageNumber: index + 1,
-              preview: page.ocr!.extractedText.split("\n")[0]?.trim().slice(0, 80) || "(no preview text)",
+              preview:
+                acceptedPageText(page.ocr!).split("\n")[0]?.trim().slice(0, 80) ||
+                "(no preview text)",
             }));
             return { documentId: doc.documentId, pages, failed: false };
           } catch {
