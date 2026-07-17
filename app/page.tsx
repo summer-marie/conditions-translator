@@ -7,10 +7,11 @@
 // first. app/app/start/page.tsx remains untouched as the fallback route reached when
 // workspace/chat detect an unaccepted session.
 
-import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import { GetStartedCTA } from "@/components/landing/GetStartedCTA";
-import { LandingLogo } from "@/components/landing/LandingLogo";
+import { PublicHeader } from "@/components/landing/PublicHeader";
+import { Footer } from "@/components/landing/Footer";
+import { FooterCTA } from "@/components/landing/FooterCTA";
 import { WorkspacePreviewCard } from "@/components/landing/WorkspacePreviewCard";
 import { SectioningPreviewCard } from "@/components/landing/SectioningPreviewCard";
 import { StepFeatureRow } from "@/components/landing/StepFeatureRow";
@@ -60,19 +61,7 @@ export default function LandingPage() {
         Skip to main content
       </a>
 
-      {/* Header */}
-      <header className="border-b border-(--color-border-divider)">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <LandingLogo />
-          <Link
-            href="/app/save?mode=signin"
-            className="text-sm font-medium hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-border-focus-ring) rounded"
-            style={{ color: "var(--color-text-body)" }}
-          >
-            Log in
-          </Link>
-        </div>
-      </header>
+      <PublicHeader />
 
       <main id="main-content">
       {/* Hero */}
@@ -223,17 +212,8 @@ export default function LandingPage() {
       </section>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-(--color-border-divider)">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <p style={{ fontSize: "var(--font-size-caption)", color: "var(--color-text-meta)" }}>
-            {APP_NAME} — understand your supervision documents in plain language.
-          </p>
-          <p style={{ fontSize: "var(--font-size-caption)", color: "var(--color-text-meta)" }}>
-            © {new Date().getFullYear()} {APP_NAME}
-          </p>
-        </div>
-      </footer>
+      <Footer />
+      <FooterCTA />
     </div>
   );
 }
