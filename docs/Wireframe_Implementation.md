@@ -2,98 +2,120 @@
 
 ## Purpose
 
-This document serves as the central reference for UI/UX design assets, implementation guidance, and screen-by-screen specifications for the Conditions Translator MVP.
+This document is the central reference for UI/UX design assets and screen-by-screen implementation
+guidance for the Conditions Translator MVP. It is the single source of truth for UI implementation
+tasks — all coding agents must read and follow it when implementing features from the wireframes.
 
-Once finalized wireframes are added to this repository, they will be linked and referenced here. This file is the single source of truth for UI implementation tasks — all coding agents must read and follow this document when implementing features from the wireframes.
+The **approved light-mode wireframes** now exist and are the visual source of truth. Visual hierarchy
+comes from those approved wireframes and the design tokens — see
+[`../design-specs/functionality/light-theme-visual-direction.md`](../design-specs/functionality/light-theme-visual-direction.md).
 
 ---
 
 ## Required Reading Before Implementation
 
-All agents implementing features from these wireframes must first read:
+All agents implementing from these wireframes must first read:
 
-1. `AGENTS.md` — universal operating rules, architecture invariants, and instruction precedence
-2. `CLAUDE.md` — tool-specific workflow, commit rules, and deployment guardrails
-3. `.agent-memory/CURRENT_SESSION.md`, `.agent-memory/DECISIONS.md`, `.agent-memory/OPEN_QUESTIONS.md` — ongoing context and known issues
-4. `.claude/session-memory/CURRENT_SESSION.md` (if present) — session-specific continuity
+1. `AGENTS.md` — universal operating rules, architecture invariants, instruction precedence
+2. `CLAUDE.md` — tool-specific workflow, commit rules, guardrails
+3. `design-specs/functionality/light-theme-visual-direction.md` — the approved visual system
+4. `.agent-memory/CURRENT_SESSION.md`, `.agent-memory/DECISIONS.md`, `.agent-memory/OPEN_QUESTIONS.md`
+5. `.claude/session-memory/CURRENT_SESSION.md` (if present)
 
-See `AGENTS.md` §4 (Instruction Precedence) for the canonical reading order. Do not invent requirements or deviate from architecture without explicit approval.
+See `AGENTS.md` §Instruction Precedence for the canonical reading order. Do not invent requirements
+or deviate from architecture without explicit approval.
 
 ---
 
 ## Design Assets and References
 
-All finalized wireframes and design assets are stored in the `design-specs/` folder at the repository root:
+Approved assets live under `design-specs/` at the repository root:
 
 ```
 design-specs/
 ├── wireframes/
-│   └── exports/              ← Final visual wireframes (Figma exports, PNG mockups, SVG)
-├── tokens/                   ← Color palettes, typography, spacing, breakpoints
-└── functionality/            ← Screen-by-screen implementation guidance
+│   └── approved/
+│       ├── desktop/  ← approved desktop wireframes (authoritative)
+│       └── mobile/   ← approved mobile wireframes + light-mode design-system panel
+├── tokens/           ← semantic color roles, typography, spacing, components
+└── functionality/    ← per-screen specs + light-theme-visual-direction.md
 ```
 
-See `design-specs/README.md` for the complete folder structure and workflow.
+This document references only the **approved** wireframes. See `design-specs/README.md` for the full
+repository structure.
 
-### Screens to be wireframed as design work progresses
+### Approved wireframes
 
-- [ ] **Temporary Workspace Flow** — initial upload/OCR/accept/finish journey for no-account users
-- [ ] **Signed-In Workspace Flow** — saved document resume, new document creation, multi-document browsing
-- [ ] **Dashboard** — saved document list, account settings, document management
-- [ ] **Chat Interface** — document picker, message history, grounding context display
-- [ ] **Account Creation / Sign-In** — registration, login, password recovery
-- [ ] **Mobile Optimization** — responsive layout for phone camera uploads and portrait viewing
+- **Desktop:** [`../design-specs/wireframes/approved/desktop/desktop-light-mode-final.jpg`](../design-specs/wireframes/approved/desktop/desktop-light-mode-final.jpg)
+  — contains Dashboard, Workspace (upload), and Chat (analysis) desktop layouts.
+- **Mobile:** [`../design-specs/wireframes/approved/mobile/mobile-light-mode-final.jpg`](../design-specs/wireframes/approved/mobile/mobile-light-mode-final.jpg)
+  — contains Chat mobile (pages view + chat view) and the authoritative light-mode design-system
+  panel (palette, typography, radius, shadows).
 
 ---
 
-## Implementation Structure
+## Screen → Wireframe Mapping
 
-### By Screen / Feature
+| Screen | Approved desktop | Approved mobile | Component location | Notes |
+|---|---|---|---|---|
+| **Dashboard** | ✅ `desktop-light-mode-final.jpg` (dashboard panel) | ⚠️ none yet | `app/app/dashboard/page.tsx` | Deep-navy sidebar; document list as elevated cards on the blue-gray canvas. Mobile dashboard follows the visual-direction doc + `dashboard-spec.md` until a mobile wireframe exists. |
+| **Workspace / Upload** | ✅ `desktop-light-mode-final.jpg` (workspace panel) | ⚠️ none yet | `app/app/workspace/page.tsx` | Upload panel, document-status panel, and help panel as distinct structural panels. |
+| **Chat (analysis)** | ✅ `desktop-light-mode-final.jpg` (chat panel) | ✅ `mobile-light-mode-final.jpg` (pages + chat views) | `app/app/chat/page.tsx`, `components/chat/*` | Navy user bubbles; content-surface AI bubbles; blue (informational) citation pills; document inspector on desktop. |
+| **Login / Signup** | ⚠️ none yet | ⚠️ none yet | `app/app/save/page.tsx` | No approved wireframe. Follow `login-spec.md` + visual-direction doc. Split layout: navy identity panel + non-white form surface. |
+| **Landing (marketing)** | ⚠️ none yet | ⚠️ none yet | `app/page.tsx`, `components/landing/*` | No approved wireframe. Follow `landing-spec.md` + visual-direction doc; navy primary CTAs, not green. |
 
-Each section below will hold:
+**Legend:** ✅ approved wireframe exists · ⚠️ no approved wireframe yet — implement from the
+visual-direction doc + the screen spec, and flag material gaps in `.agent-memory/OPEN_QUESTIONS.md`.
 
-- **Screen name / Feature**
-  - Wireframe reference (image/link)
-  - Implementation notes (responsive breakpoints, state handling)
-  - Component / page file location
-  - Dependencies on other screens/phases
-  - Known deferred items or open questions
+### Desktop vs. mobile
 
-#### Implementation Guidance Template
+- **Desktop** derives layout from `desktop-light-mode-final.jpg`: persistent deep-navy sidebar
+  (240px), multi-panel content, right-hand inspector/status panels. See
+  `light-theme-visual-direction.md` §7.
+- **Mobile** is a purpose-built layout (not a shrunken desktop): single column, full-width panels,
+  bottom tab navigation, charcoal shell. Chat mobile is defined by `mobile-light-mode-final.jpg`;
+  other screens follow the visual-direction doc + their spec. See §8.
 
-Full screen-by-screen implementation guidance lives in `design-specs/functionality/` with one file per screen (e.g., `design-specs/functionality/workspace-intake.md`). See `design-specs/functionality/README.md` for the template and workflow.
+### Where visual hierarchy comes from
 
-**Quick reference for the template:**
+Visual hierarchy is defined by the **approved wireframes** and the **design tokens**
+(`design-specs/tokens/`), as codified in `light-theme-visual-direction.md`. Do not derive hierarchy
+from older written style notes where they disagree with the approved wireframes.
 
-```
-## [Screen Name]
+---
 
-**Wireframe:** `../../design-specs/wireframes/exports/[filename]`
+## Conflict Resolution
 
-**Primary purpose:** One-line description
+When guidance disagrees, resolve in this order:
 
-## Responsive Behavior
-- **Mobile** (<640px): [brief notes]
-- **Tablet** (640–1024px): [brief notes]
-- **Desktop** (>1024px): [brief notes]
+1. **Behavior, security, document lifecycle, ownership/authorization, privacy, and AI-grounding
+   always win.** The visual direction and wireframes change *look*, not *logic*. Never weaken these
+   to satisfy a visual note. (See `AGENTS.md` §Architecture Invariants and §Instruction Precedence.)
+2. **For a visual conflict between a new approved wireframe and an older written style note, the
+   approved wireframe + `light-theme-visual-direction.md` win.** Older token values, older spec
+   sentences, and archived color references are superseded.
+3. **If a screen has no approved wireframe,** follow `light-theme-visual-direction.md` and the
+   screen's `*-spec.md`; do not invent a divergent look. Flag material ambiguity in
+   `.agent-memory/OPEN_QUESTIONS.md` before proceeding.
+4. **Never** change the PRD, architecture, lifecycle states, ownership, or token *roles* to resolve a
+   purely visual question — stop and ask.
 
-## States
-- **Loading:** [what the user sees while data loads]
-- **Empty:** [fallback if no content exists]
-- **Success:** [normal, data-present state]
-- **Error:** [how errors are displayed; any retry affordances]
+---
 
-## Component Location
-- `app/app/[feature]/page.tsx` or `lib/components/[FeatureName].tsx`
+## Implementation Guardrails
 
-## Dependencies
-- [Other phase/feature this relies on]
+These are hard prohibitions for all UI implementation on this project:
 
-## Deferred / Out of MVP
-- [Anything unclear or explicitly out of scope]
-```
+- **No pure-white page/application background.**
+- **No green navigation.**
+- **No green used as the default brand or primary color.**
+- **No all-white card grid** (white cards on a white canvas).
+- **No border-only separation for all major panels** — separate by surface tone and/or elevation.
+- **No generic admin-dashboard / Bootstrap / clerical styling.**
+- **No mobile layout created by merely shrinking the desktop.**
+- **No visual changes that alter product functionality.**
 
-Store the full version in `design-specs/functionality/[screen-name].md`.
+(Full rationale and acceptable/unacceptable examples: `light-theme-visual-direction.md` §9 and §11.)
 
 ---
 
@@ -101,15 +123,17 @@ Store the full version in `design-specs/functionality/[screen-name].md`.
 
 ### Document Lifecycle States (Reference)
 
-See `prisma/schema.prisma` and `docs/04_Schema_Architecture.md` for the authoritative state model:
+See `prisma/schema.prisma` and `docs/04_Schema_Architecture.md` for the authoritative model:
 
 - **IN_PROGRESS** — actively being built (upload/OCR/accept flow)
 - **COMPLETED** — user finished intake, awaiting processing
 - **PROCESSING** — sections are being generated
-- **READY** — document is available for AI chat
+- **READY** — available for AI chat
 - **PROCESSING_FAILED** — section generation failed; awaiting retry
 
-Workspace and dashboard screens should reflect these states visually and behaviorally (e.g., only READY documents appear in chat picker; only IN_PROGRESS documents appear in active intake).
+Workspace and dashboard screens reflect these states visually and behaviorally (e.g., only READY
+documents appear in the chat picker). Ready uses the **success** (green) accent; processing uses the
+**informational** (blue) accent.
 
 ### Page Status States (Reference)
 
@@ -120,61 +144,37 @@ See `prisma/schema.prisma`:
 - **OCR_FAILED** — OCR could not extract usable text
 - **ACCEPTED** — user confirmed the text; immutable
 
-UI should show these clearly (e.g., "Needs retake" vs. "Ready to accept").
-
 ---
 
 ## Responsive Design Principles
 
-From `CLAUDE.md` (§10, UI Rules):
+From `AGENTS.md` §UI Rules and `CLAUDE.md` §10:
 
-- **Mobile-first:** design for small screens first, enhance for larger
-- **Desktop support:** must also work in desktop browsers, not just mobile
-- **Functional flows first:** prioritize working interactions before polish
-- **One decision per screen:** keep choices clear and focused
-- **Clear states:** loading, empty, success, error must all be visible
-- **No premature polish:** don't invent final styling before wireframes are approved
-
----
-
-## Implementation Order
-
-(To be determined once wireframes are finalized. Typically follows the phase dependency order in `docs/08_Conditions_Translator_Implementation_Roadmap.md`.)
-
-**General guideline:** build foundational flows (temporary workspace, OCR, chat) before advanced features (multi-document navigation, dashboard, account management).
-
----
-
-## Deferred / Out of MVP Scope
-
-### Known deferred from Phase E2E testing
-
-- Multi-document browsing in workspace (see `.agent-memory/OPEN_QUESTIONS.md` for detailed rationale)
-- Workspace document list visibility after returning from chat
-- Save/sign-in entry UI redesign (currently a stopgap)
-- Server Action error messaging polish
-
-See `.agent-memory/OPEN_QUESTIONS.md` (§"[DEFERRED — FUTURE UX]") for full details.
+- **Mobile-first**, with real desktop support (not just a scaled phone layout).
+- **Functional flows first**, then polish.
+- **One primary decision per screen** where practical.
+- **Clear states:** loading, empty, success, error must all be visible.
+- **Follow the approved wireframes and tokens** for the visual system.
 
 ---
 
 ## Adding New Wireframes
 
-When adding wireframes to this document:
-
-1. Link or embed the wireframe image/PDF
-2. Fill in the template section above with implementation notes
-3. Update `.agent-memory/WORK_LOG.md` with the addition date
-4. If the wireframe reveals new requirements or conflicts with existing architecture, file an entry in `.agent-memory/OPEN_QUESTIONS.md`
-5. Do not commit changes to the codebase until wireframes are finalized and approved
+1. Place approved exports under `design-specs/wireframes/approved/{desktop,mobile}/`; move
+   superseded exports to `archive/`.
+2. Add the screen to the **Screen → Wireframe Mapping** table above with a relative link.
+3. Update `.agent-memory/WORK_LOG.md` with the addition date.
+4. If a wireframe reveals new requirements or conflicts with architecture, file an entry in
+   `.agent-memory/OPEN_QUESTIONS.md` — do not proceed silently.
 
 ---
 
 ## Questions or Clarifications
 
-If a wireframe is ambiguous or conflicts with architecture decisions:
+If a wireframe is ambiguous or conflicts with architecture:
 
-1. Check `AGENTS.md` §10 (UI Rules) and `CLAUDE.md` (UI guidance)
-2. Review `docs/02_Architecture_Overview.md` and related subsystem specs
-3. Check `.agent-memory/OPEN_QUESTIONS.md` for known deferred items
-4. If still unclear, add an entry to `.agent-memory/OPEN_QUESTIONS.md` with the question, impact, and options — do not proceed silently
+1. Check `light-theme-visual-direction.md`, `AGENTS.md` §UI Rules, and `CLAUDE.md` §10.
+2. Review `docs/02_Architecture_Overview.md` and the relevant subsystem spec.
+3. Check `.agent-memory/OPEN_QUESTIONS.md` for known deferred items.
+4. If still unclear, add an entry to `.agent-memory/OPEN_QUESTIONS.md` with the question, impact, and
+   options — do not proceed silently.
