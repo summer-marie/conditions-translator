@@ -8,9 +8,8 @@ dark-inspired theme (deep navy → charcoal → blue-gray → soft neutral, with
 success-only accent**). See [`../functionality/light-theme-visual-direction.md`](../functionality/light-theme-visual-direction.md)
 and the approved wireframes in [`../wireframes/approved/`](../wireframes/approved/).
 
-> **Verify before hardcoding:** light-mode hex values were transcribed from the palette panel in
-> the approved mobile wireframe image. Confirm each value against the source before writing it into
-> `app/styles/tokens.css`.
+> **Approved implementation palette:** the light-mode hex values in these files are final for
+> light-mode implementation and do not require further verification before use.
 
 ## Files
 
@@ -35,7 +34,7 @@ and the approved wireframes in [`../wireframes/approved/`](../wireframes/approve
 | Input surface | `light.surface.input` | White — inputs, document previews, small dense text only |
 | Primary text | `light.text.primary` | Headings / high-contrast text on light surfaces |
 | Muted text | `light.text.muted` | Captions, metadata, timestamps |
-| Border strong | `light.border.strong` | Strong structural dividers (**proposed value — confirm**) |
+| Border strong | `light.border.strong` | Strong structural dividers (`#94A3B8`, approved) |
 | Border subtle | `light.border.subtle` | Hairline separators |
 | Success | `light.accent.success` | Ready/save/confirm/positive completion — **green, accent only** |
 | Warning | `light.accent.warning` | Cautionary flags |
@@ -60,5 +59,6 @@ Map each token to a CSS custom property, e.g.:
 - **Primary actions use deep navy.** Green is reserved for save/confirm/success.
 - **Separate surfaces by tone + elevation,** not by borders alone.
 - **No Purple** — purple is explicitly excluded from all palettes. Do not introduce purple variants.
-- **Dark mode was not part of this light overhaul** — the `dark` block in `colors.json` is unchanged
-  and should be reconciled with the approved direction in a separate pass.
+- **Dark mode is frozen and already accepted** — the `dark` block in `colors.json` must not be
+  redesigned during light-mode implementation. Shared-token changes are allowed only where necessary
+  to prevent regressions or preserve accessibility.

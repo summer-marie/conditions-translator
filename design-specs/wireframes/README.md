@@ -21,12 +21,12 @@ The authoritative light-mode palette is the **"DESIGN SYSTEM OVERVIEW — LIGHT 
 in the approved **mobile** wireframe above. It is mirrored into semantic tokens in
 [`../tokens/colors.json`](../tokens/colors.json).
 
-## Archive (non-authoritative — reference only)
+## Archive (historical — non-authoritative, reference only)
 
-- `archive/figma-original/` — older Figma exports, including
+- `archive/figma-original/` — historical Figma exports, including
   `color-theme-reference-final.png` and `color-theme-reference.png`.
 
-**These older wireframes and color references are non-authoritative** unless a current doc
+**These historical wireframes and color references are non-authoritative** unless a current doc
 explicitly cites them. In particular, `color-theme-reference-final.png` shows an older
 **white-background** palette that the approved direction (no pure-white major surfaces) replaces —
 do **not** implement from it.

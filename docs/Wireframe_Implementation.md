@@ -61,11 +61,13 @@ repository structure.
 | **Dashboard** | ✅ `desktop-light-mode-final.jpg` (dashboard panel) | ⚠️ none yet | `app/app/dashboard/page.tsx` | Deep-navy sidebar; document list as elevated cards on the blue-gray canvas. Mobile dashboard follows the visual-direction doc + `dashboard-spec.md` until a mobile wireframe exists. |
 | **Workspace / Upload** | ✅ `desktop-light-mode-final.jpg` (workspace panel) | ⚠️ none yet | `app/app/workspace/page.tsx` | Upload panel, document-status panel, and help panel as distinct structural panels. |
 | **Chat (analysis)** | ✅ `desktop-light-mode-final.jpg` (chat panel) | ✅ `mobile-light-mode-final.jpg` (pages + chat views) | `app/app/chat/page.tsx`, `components/chat/*` | Navy user bubbles; content-surface AI bubbles; blue (informational) citation pills; document inspector on desktop. |
-| **Login / Signup** | ⚠️ none yet | ⚠️ none yet | `app/app/save/page.tsx` | No approved wireframe. Follow `login-spec.md` + visual-direction doc. Split layout: navy identity panel + non-white form surface. |
-| **Landing (marketing)** | ⚠️ none yet | ⚠️ none yet | `app/page.tsx`, `components/landing/*` | No approved wireframe. Follow `landing-spec.md` + visual-direction doc; navy primary CTAs, not green. |
+| **Login / Signup** | ➖ inherits | ➖ inherits | `app/app/save/page.tsx` | **No new wireframe required.** Inherits the approved visual-direction doc + `login-spec.md`. Split layout: navy identity panel + non-white form surface; navy primary buttons. |
+| **Landing (marketing)** | ➖ inherits | ➖ inherits | `app/page.tsx`, `components/landing/*` | **No new wireframe required.** Inherits the approved visual-direction doc + `landing-spec.md`; navy primary CTAs, not green. |
 
 **Legend:** ✅ approved wireframe exists · ⚠️ no approved wireframe yet — implement from the
-visual-direction doc + the screen spec, and flag material gaps in `.agent-memory/OPEN_QUESTIONS.md`.
+visual-direction doc + the screen spec, and flag material gaps in `.agent-memory/OPEN_QUESTIONS.md`
+· ➖ inherits — no new wireframe required; implement from the approved visual-direction doc + the
+screen spec.
 
 ### Desktop vs. mobile
 
@@ -95,8 +97,10 @@ When guidance disagrees, resolve in this order:
    approved wireframe + `light-theme-visual-direction.md` win.** Older token values, older spec
    sentences, and archived color references are superseded.
 3. **If a screen has no approved wireframe,** follow `light-theme-visual-direction.md` and the
-   screen's `*-spec.md`; do not invent a divergent look. Flag material ambiguity in
-   `.agent-memory/OPEN_QUESTIONS.md` before proceeding.
+   screen's `*-spec.md`; do not invent a divergent look. **Login/Signup and Landing are explicitly
+   approved to inherit this way and are not gaps** — implement them directly. For any *other* screen
+   lacking a wireframe, flag material ambiguity in `.agent-memory/OPEN_QUESTIONS.md` before
+   proceeding.
 4. **Never** change the PRD, architecture, lifecycle states, ownership, or token *roles* to resolve a
    purely visual question — stop and ask.
 

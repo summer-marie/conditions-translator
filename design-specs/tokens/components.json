@@ -1,5 +1,5 @@
 {
-  "_note": "Component specs updated for the approved light-theme visual direction: navy (not green) is the default primary/brand/navigation color; green is a success-only accent; no pure-white major surfaces (white is retained only for input interiors). Values transcribed from the approved wireframe palette; verify before hardcoding. See design-specs/functionality/light-theme-visual-direction.md and tokens/colors.json (semantic roles).",
+  "_note": "Component specs updated for the approved light-theme visual direction: navy (not green) is the default primary/brand/navigation color; green is a success-only accent; no pure-white major surfaces (white is retained only for input interiors). These are the approved implementation values. See design-specs/functionality/light-theme-visual-direction.md and tokens/colors.json (semantic roles).",
   "button": {
     "primary": {
       "background": "#0F1B33",

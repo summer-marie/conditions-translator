@@ -16,7 +16,7 @@ design-specs/
 │   │   ├── desktop/              (approved desktop light-mode wireframes)
 │   │   └── mobile/               (approved mobile light-mode wireframes)
 │   └── archive/
-│       └── figma-original/       (older, non-authoritative Figma exports — reference only)
+│       └── figma-original/       (historical, non-authoritative Figma exports — reference only)
 ├── tokens/                       (design tokens: colors, typography, spacing, components)
 └── functionality/                (screen-by-screen interaction specs + visual direction)
 ```
@@ -60,8 +60,9 @@ design-specs/
 ## Implementation Notes
 
 ### Theme System
-- The app targets a **light theme first** (approved). Dark mode exists in `tokens/colors.json` but
-  was **not** part of the approved light overhaul and must be reconciled separately.
+- The app targets a **light theme first** (approved). Dark mode exists in `tokens/colors.json` and
+  is **frozen and already accepted** — it must not be redesigned during light-mode implementation
+  (shared-token changes only where necessary to prevent regressions or preserve accessibility).
 - Use the semantic `light` roles in `colors.json` as CSS custom-property sets.
 - Accent colors (success/warning/destructive/informational) are semantic — see
   `light-theme-visual-direction.md` §4.

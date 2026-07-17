@@ -16,8 +16,8 @@ disagree, this document and the approved wireframes win.
   `../wireframes/archive/figma-original/color-theme-reference-final.png` is **non-authoritative**
   (it shows an older white-background palette that this direction replaces).
 
-> **Palette values below were transcribed from the approved wireframe image. Verify each hex
-> against the source before hardcoding it into `app/styles/tokens.css`.**
+> **The hex values below are the approved implementation palette.** They are final for light-mode
+> implementation and do not require further verification before use.
 
 ---
 
@@ -74,7 +74,7 @@ surface hierarchy; it does not replace it.
 | Deep navy (identity) | `brand-primary` | `#0F1B33` | Identity, primary buttons, selected nav, headings |
 | Navy surface | `brand-primary-surface` | `#16223D` | Secondary navy chrome / hover accents |
 
-*See the palette-verification note at the top of this file.
+*Approved implementation palette (see the note at the top of this file).
 
 **Rule:** every major region must be visually distinguishable from the region behind it by a
 **tone change and/or elevation**, not by a hairline border alone.
@@ -90,12 +90,13 @@ surface hierarchy; it does not replace it.
 | Destructive | `destructive` | `#DC2626` | Delete/error/blocking actions (require confirmation) |
 | Informational | `informational` | `#2563EB` | Processing/in-progress, citations, neutral info feedback |
 
-- **Green is accent-only.** Allowed for success, ready states, save/confirm actions, and positive
-  completion. **Never** the dominant brand color, **never** navigation, **never** the default
-  primary button.
-- **Primary actions use deep navy** (`brand-primary`), not green. (See the approved desktop
-  wireframe: "New Document" / "New Chat" are navy; **"Save Workspace" is green** because it is a
-  save/confirm action.)
+- **Green is accent-only.** Reserved for **Save, Confirm, Ready, Success, Complete**, and
+  equivalent positive-completion states. **Never** the dominant brand color, **never** navigation,
+  **never** the default primary button.
+- **Primary actions use deep navy** (`brand-primary`), not green. This includes **Sign In, Create
+  Account, Send, New Document**, and general primary actions. (See the approved desktop wireframe:
+  "New Document" / "New Chat" are navy; **"Save Workspace" is green** because it is a save/confirm
+  action.)
 - Destructive actions always use `destructive` and require confirmation.
 - Processing/citation/neutral-info uses `informational` (blue), replacing the previous teal.
 

@@ -1,6 +1,6 @@
 {
-  "_note": "LIGHT MODE reflects the approved light-theme visual direction (deep navy -> charcoal -> blue-gray -> soft neutral, green as a success-only accent). Values transcribed from the 'DESIGN SYSTEM OVERVIEW - LIGHT MODE' panel in design-specs/wireframes/approved/mobile/mobile-light-mode-final.jpg; VERIFY each hex against the source before hardcoding into app/styles/tokens.css. Keys are semantic ROLES, not raw color names. See design-specs/functionality/light-theme-visual-direction.md. DARK MODE is unchanged and was NOT part of this light-mode overhaul; reconcile it separately.",
-  "_borderStrongNote": "border.strong has no explicit value in the approved wireframe; #94A3B8 is a PROPOSED strong-divider value for light surfaces. Confirm before use.",
+  "_note": "LIGHT MODE reflects the approved light-theme visual direction (deep navy -> charcoal -> blue-gray -> soft neutral, green as a success-only accent). These hex values are the APPROVED implementation palette and are final for light-mode implementation. Keys are semantic ROLES, not raw color names. See design-specs/functionality/light-theme-visual-direction.md. DARK MODE is frozen and already accepted (see the dark block's note).",
+  "_borderStrongNote": "border.strong is #94A3B8 (approved strong-divider value for light surfaces).",
   "light": {
     "surface": {
       "app": "#D6E0EA",
@@ -38,7 +38,7 @@
     }
   },
   "dark": {
-    "_note": "Unchanged by the light-mode overhaul. Not authoritative for light mode. Reconcile against the approved direction in a separate dark-mode pass.",
+    "_note": "FROZEN and already accepted. Do NOT redesign dark mode during light-mode implementation. Shared-token changes are allowed only where necessary to prevent regressions or preserve accessibility.",
     "brand": {
       "primary": "#FAFAFA",
       "primaryDark": "#D4D4D8",
