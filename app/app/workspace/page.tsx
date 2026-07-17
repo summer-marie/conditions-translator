@@ -1564,12 +1564,9 @@ function PageCorrectionField({
           </div>
 
           <div
-            className="flex flex-col-reverse gap-3 border-t p-4 sm:flex-row sm:justify-end sm:p-6"
+            className="flex justify-end gap-3 border-t p-4 sm:p-6"
             style={{ borderColor: "var(--color-border-divider)" }}
           >
-            <Button type="button" variant="secondary" onClick={closeModal}>
-              Close
-            </Button>
             <Button
               type="button"
               variant="secondary"
