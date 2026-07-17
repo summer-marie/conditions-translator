@@ -25,7 +25,7 @@ export function Button({
     primary: "bg-(--color-brand-primary) text-(--color-text-inverse) hover:bg-(--color-brand-primary-light) focus:ring-(--color-brand-primary)",
     // Green success action, self-contained solid button (Save/Confirm/Complete only).
     confirm: "bg-(--color-accent-success) text-white hover:bg-emerald-700 focus:ring-(--color-accent-success)",
-    secondary: "border border-(--color-border-strong) text-(--color-text-body) bg-(--color-surface-input) hover:bg-(--color-background-subtle) focus:ring-(--color-border-strong)",
+    secondary: "border border-(--color-border-strong) text-(--color-text-body) hover:bg-(--color-background-subtle) focus:ring-(--color-border-strong)",
     // A solid button's own bg/text contrast is self-contained and shouldn't shift with
     // page theme, unlike text-on-page-background uses of --color-accent-destructive
     // (which does need a lighter dark-mode value -- see tokens.css). Uses a fixed strong
