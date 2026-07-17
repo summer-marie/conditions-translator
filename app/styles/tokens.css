@@ -1,38 +1,53 @@
 /* Design Tokens - CSS Custom Properties */
-/* Generated from design-specs/tokens/ */
+/* Light mode reflects the approved light-theme visual direction (design-specs/functionality/
+   light-theme-visual-direction.md): deep navy -> charcoal -> blue-gray -> soft neutral, green as a
+   success-only accent, 60% light / 40% dark-inspired. Dark mode is frozen. */
 
 :root {
-  /* Brand Colors */
-  --color-brand-primary: #1E3A5F;
-  --color-brand-primary-dark: #0F1D2F;
-  --color-brand-primary-light: #2D5A8E;
+  /* Brand / identity (deep navy) */
+  --color-brand-primary: #0F1B33;
+  --color-brand-primary-dark: #0B1426;
+  --color-brand-primary-light: #16223D;
 
-  /* Background Colors - Light Mode */
-  --color-background-page: #FFFFFF;
-  --color-background-card: #EDF2F7;
-  --color-background-sidebar: #F1F5F9;
-  --color-background-subtle: #F8FAFC;
+  /* Application surfaces - Light Mode (never pure white as a major surface) */
+  --color-background-page: #D6E0EA;   /* app canvas (blue-gray) */
+  --color-background-card: #E6ECF3;    /* elevated content surface (soft neutral) */
+  --color-background-sidebar: #0B1426; /* deep-navy navigation chrome */
+  --color-background-subtle: #CDD9E6;  /* quiet nested fill (insets, bubbles, skeletons) */
+
+  /* Additional semantic surfaces */
+  --color-surface-input: #FFFFFF;              /* input interiors, document previews (white allowed) */
+  --color-surface-navigation: #0B1426;         /* deep-navy nav / persistent chrome */
+  --color-surface-nav-foreground: #C5CFDC;     /* idle nav item text/icon on navy */
+  --color-surface-nav-foreground-muted: #94A3B8;
+  --color-surface-nav-active-bg: #1D2D47;      /* active nav item (navy lift, NOT green) */
+  --color-surface-nav-active-foreground: #FFFFFF;
+  --color-surface-structural: #2B3445;         /* charcoal structural containers */
+  --color-surface-structural-foreground: #E6ECF3;
+  --color-surface-elevated: #3A4256;           /* elevated charcoal panel */
+  --color-surface-workspace: #4A556C;          /* blue-gray workspace / secondary surface */
 
   /* Border Colors - Light Mode */
-  --color-border-card: #CBD5E1;
-  --color-border-divider: #E2E8F0;
-  --color-border-focus-ring: rgba(30, 58, 95, 0.3);
+  --color-border-card: #C5CFDC;
+  --color-border-divider: #C5CFDC;
+  --color-border-strong: #94A3B8;              /* strong structural divider (approved) */
+  --color-border-focus-ring: rgba(15, 27, 51, 0.3);
 
   /* Text Colors - Light Mode */
-  --color-text-heading: #1E3A5F;
-  --color-text-body: #475569;
-  --color-text-meta: #94A3B8;
+  --color-text-heading: #0F1B33;
+  --color-text-body: #475467;
+  --color-text-meta: #6B7280;
   --color-text-inverse: #FFFFFF;
 
-  /* Accent Colors */
-  --color-accent-success: #059669;
-  --color-accent-success-bg: rgba(5, 150, 105, 0.1);
+  /* Accent Colors (semantic) */
+  --color-accent-success: #16A34A;
+  --color-accent-success-bg: rgba(22, 163, 74, 0.1);
   --color-accent-warning: #D97706;
   --color-accent-warning-bg: rgba(217, 119, 6, 0.1);
-  --color-accent-destructive: #B91C1C;
-  --color-accent-destructive-bg: rgba(185, 28, 28, 0.1);
-  --color-accent-processing: #0D9488;
-  --color-accent-processing-bg: rgba(13, 148, 136, 0.1);
+  --color-accent-destructive: #DC2626;
+  --color-accent-destructive-bg: rgba(220, 38, 38, 0.1);
+  --color-accent-processing: #2563EB;          /* informational / processing (blue) */
+  --color-accent-processing-bg: rgba(37, 99, 235, 0.1);
 
   /* Typography */
   --font-family-primary: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -83,51 +98,70 @@
   --radius-lg: 0.5rem;   /* 8px */
   --radius-xl: 0.75rem;  /* 12px */
 
-  /* Shadows */
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  /* Semantic elevation shadows (navy-derived, per approved direction) */
+  --shadow-sm: 0 1px 2px rgba(15, 27, 51, 0.08);
+  --shadow-md: 0 4px 12px rgba(15, 27, 51, 0.12);
+  --shadow-lg: 0 10px 24px rgba(15, 27, 51, 0.16);
 
   /* Border Variations */
-  --color-border-default: #CBD5E1;
+  --color-border-default: #C5CFDC;
   --color-border-subtle: #E2E8F0;
 }
 
 [data-theme="dark"] {
-  /* Brand Colors - Dark Mode */
+  /* Brand Colors - Dark Mode (frozen) */
   --color-brand-primary: #FAFAFA;
   --color-brand-primary-dark: #D4D4D8;
   --color-brand-primary-light: #FFFFFF;
 
-  /* Background Colors - Dark Mode */
+  /* Background Colors - Dark Mode (frozen) */
   --color-background-page: #18181B;
   --color-background-card: #27272A;
   --color-background-sidebar: #18181B;
   --color-background-subtle: #27272A;
 
-  /* Border Colors - Dark Mode */
+  /* Additional semantic surfaces - Dark Mode.
+     Values reuse the existing frozen dark palette to preserve current appearance; the only
+     behavioral change vs. before is that active nav no longer uses the (forbidden) green accent
+     -- it now uses the existing #3F3F46 elevated tone. This is a minimal regression-prevention
+     change, not a dark-mode redesign. */
+  --color-surface-input: #18181B;
+  --color-surface-navigation: #18181B;
+  --color-surface-nav-foreground: #D4D4D8;
+  --color-surface-nav-foreground-muted: #A1A1AA;
+  --color-surface-nav-active-bg: #3F3F46;
+  --color-surface-nav-active-foreground: #FAFAFA;
+  --color-surface-structural: #27272A;
+  --color-surface-structural-foreground: #D4D4D8;
+  --color-surface-elevated: #27272A;
+  --color-surface-workspace: #18181B;
+
+  /* Border Colors - Dark Mode (frozen) */
   --color-border-card: #3F3F46;
   --color-border-divider: #3F3F46;
+  --color-border-strong: #52525B;
   --color-border-focus-ring: rgba(250, 250, 250, 0.18);
   --color-border-default: #3F3F46;
   --color-border-subtle: #27272A;
 
-  /* Text Colors - Dark Mode */
+  /* Text Colors - Dark Mode (frozen) */
   --color-text-heading: #FAFAFA;
   --color-text-body: #D4D4D8;
   --color-text-meta: #A1A1AA;
   --color-text-inverse: #000000;
 
-  /* Accent Colors - Dark Mode Backgrounds */
-  --color-accent-success-bg: rgba(5, 150, 105, 0.15);
+  /* Accent Colors - Dark Mode Backgrounds.
+     Accents are universal (same base hex in light & dark); only the tint opacity differs
+     (10% light / 15% dark). These tints are aligned to the new base accent hues to prevent a
+     hue-mismatch regression introduced by the light-mode base update -- a required minimal
+     shared-token change, not a dark-mode redesign. */
+  --color-accent-success-bg: rgba(22, 163, 74, 0.15);
   --color-accent-warning-bg: rgba(217, 119, 6, 0.15);
-  --color-accent-destructive-bg: rgba(185, 28, 28, 0.15);
-  --color-accent-processing-bg: rgba(13, 148, 136, 0.15);
+  --color-accent-destructive-bg: rgba(220, 38, 38, 0.15);
+  --color-accent-processing-bg: rgba(37, 99, 235, 0.15);
 
-  /* --color-accent-destructive (#B91C1C) is used as text/icon color throughout the
-     app (Alert, Badge, buttons). Against dark backgrounds it measures ~2.7:1 contrast,
-     failing WCAG AA even for large text (needs 3:1). The other three accent colors
-     (success/warning/processing) all pass AA unchanged, so only destructive needs a
-     dark-mode-specific override here. */
+  /* --color-accent-destructive is used as a text/icon color throughout the app (Alert, Badge,
+     buttons). Against dark backgrounds the solid base red fails WCAG AA contrast, so dark mode
+     keeps a lighter override. The other three accents pass AA unchanged. */
   --color-accent-destructive: #F87171;
 }
