@@ -8,6 +8,7 @@
 // workspace/chat detect an unaccepted session.
 
 import Link from "next/link";
+import Image from "next/image";
 import { Card } from "@/components/ui/Card";
 import { GetStartedCTA } from "@/components/landing/GetStartedCTA";
 import { WorkspacePreviewCard } from "@/components/landing/WorkspacePreviewCard";
@@ -62,12 +63,13 @@ export default function LandingPage() {
       {/* Header */}
       <header className="border-b border-(--color-border-divider)">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <span
-            className="font-(--font-weight-h3)"
-            style={{ fontSize: "var(--font-size-h3)", color: "var(--color-text-heading)" }}
-          >
-            {APP_NAME}
-          </span>
+          <Image
+            src="/logo-no-words.png"
+            alt={APP_NAME}
+            width={160}
+            height={40}
+            className="h-10 w-auto object-contain"
+          />
           <Link
             href="/app/save?mode=signin"
             className="text-sm font-medium hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-border-focus-ring) rounded"
