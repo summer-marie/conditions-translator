@@ -16,14 +16,20 @@ import {
   finishDocument,
   retryDocumentProcessing,
   acceptPage,
+  correctPageOcr,
   reuploadPage,
   deletePage,
 } from "@/lib/actions/document";
 import { signOut } from "@/lib/actions/auth";
-import { DEFAULT_DOCUMENT_TITLE, isDefaultDocumentTitle } from "@/lib/constants";
+import {
+  DEFAULT_DOCUMENT_TITLE,
+  isDefaultDocumentTitle,
+  OCR_MAX_CORRECTION_CHARACTERS,
+} from "@/lib/constants";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Input } from "@/components/ui/Input";
+import { Textarea } from "@/components/ui/Textarea";
 import { Card } from "@/components/ui/Card";
 import { Alert } from "@/components/ui/Alert";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
@@ -39,6 +45,7 @@ interface OcrQuality {
 
 interface OcrResult {
   extractedText: string;
+  correctedText: string | null;
   confidence: number | null;
   warnings: OcrQuality | null;
 }
@@ -76,6 +83,37 @@ interface Document {
   status: DocumentStatus;
   pageCount: number;
   sections: GeneratedSection[];
+}
+
+// Initial value for a page's correction textarea: the current accepted-text source
+// (correctedText ?? extractedText), matching the same selection used by section generation,
+// chat context, and the document inspector. Exported so this and validateCorrectionText below
+// can be regression-tested without a component-rendering harness (this repo's vitest config runs
+// in the "node" environment, with no jsdom/React Testing Library — see
+// tests/components/chat/DocumentInspector.test.ts for the same approach).
+export function initialCorrectionValue(ocr: OcrResult | null | undefined): string {
+  return ocr?.correctedText ?? ocr?.extractedText ?? "";
+}
+
+// Client-side mirror of correctPageOcr's validation (lib/actions/document.ts): trims outer
+// whitespace only (internal spaces/line breaks are preserved), rejects empty/whitespace-only
+// text, and enforces the same OCR_MAX_CORRECTION_CHARACTERS limit. Used both to gate the Save
+// button and to short-circuit an obviously-invalid save before calling the server.
+export function validateCorrectionText(value: string): { trimmed: string; error: string | null } {
+  const trimmed = value.trim();
+
+  if (trimmed.length === 0) {
+    return { trimmed, error: "Correction cannot be empty." };
+  }
+
+  if (trimmed.length > OCR_MAX_CORRECTION_CHARACTERS) {
+    return {
+      trimmed,
+      error: `Correction cannot exceed ${OCR_MAX_CORRECTION_CHARACTERS} characters.`,
+    };
+  }
+
+  return { trimmed, error: null };
 }
 
 function documentStatusLabel(status: DocumentStatus): string {
@@ -136,6 +174,13 @@ export default function WorkspacePage() {
   const [titleInput, setTitleInput] = useState("");
   const [ocrRunningIds, setOcrRunningIds] = useState<Record<string, boolean>>({});
   const [actioningPageId, setActioningPageId] = useState<string | null>(null);
+  // OCR transcription correction (docs/OCR_Master_Implementation_Plan.md §7-8): local textarea
+  // drafts, per-page save/error/saved state. Keyed by pageId, separate from actioningPageId so
+  // Save stays a distinct action from Accept/Re-upload/Delete.
+  const [correctionDrafts, setCorrectionDrafts] = useState<Record<string, string>>({});
+  const [savingCorrectionIds, setSavingCorrectionIds] = useState<Record<string, boolean>>({});
+  const [correctionErrors, setCorrectionErrors] = useState<Record<string, string | null>>({});
+  const [correctionSavedIds, setCorrectionSavedIds] = useState<Record<string, boolean>>({});
   const [expandedImagePage, setExpandedImagePage] = useState<Page | null>(null);
   const expandedImageModalRef = useRef<HTMLDivElement | null>(null);
   useFocusTrap(expandedImagePage !== null, expandedImageModalRef);
@@ -255,6 +300,59 @@ export default function WorkspacePage() {
       console.error("OCR error:", error);
     } finally {
       setOcrRunningIds((prev) => ({ ...prev, [pageId]: false }));
+    }
+  };
+
+  // An in-progress local edit if one exists, otherwise falls back to initialCorrectionValue.
+  const getCorrectionValue = (page: Page): string => {
+    if (page.id in correctionDrafts) return correctionDrafts[page.id];
+    return initialCorrectionValue(page.ocr);
+  };
+
+  const handleCorrectionChange = (pageId: string, value: string) => {
+    setCorrectionDrafts((prev) => ({ ...prev, [pageId]: value }));
+    // Editing again clears a stale "Saved" indicator or error from a prior attempt.
+    setCorrectionSavedIds((prev) => (prev[pageId] ? { ...prev, [pageId]: false } : prev));
+    setCorrectionErrors((prev) => (prev[pageId] ? { ...prev, [pageId]: null } : prev));
+  };
+
+  const handleSaveCorrection = async (pageId: string) => {
+    if (!document) return;
+    const page = pages.find((p) => p.id === pageId);
+    if (!page) return;
+
+    const value = getCorrectionValue(page);
+    const { error: validationError } = validateCorrectionText(value);
+
+    if (validationError) {
+      setCorrectionErrors((prev) => ({ ...prev, [pageId]: validationError }));
+      return;
+    }
+
+    setSavingCorrectionIds((prev) => ({ ...prev, [pageId]: true }));
+    setCorrectionErrors((prev) => ({ ...prev, [pageId]: null }));
+    try {
+      const updatedOcr = await correctPageOcr(document.id, pageId, value);
+      setPages((prev) =>
+        prev.map((p) =>
+          p.id === pageId && p.ocr
+            ? { ...p, ocr: { ...p.ocr, correctedText: updatedOcr.correctedText } }
+            : p
+        )
+      );
+      setCorrectionDrafts((prev) => {
+        const next = { ...prev };
+        delete next[pageId];
+        return next;
+      });
+      setCorrectionSavedIds((prev) => ({ ...prev, [pageId]: true }));
+    } catch (error) {
+      setCorrectionErrors((prev) => ({
+        ...prev,
+        [pageId]: error instanceof Error ? error.message : "Failed to save correction",
+      }));
+    } finally {
+      setSavingCorrectionIds((prev) => ({ ...prev, [pageId]: false }));
     }
   };
 
@@ -424,7 +522,6 @@ export default function WorkspacePage() {
   };
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time fetch-on-mount
     initializeWorkspace();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- initializeWorkspace is stable per mount
   }, []);
@@ -744,6 +841,20 @@ export default function WorkspacePage() {
               >
                 Pages ({pages.length})
               </h2>
+              {pages.length > 0 && document.status === "IN_PROGRESS" && (
+                <Alert tone="warning" radius="md" padding="sm" className="mb-4">
+                  <p
+                    style={{
+                      fontSize: 'var(--font-size-caption)',
+                      color: 'var(--color-accent-warning)'
+                    }}
+                  >
+                    You are responsible for reviewing each page before accepting it. Conditions
+                    Translator assists with transcription but does not verify legal accuracy —
+                    correct any mistakes so the text matches your document.
+                  </p>
+                </Alert>
+              )}
               {pages.length === 0 ? (
                 <p 
                   className="text-center py-8"
@@ -761,13 +872,18 @@ export default function WorkspacePage() {
                   {pages.map((page) => {
                     const isOcrRunning = !!ocrRunningIds[page.id];
                     const isActioning = actioningPageId === page.id;
+                    const isSavingCorrection = !!savingCorrectionIds[page.id];
                     const blocked = hasBlockingQuality(
                       page.ocr?.warnings ?? null,
                       page.ocr?.extractedText ?? null
                     );
                     const canAccept =
-                      page.status === "OCR_COMPLETE" && !blocked && !isActioning;
-                    const canReupload = page.status !== "ACCEPTED" && !isActioning;
+                      page.status === "OCR_COMPLETE" &&
+                      !blocked &&
+                      !isActioning &&
+                      !isSavingCorrection;
+                    const canReupload =
+                      page.status !== "ACCEPTED" && !isActioning && !isSavingCorrection;
                     const canDelete = document.status === "IN_PROGRESS" && !isActioning;
 
                     return (
@@ -867,9 +983,22 @@ export default function WorkspacePage() {
                               </p>
                             )}
 
-                            {page.ocr?.extractedText && (
+                            {page.status === "OCR_COMPLETE" && page.ocr && (
+                              <PageCorrectionField
+                                page={page}
+                                value={getCorrectionValue(page)}
+                                onChange={(value) => handleCorrectionChange(page.id, value)}
+                                onSave={() => handleSaveCorrection(page.id)}
+                                isSaving={isSavingCorrection}
+                                disabled={isActioning || isOcrRunning}
+                                error={correctionErrors[page.id] ?? null}
+                                saved={!!correctionSavedIds[page.id]}
+                              />
+                            )}
+
+                            {page.status === "ACCEPTED" && page.ocr && (
                               <p className="text-xs text-(--color-text-meta) mt-1 line-clamp-3">
-                                {page.ocr.extractedText}
+                                {page.ocr.correctedText ?? page.ocr.extractedText}
                               </p>
                             )}
                           </div>
@@ -1233,6 +1362,100 @@ export default function WorkspacePage() {
             </p>
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+// Editable proposed-transcription field for an OCR_COMPLETE page (docs/03_OCR_Specifications.md
+// §5, docs/OCR_Master_Implementation_Plan.md §7-8). Save is a distinct action from Accept: saving
+// only writes OcrResult.correctedText and never changes page/document status or the image.
+function PageCorrectionField({
+  page,
+  value,
+  onChange,
+  onSave,
+  isSaving,
+  disabled,
+  error,
+  saved,
+}: {
+  page: Page;
+  value: string;
+  onChange: (value: string) => void;
+  onSave: () => void;
+  isSaving: boolean;
+  // True while a different action (Accept/Re-upload/Delete, or a running OCR call) is in
+  // flight for this page, so Save can't race with it.
+  disabled: boolean;
+  error: string | null;
+  saved: boolean;
+}) {
+  const { trimmed, error: validationError } = validateCorrectionText(value);
+  const trimmedLength = trimmed.length;
+  const overLimit = trimmedLength > OCR_MAX_CORRECTION_CHARACTERS;
+  const isInvalid = !!error || !!validationError;
+  const fieldId = `correction-${page.id}`;
+  const errorId = `${fieldId}-error`;
+  const fieldDisabled = disabled || isSaving;
+
+  return (
+    <div className="mt-2">
+      <label
+        htmlFor={fieldId}
+        className="block mb-1"
+        style={{ fontSize: 'var(--font-size-caption)', color: 'var(--color-text-meta)' }}
+      >
+        Proposed transcription
+      </label>
+      <Textarea
+        id={fieldId}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={fieldDisabled}
+        invalid={isInvalid}
+        aria-describedby={error ? errorId : undefined}
+        rows={4}
+        className="text-xs font-mono"
+      />
+      <div className="flex items-center justify-between mt-1 gap-2 flex-wrap">
+        <span
+          style={{
+            fontSize: 'var(--font-size-caption)',
+            color: overLimit ? 'var(--color-accent-destructive)' : 'var(--color-text-meta)',
+          }}
+        >
+          {trimmedLength}/{OCR_MAX_CORRECTION_CHARACTERS}
+        </span>
+        <div className="flex items-center gap-2">
+          <span role="status">
+            {saved && !isSaving && (
+              <Badge variant="success" size="sm">
+                Saved
+              </Badge>
+            )}
+          </span>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={onSave}
+            disabled={fieldDisabled || !!validationError}
+            isLoading={isSaving}
+          >
+            Save correction
+          </Button>
+        </div>
+      </div>
+      {error && (
+        <p
+          id={errorId}
+          role="alert"
+          className="mt-1"
+          style={{ fontSize: 'var(--font-size-caption)', color: 'var(--color-accent-destructive)' }}
+        >
+          {error}
+        </p>
       )}
     </div>
   );

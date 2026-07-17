@@ -33,10 +33,13 @@ export async function generateSectionsForDocument(
       throw new Error("No accepted pages available for section generation.");
     }
 
+    // Accepted page text is the user-reviewed transcription: correctedText when the user edited
+    // it, otherwise the raw extraction stands as accepted-without-correction (correctedText is
+    // null). Raw extractedText itself is never sent when a correction exists.
     const numberedPages = pages.map((page, index) => ({
       pageNumber: index + 1,
       pageId: page.id,
-      text: page.ocr!.extractedText,
+      text: page.ocr!.correctedText ?? page.ocr!.extractedText,
     }));
 
     const result = await generateDocumentSections({

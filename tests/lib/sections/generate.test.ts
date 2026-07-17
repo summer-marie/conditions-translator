@@ -120,6 +120,50 @@ describe("generateSectionsForDocument", () => {
     });
   });
 
+  it("uses correctedText over extractedText for a corrected accepted page, and never sends the raw text", async () => {
+    vi.mocked(prisma.page.findMany).mockResolvedValue([
+      {
+        id: "page-1",
+        order: 0,
+        status: "ACCEPTED",
+        ocr: { extractedText: "Raw OCR mistke text.", correctedText: "Corrected, accurate text." },
+      },
+    ] as any);
+    vi.mocked(generateDocumentSections).mockResolvedValue({
+      sections: [{ heading: "Reporting", body: "Report monthly.", sourcePageNumbers: [1] }],
+    });
+    vi.mocked(prisma.section.create).mockResolvedValue({ id: "section-1" } as any);
+
+    await generateSectionsForDocument(owner, "doc-123");
+
+    expect(generateDocumentSections).toHaveBeenCalledWith({
+      pages: [{ pageNumber: 1, text: "Corrected, accurate text." }],
+    });
+    const sentPayload = JSON.stringify(vi.mocked(generateDocumentSections).mock.calls[0][0]);
+    expect(sentPayload).not.toContain("Raw OCR mistke text.");
+  });
+
+  it("falls back to extractedText for a legacy accepted page with correctedText = null", async () => {
+    vi.mocked(prisma.page.findMany).mockResolvedValue([
+      {
+        id: "page-1",
+        order: 0,
+        status: "ACCEPTED",
+        ocr: { extractedText: "Legacy accepted text.", correctedText: null },
+      },
+    ] as any);
+    vi.mocked(generateDocumentSections).mockResolvedValue({
+      sections: [{ heading: "Reporting", body: "Report monthly.", sourcePageNumbers: [1] }],
+    });
+    vi.mocked(prisma.section.create).mockResolvedValue({ id: "section-1" } as any);
+
+    await generateSectionsForDocument(owner, "doc-123");
+
+    expect(generateDocumentSections).toHaveBeenCalledWith({
+      pages: [{ pageNumber: 1, text: "Legacy accepted text." }],
+    });
+  });
+
   it("sets PROCESSING_FAILED without throwing when there are no accepted pages", async () => {
     vi.mocked(prisma.page.findMany).mockResolvedValue([]);
     vi.mocked(prisma.document.update)

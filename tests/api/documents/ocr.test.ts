@@ -326,6 +326,59 @@ describe("POST /api/documents/[documentId]/pages/[pageId]/ocr", () => {
     expect(JSON.stringify(data)).not.toContain("sk-test-should-never-leak");
   });
 
+  it("clears any prior correctedText when OCR is re-run on a page with an existing OcrResult", async () => {
+    // Simulates a user having corrected this page's transcription, then re-running OCR (e.g. via
+    // a fresh upload cycle) while the OcrResult row still exists for this pageId: the stale
+    // correction — reviewed against the OLD extractedText — must not silently carry over onto
+    // the new raw extraction.
+    await authenticate();
+    vi.mocked(prisma.document.findFirst).mockResolvedValue(mockDocument as any);
+    vi.mocked(prisma.page.findFirst).mockResolvedValue({ ...mockPage, status: "OCR_COMPLETE" } as any);
+    vi.mocked(readPageImage).mockResolvedValue({
+      buffer: Buffer.from([0xff, 0xd8, 0xff]),
+      contentType: "image/jpeg",
+    });
+    vi.mocked(runPageOcr).mockResolvedValue({
+      extractedText: "Fresh extraction after re-run.",
+      confidence: 0.9,
+      quality: {
+        blurry: false,
+        cutOff: false,
+        sideways: false,
+        incomplete: false,
+        unreadable: false,
+      },
+      retakeGuidance: null,
+    });
+    vi.mocked(prisma.ocrResult.upsert).mockResolvedValue({
+      id: "ocr-1",
+      pageId: "page-123",
+      extractedText: "Fresh extraction after re-run.",
+      correctedText: null,
+      confidence: 0.9,
+      warnings: {},
+      createdAt: new Date(),
+    } as any);
+    vi.mocked(prisma.page.update).mockResolvedValue({ ...mockPage, status: "OCR_COMPLETE" } as any);
+
+    const request = new Request("http://localhost/api/documents/doc-123/pages/page-123/ocr", {
+      method: "POST",
+    });
+
+    const response = await POST(request, { params: Promise.resolve({ documentId: "doc-123", pageId: "page-123" }) });
+    const data = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(data.ocr.correctedText).toBeNull();
+    expect(prisma.ocrResult.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { pageId: "page-123" },
+        create: expect.objectContaining({ correctedText: null }),
+        update: expect.objectContaining({ correctedText: null }),
+      })
+    );
+  });
+
   it("blocks re-running OCR on an already-accepted page", async () => {
     await authenticate();
     vi.mocked(prisma.document.findFirst).mockResolvedValue(mockDocument as any);

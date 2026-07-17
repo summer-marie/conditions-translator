@@ -44,6 +44,14 @@ export const CHAT_SESSION_TTL_MINUTES = readNumber(
 
 export const MAX_PAGE_SIZE_BYTES = readNumber("OCR_MAX_FILE_MB", 10) * 1024 * 1024;
 
+// Maximum length of a user-submitted OCR transcription correction (OcrResult.correctedText).
+// Derived from CHAT_MAX_CONFIRMED_CHARACTERS / DOCUMENT_MAX_PAGES so a fully-corrected document
+// can never exceed the single-document chat budget on its own.
+export const OCR_MAX_CORRECTION_CHARACTERS = readNumber(
+  "OCR_MAX_CORRECTION_CHARACTERS",
+  5_000
+);
+
 // docs/03_OCR_Specifications.md: MVP OCR accepts images only (no PDF/DOCX/HEIC).
 export const ALLOWED_IMAGE_MIME_TYPES = [
   "image/jpeg",

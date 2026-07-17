@@ -24,11 +24,18 @@ vi.mock("@/lib/database/prisma", () => ({
 
 const owner = { kind: "temporary" as const, temporarySessionId: "session-123" };
 
-function readyDoc(id: string, title: string, pages: { id: string; text: string }[]) {
+function readyDoc(
+  id: string,
+  title: string,
+  pages: { id: string; text: string; correctedText?: string | null }[]
+) {
   return {
     id,
     title,
-    pages: pages.map((p) => ({ id: p.id, ocr: { extractedText: p.text } })),
+    pages: pages.map((p) => ({
+      id: p.id,
+      ocr: { extractedText: p.text, correctedText: p.correctedText ?? null },
+    })),
   };
 }
 
@@ -100,6 +107,36 @@ describe("assembleChatContext", () => {
 
     expect(context.documents[0]).toMatchObject({ documentNumber: 1, documentId: "doc-a" });
     expect(context.documents[1]).toMatchObject({ documentNumber: 2, documentId: "doc-b" });
+  });
+
+  it("uses correctedText over extractedText when a correction exists, and the raw text never appears in the assembled context", async () => {
+    const rawText = "Raw OCR mistke text with an error.";
+    const correctedText = "Corrected, accurate text.";
+    vi.mocked(prisma.document.findFirst).mockResolvedValue(
+      readyDoc("doc-1", "Conditions", [{ id: "page-1", text: rawText, correctedText }]) as any
+    );
+
+    const context = await assembleChatContext(owner, ["doc-1"]);
+
+    expect(context.documents[0].pages).toEqual([
+      { pageNumber: 1, pageId: "page-1", text: correctedText },
+    ]);
+    expect(context.documentsBlock).toContain(correctedText);
+    expect(context.documentsBlock).not.toContain(rawText);
+  });
+
+  it("falls back to extractedText for a legacy accepted page with correctedText = null", async () => {
+    vi.mocked(prisma.document.findFirst).mockResolvedValue(
+      readyDoc("doc-1", "Conditions", [
+        { id: "page-1", text: "Legacy accepted text.", correctedText: null },
+      ]) as any
+    );
+
+    const context = await assembleChatContext(owner, ["doc-1"]);
+
+    expect(context.documents[0].pages).toEqual([
+      { pageNumber: 1, pageId: "page-1", text: "Legacy accepted text." },
+    ]);
   });
 
   it("rejects a document that is not owned / not READY (findFirst returns null)", async () => {

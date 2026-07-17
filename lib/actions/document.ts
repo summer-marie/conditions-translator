@@ -13,8 +13,13 @@ import {
   type Owner,
   getOwnedDocument,
   createDocument as createOwnedDocument,
+  ownerWhere,
 } from "@/lib/permissions/ownership";
-import { TEMP_SESSION_TTL_HOURS, DEFAULT_DOCUMENT_TITLE } from "@/lib/constants";
+import {
+  TEMP_SESSION_TTL_HOURS,
+  DEFAULT_DOCUMENT_TITLE,
+  OCR_MAX_CORRECTION_CHARACTERS,
+} from "@/lib/constants";
 import {
   getTemporarySession,
   isPrivacyAccepted,
@@ -282,6 +287,88 @@ export async function acceptPage(documentId: string, pageId: string) {
   revalidatePath("/app/workspace");
 
   return updatedPage;
+}
+
+/**
+ * Saves a user correction to a page's proposed OCR transcription. Updates only
+ * OcrResult.correctedText — OcrResult.extractedText (raw OCR output) is never modified, and
+ * neither the page's image nor its blobPath is touched (docs/OCR_Master_Implementation_Plan.md
+ * §7-8, docs/Decision_Log.md ADR-001). Does not change page or document status and does not
+ * accept the page; only allowed while the page's OCR has completed and it has not yet been
+ * accepted (an ACCEPTED page's status is never OCR_COMPLETE, so it is rejected here too).
+ *
+ * The initial reads below give clear, specific error messages, but they don't hold a lock — a
+ * concurrent acceptPage/reuploadPage/finishDocument could change the document or page state
+ * between that validation and this write (e.g. a page accepted a moment ago, which never touches
+ * OcrResult). The final write is therefore a conditional updateMany, mirroring the
+ * updateMany-then-check-count pattern in lib/documents/deletion.ts: its `where` re-proves every
+ * eligibility requirement (ownership, document IN_PROGRESS, page belongs to this document and is
+ * still OCR_COMPLETE) atomically, so the write silently no-ops instead of corrupting an
+ * already-accepted or otherwise-changed page.
+ */
+export async function correctPageOcr(documentId: string, pageId: string, text: string) {
+  const { owner } = await requireInProgressOwnedDocument(documentId);
+
+  const page = await prisma.page.findFirst({
+    where: { id: pageId, documentId },
+    include: { ocr: true },
+  });
+
+  if (!page) {
+    throw new AppError("Page not found.", 404, "PAGE_NOT_FOUND");
+  }
+
+  if (page.status !== "OCR_COMPLETE" || !page.ocr) {
+    throw new AppError(
+      "This page must complete OCR successfully before its transcription can be corrected.",
+      400,
+      "PAGE_NOT_READY"
+    );
+  }
+
+  const trimmed = text.trim();
+
+  if (trimmed.length === 0) {
+    throw new AppError(
+      "Correction text cannot be empty.",
+      400,
+      "CORRECTION_EMPTY"
+    );
+  }
+
+  if (trimmed.length > OCR_MAX_CORRECTION_CHARACTERS) {
+    throw new AppError(
+      `Correction text cannot exceed ${OCR_MAX_CORRECTION_CHARACTERS} characters.`,
+      400,
+      "CORRECTION_TOO_LONG"
+    );
+  }
+
+  const { count } = await prisma.ocrResult.updateMany({
+    where: {
+      pageId,
+      page: {
+        documentId,
+        status: "OCR_COMPLETE",
+        document: { status: "IN_PROGRESS", ...ownerWhere(owner) },
+      },
+    },
+    data: { correctedText: trimmed },
+  });
+
+  if (count === 0) {
+    throw new AppError(
+      "This page can no longer be corrected. It may have been accepted, re-uploaded, or the document may have changed.",
+      409,
+      "PAGE_STATE_CHANGED"
+    );
+  }
+
+  const updatedOcr = await prisma.ocrResult.findUniqueOrThrow({ where: { pageId } });
+
+  revalidatePath("/app/workspace");
+
+  return updatedOcr;
 }
 
 /**
