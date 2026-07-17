@@ -9,8 +9,10 @@ document; where architecture and implementation behavior must stay aligned, this
 defers to it rather than restating it.
 
 > **Approved architecture note (post-PRD-freeze).** The Project Owner approved the OCR transcription
-> correction workflow after the PRD was frozen. This supersedes the PRD's "Manual OCR editing is not
-> supported" statement for the OCR subsystem only. See `docs/Decision_Log.md` (ADR-001, OCR
+> correction workflow after the PRD was frozen. `docs/Decision_Log.md` ADR-001 records the Project
+> Owner's approved exception to PRD §7 ("Manual OCR editing is not supported"), limited to
+> page-level OCR transcription correction. This specification does not itself override the PRD; the
+> frozen PRD remains unchanged for historical integrity. See `docs/Decision_Log.md` (ADR-001, OCR
 > transcription correction) and `docs/OCR_Master_Implementation_Plan.md`. The workflow is
 > **approved and documented but not yet implemented** (see §4).
 

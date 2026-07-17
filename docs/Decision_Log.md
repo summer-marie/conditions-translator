@@ -32,9 +32,10 @@ process — not by silently rewriting the PRD.
 
 ### Decision
 
-The Project Owner approved a page-level **OCR transcription correction** workflow, superseding the
-PRD's "Manual OCR editing is not supported" statement **for the OCR subsystem only**. The approved
-workflow:
+The Project Owner approved a page-level **OCR transcription correction** workflow as an **approved
+exception to PRD §7** ("Manual OCR editing is not supported"), **limited to page-level OCR
+transcription correction**. This ADR records that owner-approved exception; it is not itself the
+source of the approval, and it does not modify the frozen PRD. The approved workflow:
 
 - The **uploaded image is immutable** — the authoritative visual record. The user corrects the
   transcription, never the source document.
@@ -47,8 +48,9 @@ workflow:
 
 ### Consequences
 
-- `docs/01_MVP_PRD.md` is left **unchanged** (frozen). Its §7 statement is superseded for OCR
-  editing by this ADR; PRD history is not rewritten.
+- `docs/01_MVP_PRD.md` is left **unchanged** (frozen) for historical integrity. Its §7 statement
+  stands as written; this ADR records a Project Owner-approved exception to it, scoped to
+  page-level OCR transcription correction, and does not rewrite PRD history.
 - Downstream documentation (OCR Specification, Schema Architecture, Roadmap, Launch Readiness
   Checklist, testing documents, Architecture Overview, Project Status) acknowledges this approved
   architecture and references the Master Plan and this ADR, without asserting the PRD was modified.
@@ -66,6 +68,7 @@ decision and migration — is a future task with its own branch and tests.
 ### References
 
 - `docs/OCR_Master_Implementation_Plan.md`
-- `docs/01_MVP_PRD.md` §7 (frozen; superseded for OCR editing only)
+- `docs/01_MVP_PRD.md` §7 (frozen; unchanged — this ADR records an approved exception scoped to
+  page-level OCR transcription correction)
 - `docs/03_OCR_Specifications.md`, `docs/04_Schema_Architecture.md`
 - `AGENTS.md` (instruction precedence / architecture-change process)
