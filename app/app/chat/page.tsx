@@ -188,14 +188,14 @@ export default function ChatPage() {
   if (!chatSessionId) {
     return (
       <div className="max-w-2xl mx-auto p-4 md:p-6">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-4">
           <h1
-            className="font-(--font-weight-h2)"
+            className="min-w-0 truncate font-(--font-weight-h2)"
             style={{ fontSize: 'var(--font-size-h2)', color: 'var(--color-text-heading)' }}
           >
             Ask about your documents
           </h1>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             {savedUserId ? (
               <Badge variant="success" size="sm">Saved</Badge>
             ) : (
@@ -335,14 +335,14 @@ export default function ChatPage() {
   return (
     <div className="flex flex-col md:flex-row md:justify-center md:gap-6 h-[calc(100dvh-7.5rem)] md:h-dvh p-4 md:p-6">
     <div className="flex flex-col flex-1 min-w-0 max-w-2xl mx-auto md:mx-0 md:h-full">
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
         <h1
           className="font-(--font-weight-h3)"
           style={{ fontSize: 'var(--font-size-h3)', color: 'var(--color-text-heading)' }}
         >
           Chat
         </h1>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           {savedUserId ? (
             <Badge variant="success" size="sm">Saved</Badge>
           ) : (
