@@ -60,7 +60,7 @@ export const ALLOWED_IMAGE_MIME_TYPES = [
 ] as const;
 
 // App display name shown in metadata and nav branding (env.example: NEXT_PUBLIC_APP_NAME).
-export const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || "Conditions Translator";
+export const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || "Verity";
 
 // Default label a temporary Document is created with before the user names it (Phase 3 intake).
 // Centralized so the creation call and any "still unnamed?" check never drift apart.
