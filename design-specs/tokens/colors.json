@@ -1,39 +1,44 @@
 {
+  "_note": "LIGHT MODE reflects the approved light-theme visual direction (deep navy -> charcoal -> blue-gray -> soft neutral, green as a success-only accent). Values transcribed from the 'DESIGN SYSTEM OVERVIEW - LIGHT MODE' panel in design-specs/wireframes/approved/mobile/mobile-light-mode-final.jpg; VERIFY each hex against the source before hardcoding into app/styles/tokens.css. Keys are semantic ROLES, not raw color names. See design-specs/functionality/light-theme-visual-direction.md. DARK MODE is unchanged and was NOT part of this light-mode overhaul; reconcile it separately.",
+  "_borderStrongNote": "border.strong has no explicit value in the approved wireframe; #94A3B8 is a PROPOSED strong-divider value for light surfaces. Confirm before use.",
   "light": {
+    "surface": {
+      "app": "#D6E0EA",
+      "navigation": "#0B1426",
+      "structuralPanel": "#2B3445",
+      "elevatedCard": "#3A4256",
+      "workspace": "#4A556C",
+      "content": "#E6ECF3",
+      "input": "#FFFFFF"
+    },
     "brand": {
-      "primary": "#1E3A5F",
-      "primaryDark": "#0F1D2F",
-      "primaryLight": "#2D5A8E"
-    },
-    "background": {
-      "page": "#FFFFFF",
-      "card": "#EDF2F7",
-      "sidebar": "#F1F5F9",
-      "subtle": "#F8FAFC"
-    },
-    "border": {
-      "card": "#CBD5E1",
-      "divider": "#E2E8F0",
-      "focusRing": "rgba(30, 58, 95, 0.3)"
+      "primary": "#0F1B33",
+      "primarySurface": "#16223D"
     },
     "text": {
-      "heading": "#1E3A5F",
-      "body": "#475569",
-      "meta": "#94A3B8",
-      "inverse": "#FFFFFF"
+      "primary": "#0F1B33",
+      "secondary": "#475467",
+      "muted": "#6B7280",
+      "inverse": "#E6ECF3"
+    },
+    "border": {
+      "subtle": "#C5CFDC",
+      "strong": "#94A3B8",
+      "focusRing": "rgba(15, 27, 51, 0.3)"
     },
     "accent": {
-      "success": "#059669",
-      "successBg": "rgba(5, 150, 105, 0.1)",
+      "success": "#16A34A",
+      "successBg": "rgba(22, 163, 74, 0.10)",
       "warning": "#D97706",
-      "warningBg": "rgba(217, 119, 6, 0.1)",
-      "destructive": "#B91C1C",
-      "destructiveBg": "rgba(185, 28, 28, 0.1)",
-      "processing": "#0D9488",
-      "processingBg": "rgba(13, 148, 136, 0.1)"
+      "warningBg": "rgba(217, 119, 6, 0.10)",
+      "destructive": "#DC2626",
+      "destructiveBg": "rgba(220, 38, 38, 0.10)",
+      "informational": "#2563EB",
+      "informationalBg": "rgba(37, 99, 235, 0.10)"
     }
   },
   "dark": {
+    "_note": "Unchanged by the light-mode overhaul. Not authoritative for light mode. Reconcile against the approved direction in a separate dark-mode pass.",
     "brand": {
       "primary": "#FAFAFA",
       "primaryDark": "#D4D4D8",

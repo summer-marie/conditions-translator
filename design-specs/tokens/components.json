@@ -1,45 +1,55 @@
 {
+  "_note": "Component specs updated for the approved light-theme visual direction: navy (not green) is the default primary/brand/navigation color; green is a success-only accent; no pure-white major surfaces (white is retained only for input interiors). Values transcribed from the approved wireframe palette; verify before hardcoding. See design-specs/functionality/light-theme-visual-direction.md and tokens/colors.json (semantic roles).",
   "button": {
     "primary": {
-      "background": "#059669",
+      "background": "#0F1B33",
       "text": "#FFFFFF",
       "borderRadius": "8px",
       "paddingX": "16px",
       "paddingY": "10px",
       "fontSize": "14px",
       "fontWeight": 600,
-      "hoverBackground": "#047857",
-      "activeBackground": "#065F46"
+      "hoverBackground": "#16223D",
+      "activeBackground": "#0B1426",
+      "_note": "Primary = deep navy. Do NOT use green for default primary actions. Green is reserved for save/confirm/success (see 'confirm' below)."
+    },
+    "confirm": {
+      "background": "#16A34A",
+      "text": "#FFFFFF",
+      "borderRadius": "8px",
+      "hoverBackground": "#15803D",
+      "_note": "Success/save/confirm actions only (e.g. 'Save Workspace', 'Accept', completion). Not a general primary button."
     },
     "secondary": {
       "background": "#FFFFFF",
-      "text": "#1E3A5F",
-      "border": "1px solid #1E3A5F",
+      "text": "#0F1B33",
+      "border": "1px solid #0F1B33",
       "borderRadius": "8px",
-      "hoverBackground": "#F1F5F9"
+      "hoverBackground": "#E6ECF3"
     },
     "destructive": {
-      "background": "#B91C1C",
+      "background": "#DC2626",
       "text": "#FFFFFF",
       "borderRadius": "8px",
-      "hoverBackground": "#991B1B"
+      "hoverBackground": "#B91C1C"
     },
     "ghost": {
       "background": "transparent",
-      "text": "#1E3A5F",
-      "hoverBackground": "#F1F5F9"
+      "text": "#0F1B33",
+      "hoverBackground": "#E6ECF3"
     }
   },
   "input": {
     "background": "#FFFFFF",
-    "border": "1px solid #CBD5E1",
+    "border": "1px solid #C5CFDC",
     "borderRadius": "8px",
     "padding": "12px",
     "fontSize": "14px",
-    "focusBorder": "#1E3A5F",
-    "focusRing": "0 0 0 3px rgba(30, 58, 95, 0.1)",
-    "placeholder": "#94A3B8",
-    "errorBorder": "#B91C1C"
+    "focusBorder": "#0F1B33",
+    "focusRing": "0 0 0 3px rgba(15, 27, 51, 0.1)",
+    "placeholder": "#6B7280",
+    "errorBorder": "#DC2626",
+    "_note": "White input interior is an approved exception (high-readability content region)."
   },
   "badge": {
     "borderRadius": "9999px",
@@ -48,49 +58,47 @@
     "fontSize": "12px",
     "fontWeight": 500,
     "variants": {
-      "ready": { "background": "rgba(5, 150, 105, 0.1)", "text": "#059669" },
-      "inProgress": {
-        "background": "rgba(217, 119, 6, 0.1)",
-        "text": "#D97706"
-      },
-      "processing": {
-        "background": "rgba(13, 148, 136, 0.1)",
-        "text": "#0D9488"
-      },
-      "error": { "background": "rgba(185, 28, 28, 0.1)", "text": "#B91C1C" }
+      "ready": { "background": "rgba(22, 163, 74, 0.10)", "text": "#16A34A" },
+      "inProgress": { "background": "rgba(217, 119, 6, 0.10)", "text": "#D97706" },
+      "processing": { "background": "rgba(37, 99, 235, 0.10)", "text": "#2563EB" },
+      "error": { "background": "rgba(220, 38, 38, 0.10)", "text": "#DC2626" }
     }
   },
   "card": {
-    "background": "#EDF2F7",
-    "border": "1px solid #CBD5E1",
+    "background": "#E6ECF3",
+    "border": "1px solid #C5CFDC",
     "borderRadius": "12px",
     "padding": "16px",
-    "shadow": "0 4px 12px rgba(30, 58, 95, 0.04)",
-    "hoverShadow": "0 8px 24px rgba(30, 58, 95, 0.08)",
-    "selectedBorderLeft": "3px solid #1E3A5F"
+    "shadow": "0 1px 2px rgba(15, 27, 51, 0.08)",
+    "hoverShadow": "0 4px 12px rgba(15, 27, 51, 0.12)",
+    "selectedBorderLeft": "3px solid #0F1B33",
+    "_note": "Cards are elevated content surfaces on the blue-gray app canvas (#D6E0EA). Separate from the canvas by tone + shadow, not a border alone. Never a white card on white."
   },
   "navbar": {
     "height": "64px",
-    "background": "#FFFFFF",
-    "borderBottom": "1px solid #E2E8F0",
-    "logoColor": "#1E3A5F",
+    "background": "#E6ECF3",
+    "borderBottom": "1px solid #C5CFDC",
+    "logoColor": "#0F1B33",
     "padding": "0 32px"
   },
   "sidebar": {
     "width": "240px",
-    "background": "#F1F5F9",
+    "background": "#0B1426",
     "padding": "16px",
     "itemHeight": "36px",
     "itemBorderRadius": "6px",
-    "activeItemBackground": "#059669",
+    "itemText": "#D6E0EA",
+    "activeItemBackground": "#16223D",
     "activeItemText": "#FFFFFF",
-    "hoverItemBackground": "#E2E8F0"
+    "hoverItemBackground": "#16223D",
+    "_note": "Deep-navy persistent chrome. Active nav item uses a navy/brand highlight, NEVER green."
   },
   "modal": {
-    "overlayBackground": "rgba(15, 23, 42, 0.5)",
-    "background": "#FFFFFF",
+    "overlayBackground": "rgba(11, 20, 38, 0.6)",
+    "background": "#E6ECF3",
     "borderRadius": "16px",
     "padding": "24px",
-    "shadow": "0 24px 64px rgba(30, 58, 95, 0.2)"
+    "shadow": "0 10px 24px rgba(15, 27, 51, 0.16)",
+    "_note": "Modal body is a content surface; reserve pure white for input interiors and small dense regions inside it."
   }
 }
