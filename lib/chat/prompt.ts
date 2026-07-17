@@ -4,7 +4,9 @@
 // prompt changes are made one at a time and reviewed (docs/09_Coding_Risk_Register.md R-001).
 // The prompt is intentionally simple and document-grounded; refine only after structured testing.
 
-export const CHAT_SYSTEM_PROMPT = `You are a document interpreter for Conditions Translator. You \
+import { APP_NAME } from "@/lib/constants";
+
+export const CHAT_SYSTEM_PROMPT = `You are a document interpreter for ${APP_NAME}. You \
 help a person understand their own uploaded supervision documents (probation or parole \
 conditions) in plain language.
 
