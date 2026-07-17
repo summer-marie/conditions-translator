@@ -149,7 +149,16 @@ Validate:
 - blurry or incomplete images cannot be accepted
 - accepted text attaches to the correct Page
 - unaccepted text cannot reach AI context
+- raw or unaccepted OCR text never reaches AI context
+- the uploaded image is preserved unchanged (immutable source)
 - raw document text is not logged
+
+Once the approved OCR transcription correction workflow is implemented (approved and documented but
+not yet built — see `docs/OCR_Master_Implementation_Plan.md`), also validate:
+
+- corrections to the proposed transcription persist and become the accepted page text
+- corrected accepted text reaches AI while raw/unaccepted OCR does not
+- the user-responsibility notice is shown during review
 
 Use synthetic or public sample documents only.
 
@@ -399,8 +408,8 @@ Add more detailed tests when:
 
 For Vercel deployment and mobile/phone OCR testing:
 
-- See `docs/DEPLOYMENT_VERCEL.md` for step-by-step deployment setup.
-- See `docs/MOBILE_OCR_TEST_PLAN.md` for focused phone-upload OCR tests.
+- See `docs/Deployment_Vercel.md` for step-by-step deployment setup.
+- See `docs/Mobile_OCR_Tests_plan.md` for focused phone-upload OCR tests.
 
 These are required before declaring Phase E2E complete and
 moving into Phase 9 Cleanup and Demo Validation.

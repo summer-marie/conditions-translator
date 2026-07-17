@@ -62,6 +62,29 @@ For each, record:
 - Whether UI blocks acceptance or allows it with advisory flags.
 - Any timeouts or 502s.
 
+## 4a. Handwriting and Checkbox Cases
+
+Per `docs/OCR_Master_Implementation_Plan.md` §9, exercise:
+
+- Neat handwriting and difficult handwriting.
+- Mixed printed and handwritten pages.
+- Handwritten dates, names, conditions, and monetary values.
+- Handwritten and printed checkboxes.
+
+For each, record OCR quality and whether the extracted transcription is usable/correctable.
+
+## 4b. OCR Transcription Correction (approved architecture — test once implemented)
+
+The OCR transcription correction workflow is approved and documented but not yet implemented (see
+`docs/OCR_Master_Implementation_Plan.md`, `docs/Decision_Log.md` ADR-001). When built, add these
+cases:
+
+1. Correct a mis-transcribed field (date, name, dollar amount, checkbox) before approving the page.
+2. Confirm corrections persist and become the accepted page text.
+3. Confirm accepted (corrected) text reaches AI; raw/unaccepted OCR never does.
+4. Confirm the uploaded image is unchanged by correction (immutable source).
+5. Confirm the user-responsibility notice is shown during review.
+
 ## 5. Reporting
 
 Summarize findings in:
