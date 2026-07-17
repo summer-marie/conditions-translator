@@ -10,6 +10,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { APP_NAME } from "@/lib/constants";
@@ -132,10 +133,15 @@ export function AppNav({ children }: { children: React.ReactNode }) {
           {!collapsed && (
             <Link
               href="/app/dashboard"
-              className="truncate font-(--font-weight-h3) focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-surface-nav-foreground) rounded"
-              style={{ fontSize: "var(--font-size-h3)", color: "var(--color-surface-nav-foreground)" }}
+              className="shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-surface-nav-foreground) rounded"
             >
-              {APP_NAME}
+              <Image
+                src="/dark-mode-logo.png"
+                alt={APP_NAME}
+                width={113}
+                height={32}
+                className="h-8 w-auto object-contain"
+              />
             </Link>
           )}
           <div className="flex items-center gap-1">
@@ -198,10 +204,15 @@ export function AppNav({ children }: { children: React.ReactNode }) {
         <Link
           href="/app/dashboard"
           onClick={() => setMenuOpen(false)}
-          className="truncate font-(--font-weight-h3) focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-surface-nav-foreground) rounded"
-          style={{ fontSize: "var(--font-size-h3)", color: "var(--color-surface-nav-foreground)" }}
+          className="shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-surface-nav-foreground) rounded"
         >
-          {APP_NAME}
+          <Image
+            src="/dark-mode-logo.png"
+            alt={APP_NAME}
+            width={99}
+            height={28}
+            className="h-7 w-auto object-contain"
+          />
         </Link>
         <ThemeToggleButton theme={theme} onToggle={toggleTheme} className="ml-auto" />
       </header>
