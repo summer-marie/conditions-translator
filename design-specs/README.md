@@ -92,3 +92,5 @@ design-specs/
 > this repository. Those folders were never created; the approved assets live in
 > `wireframes/approved/`. This single README is now the one source of truth for the design-specs
 > structure.
+
+  - `browser-landingpage-navy.png` — "Option B" landing layout recolored to the current Navy/Slate tokens (see `design-specs/functionality/landing-workspace-preview-spec.md`); source (pre-rebrand) export lives in `archive/figma-original/browser-landing-optionB.png`
