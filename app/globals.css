@@ -8,3 +8,21 @@
 body {
   background-color: var(--color-background-page);
 }
+
+/* Semantic elevation utilities (navy-derived --shadow-* tokens). Used to separate surfaces by
+   real elevation rather than faint borders alone, per the approved visual direction. */
+.u-elevation-sm {
+  box-shadow: var(--shadow-sm);
+}
+.u-elevation-md {
+  box-shadow: var(--shadow-md);
+}
+.u-elevation-lg {
+  box-shadow: var(--shadow-lg);
+}
+.u-elevation-hover {
+  transition: box-shadow 0.2s ease;
+}
+.u-elevation-hover:hover {
+  box-shadow: var(--shadow-md);
+}
