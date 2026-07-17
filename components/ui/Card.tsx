@@ -21,24 +21,22 @@ export function Card({
     lg: "p-8",
   };
 
+  // Cards are elevated content surfaces on the blue-gray app canvas. They separate from the
+  // canvas by tone (lighter than the page) + elevation + border, never a faint border alone.
   const variantStyles = {
-    default: `bg-(--color-background-card) border border-(--color-border-card)${shadow ? " shadow-sm" : ""}`,
-    panel: "bg-(--color-background-page)",
+    default: `bg-(--color-background-card) border border-(--color-border-card)`,
+    // "panel" is a borderless elevated content surface (used for grouped workspace regions);
+    // it lifts off the blue-gray page with its own tone + shadow rather than sitting flat on it.
+    panel: "bg-(--color-background-card)",
   };
 
-  const hoverStyles = hover ? "hover:shadow-md transition-shadow" : "";
-
-  // The "panel" variant matches workspace's pre-existing inline-style shadow
-  // (var(--shadow-sm)), which is a different value than Tailwind's built-in
-  // shadow-sm utility used by the "default" variant -- kept separate so neither
-  // surface's existing shadow appearance shifts.
-  const panelShadowStyle =
-    variant === "panel" && shadow ? { boxShadow: "var(--shadow-sm)" } : undefined;
+  // Semantic elevation (navy-derived --shadow-* via globals.css utilities); hover raises one level.
+  const elevationStyles = shadow ? (hover ? "u-elevation-sm u-elevation-hover" : "u-elevation-sm") : "";
 
   return (
     <div
-      className={`rounded-lg ${variantStyles[variant]} ${paddingStyles[padding]} ${hoverStyles} ${className}`}
-      style={{ ...panelShadowStyle, ...style }}
+      className={`rounded-lg ${variantStyles[variant]} ${paddingStyles[padding]} ${elevationStyles} ${className}`}
+      style={style}
       {...props}
     >
       {children}

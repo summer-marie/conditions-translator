@@ -125,15 +125,15 @@ export function AppNav({ children }: { children: React.ReactNode }) {
         }`}
       >
         <div
-          className={`flex h-16 items-center border-b border-(--color-border-divider) ${
+          className={`flex h-16 items-center border-b border-white/10 ${
             collapsed ? "justify-center px-2" : "justify-between px-4"
           }`}
         >
           {!collapsed && (
             <Link
               href="/app/dashboard"
-              className="truncate font-(--font-weight-h3) focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-border-focus-ring) rounded"
-              style={{ fontSize: "var(--font-size-h3)", color: "var(--color-text-heading)" }}
+              className="truncate font-(--font-weight-h3) focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-surface-nav-foreground) rounded"
+              style={{ fontSize: "var(--font-size-h3)", color: "var(--color-surface-nav-foreground)" }}
             >
               {APP_NAME}
             </Link>
@@ -146,7 +146,7 @@ export function AppNav({ children }: { children: React.ReactNode }) {
               aria-expanded={!collapsed}
               aria-controls="desktop-sidebar-nav"
               aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-(--color-text-body) hover:bg-(--color-border-divider) focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-border-focus-ring)"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-(--color-surface-nav-foreground) hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-surface-nav-foreground)"
             >
               {collapsed ? <ChevronRightIcon /> : <ChevronLeftIcon />}
             </button>
@@ -166,12 +166,12 @@ export function AppNav({ children }: { children: React.ReactNode }) {
                 aria-current={active ? "page" : undefined}
                 aria-label={collapsed ? label : undefined}
                 title={collapsed ? label : undefined}
-                className={`flex h-9 items-center gap-3 rounded-md text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-border-focus-ring) ${
+                className={`flex h-9 items-center gap-3 rounded-md text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-surface-nav-foreground) ${
                   collapsed ? "justify-center px-0" : "px-3"
                 } ${
                   active
-                    ? "bg-(--color-accent-success) text-(--color-text-inverse)"
-                    : "text-(--color-text-body) hover:bg-(--color-border-divider)"
+                    ? "bg-(--color-surface-nav-active-bg) text-(--color-surface-nav-active-foreground)"
+                    : "text-(--color-surface-nav-foreground) hover:bg-white/10"
                 }`}
               >
                 <Icon />
@@ -182,8 +182,8 @@ export function AppNav({ children }: { children: React.ReactNode }) {
         </nav>
       </aside>
 
-      {/* Mobile top bar */}
-      <header className="md:hidden fixed inset-x-0 top-0 z-40 flex h-14 items-center gap-3 border-b border-(--color-border-divider) bg-(--color-background-page) px-4">
+      {/* Mobile top bar (navy nav chrome) */}
+      <header className="md:hidden fixed inset-x-0 top-0 z-40 flex h-14 items-center gap-3 border-b border-white/10 bg-(--color-surface-navigation) px-4">
         <button
           ref={menuButtonRef}
           type="button"
@@ -191,15 +191,15 @@ export function AppNav({ children }: { children: React.ReactNode }) {
           aria-label={menuOpen ? "Close menu" : "Open menu"}
           aria-expanded={menuOpen}
           aria-controls="mobile-nav-menu"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-(--color-text-body) hover:bg-(--color-border-divider) focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-border-focus-ring)"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-(--color-surface-nav-foreground) hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-surface-nav-foreground)"
         >
           {menuOpen ? <CloseIcon /> : <MenuIcon />}
         </button>
         <Link
           href="/app/dashboard"
           onClick={() => setMenuOpen(false)}
-          className="truncate font-(--font-weight-h3) focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-border-focus-ring) rounded"
-          style={{ fontSize: "var(--font-size-h3)", color: "var(--color-text-heading)" }}
+          className="truncate font-(--font-weight-h3) focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-surface-nav-foreground) rounded"
+          style={{ fontSize: "var(--font-size-h3)", color: "var(--color-surface-nav-foreground)" }}
         >
           {APP_NAME}
         </Link>
@@ -217,7 +217,7 @@ export function AppNav({ children }: { children: React.ReactNode }) {
           <nav
             id="mobile-nav-menu"
             ref={mobileMenuRef}
-            className="md:hidden fixed inset-x-0 top-14 z-40 space-y-1 border-b border-(--color-border-divider) bg-(--color-background-page) p-2 shadow-lg"
+            className="md:hidden fixed inset-x-0 top-14 z-40 space-y-1 border-b border-white/10 bg-(--color-surface-navigation) p-2 shadow-lg"
             aria-label="Main navigation"
           >
             {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
@@ -228,10 +228,10 @@ export function AppNav({ children }: { children: React.ReactNode }) {
                   href={href}
                   onClick={() => setMenuOpen(false)}
                   aria-current={active ? "page" : undefined}
-                  className={`flex h-10 items-center gap-3 rounded-md px-3 text-sm font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-border-focus-ring) ${
+                  className={`flex h-10 items-center gap-3 rounded-md px-3 text-sm font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-surface-nav-foreground) ${
                     active
-                      ? "bg-(--color-accent-success) text-(--color-text-inverse)"
-                      : "text-(--color-text-body) hover:bg-(--color-border-divider)"
+                      ? "bg-(--color-surface-nav-active-bg) text-(--color-surface-nav-active-foreground)"
+                      : "text-(--color-surface-nav-foreground) hover:bg-white/10"
                   }`}
                 >
                   <Icon />
@@ -243,9 +243,9 @@ export function AppNav({ children }: { children: React.ReactNode }) {
         </>
       )}
 
-      {/* Mobile bottom tab bar */}
+      {/* Mobile bottom tab bar (navy nav chrome) */}
       <nav
-        className="md:hidden fixed inset-x-0 bottom-0 z-40 flex border-t border-(--color-border-divider) bg-(--color-background-page)"
+        className="md:hidden fixed inset-x-0 bottom-0 z-40 flex border-t border-white/10 bg-(--color-surface-navigation)"
         aria-label="Main navigation"
       >
         {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
@@ -255,8 +255,8 @@ export function AppNav({ children }: { children: React.ReactNode }) {
               key={href}
               href={href}
               aria-current={active ? "page" : undefined}
-              className={`flex min-h-[44px] flex-1 flex-col items-center justify-center gap-0.5 py-1.5 text-xs font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-(--color-border-focus-ring) ${
-                active ? "text-(--color-accent-success)" : "text-(--color-text-meta)"
+              className={`flex min-h-[44px] flex-1 flex-col items-center justify-center gap-0.5 py-1.5 text-xs font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-(--color-surface-nav-foreground) ${
+                active ? "text-(--color-surface-nav-active-foreground)" : "text-(--color-surface-nav-foreground-muted)"
               }`}
             >
               <Icon />
@@ -343,7 +343,7 @@ function ThemeToggleButton({
       onClick={onToggle}
       aria-pressed={isDark}
       aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
-      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-(--color-text-body) hover:bg-(--color-border-divider) focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-border-focus-ring) ${className}`}
+      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-(--color-surface-nav-foreground) hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-surface-nav-foreground) ${className}`}
     >
       {isDark ? <SunIcon /> : <MoonIcon />}
     </button>

@@ -24,14 +24,15 @@ The Dashboard is the primary workspace where users manage uploaded documents, mo
 - Selected: Left border accent (3px navy), slightly elevated
 - Status badges:
   - Uploaded — neutral gray
-  - Processing OCR — teal badge with spinner
-  - OCR Complete — emerald badge
-  - AI Ready — emerald badge, solid
-  - Error — crimson badge
+  - Processing OCR — informational blue badge (#2563EB) with spinner
+  - OCR Complete — success green badge (#16A34A)
+  - AI Ready — success green badge (#16A34A), solid
+  - Error — destructive badge (#DC2626)
 
 ### Upload Area
 - Default: Dashed border container with upload icon + "Drop files or click to upload"
-- Drag Over: Border turns emerald, background tints green (subtle)
+- Drag Over: Border turns informational blue (#2563EB), background tints blue (subtle) — a
+  neutral drop-target cue, not a success/green state
 - Uploading: Progress bar within card, percentage text
 - Accepts: Images only (PNG, JPG, TIFF) — one image = one page of a document
 
@@ -62,7 +63,7 @@ The Dashboard is the primary workspace where users manage uploaded documents, mo
 - AI analysis generates plain-language sections from accepted pages
 
 ## Navigation Rules
-- Sidebar active state follows current route (emerald background on active item)
+- Sidebar active state follows current route (navy/brand highlight on active item — never green)
 - Clicking app logo always returns to Dashboard
 - Mobile bottom tab highlights active section
 - Back navigation from Document Detail returns to Dashboard with scroll position preserved

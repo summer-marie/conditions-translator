@@ -10,11 +10,11 @@ export function Textarea({
   ...props
 }: TextareaProps) {
   const baseStyles =
-    "rounded-md border bg-(--color-background-page) text-(--color-text-body) px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:border-(--color-brand-primary)";
+    "rounded-md border bg-(--color-surface-input) text-(--color-text-heading) px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:border-(--color-brand-primary)";
 
   const borderStyles = invalid
     ? "border-(--color-accent-destructive) focus:ring-(--color-accent-destructive)"
-    : "border-(--color-border-card) focus:ring-(--color-border-focus-ring)";
+    : "border-(--color-border-strong) focus:ring-(--color-border-focus-ring)";
 
   const widthStyles = fullWidth ? "w-full" : "";
 

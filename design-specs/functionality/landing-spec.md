@@ -52,10 +52,10 @@ Visual: Numbered steps with connecting lines/arrows, small illustrations per ste
 - Scroll behavior: Navbar becomes opaque/shadowed after 100px scroll
 - Nav links smooth-scroll to corresponding section
 - Login button routes to /login
-- Sign Up button routes to /signup (primary styled, emerald)
+- Sign Up button routes to /signup (primary styled, deep navy #0F1B33)
 
 ### CTA Buttons
-- Primary: Emerald background, white text, hover darkens
+- Primary: Deep-navy background (#0F1B33), white text, hover darkens — not green
 - Secondary: Ghost style (text-only with underline or outline)
 - All CTAs route to signup unless user is already authenticated (then route to dashboard)
 

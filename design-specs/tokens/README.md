@@ -1,22 +1,64 @@
 # Tokens
 
-Design tokens define the visual foundation of the app. Each JSON file is directly parseable into CSS custom properties or Tailwind config values.
+Design tokens define the visual foundation of the app. Each JSON file is directly parseable into
+CSS custom properties or Tailwind config values.
+
+The light-mode tokens reflect the **approved light-theme visual direction** — a 60%-light,
+dark-inspired theme (deep navy → charcoal → blue-gray → soft neutral, with **green as a
+success-only accent**). See [`../functionality/light-theme-visual-direction.md`](../functionality/light-theme-visual-direction.md)
+and the approved wireframes in [`../wireframes/approved/`](../wireframes/approved/).
+
+> **Approved implementation palette:** the light-mode hex values in these files are final for
+> light-mode implementation and do not require further verification before use.
 
 ## Files
 
-- colors.json — Full color palette for light mode (Navy/Slate) and dark mode (Teal/Charcoal). Use the "light" and "dark" top-level keys to switch themes.
-- typography.json — Font families (Inter + JetBrains Mono) and the type scale from display down to caption.
-- spacing.json — Spacing scale (4px-64px), component-specific padding, layout dimensions, border radius, and box shadows.
-- components.json — Per-component specs: buttons (4 variants), inputs, badges (4 status types), cards, navbar, sidebar, and modals.
+- `colors.json` — Light-mode palette expressed as **semantic roles** (surface, brand, text, border,
+  accent), plus an unchanged dark-mode block. Use the semantic keys, not raw color names.
+- `typography.json` — Font families (Inter + JetBrains Mono) and the type scale.
+- `spacing.json` — Spacing scale, component padding, layout dimensions, radius, and semantic
+  elevation shadows (`small` / `medium` / `large`).
+- `components.json` — Per-component specs (buttons, inputs, badges, cards, navbar, sidebar, modals)
+  aligned to the approved hierarchy.
+
+## Light-mode semantic roles (from `colors.json`)
+
+| Role | Token | Purpose |
+|---|---|---|
+| App background | `light.surface.app` | Blue-gray application canvas (**not white**) |
+| Navigation background | `light.surface.navigation` | Deep-navy sidebar / persistent chrome |
+| Structural panel | `light.surface.structuralPanel` | Charcoal containers, grouped modules, mobile shell |
+| Elevated card | `light.surface.elevatedCard` | Cards lifted above the structural/workspace layer |
+| Workspace surface | `light.surface.workspace` | Blue-gray main workspace / secondary background |
+| Content surface | `light.surface.content` | Lighter readable content regions |
+| Input surface | `light.surface.input` | White — inputs, document previews, small dense text only |
+| Primary text | `light.text.primary` | Headings / high-contrast text on light surfaces |
+| Muted text | `light.text.muted` | Captions, metadata, timestamps |
+| Border strong | `light.border.strong` | Strong structural dividers (`#94A3B8`, approved) |
+| Border subtle | `light.border.subtle` | Hairline separators |
+| Success | `light.accent.success` | Ready/save/confirm/positive completion — **green, accent only** |
+| Warning | `light.accent.warning` | Cautionary flags |
+| Destructive | `light.accent.destructive` | Delete/error/blocking actions |
+| Informational | `light.accent.informational` | Processing, citations, neutral info (blue) |
+| Shadow small/medium/large | `spacing.shadow.*` | Elevation (see `spacing.json`) |
 
 ## Usage
 
-Map each token to a CSS custom property:
-- colors.light.brand.primary becomes --color-brand-primary: #1E3A5F
-- typography.scale.body.size becomes --font-size-body: 14px
-- spacing.radius.md becomes --radius-md: 8px
+Map each token to a CSS custom property, e.g.:
 
-For dark mode, swap the "light" object with the "dark" object using a class or media query toggle.
+- `colors.light.surface.app` → `--color-surface-app: #D6E0EA`
+- `colors.light.brand.primary` → `--color-brand-primary: #0F1B33`
+- `colors.light.accent.success` → `--color-accent-success: #16A34A`
+- `spacing.shadow.medium` → `--shadow-medium: 0 4px 12px rgba(15, 27, 51, 0.12)`
 
-## No Purple Rule
-Purple is explicitly excluded from all palettes. Do not introduce purple variants.
+## Rules
+
+- **No pure-white major surfaces.** White is allowed only for input interiors, document previews,
+  and small high-readability content regions.
+- **Green is accent-only.** Never the brand, navigation, or default primary-button color.
+- **Primary actions use deep navy.** Green is reserved for save/confirm/success.
+- **Separate surfaces by tone + elevation,** not by borders alone.
+- **No Purple** — purple is explicitly excluded from all palettes. Do not introduce purple variants.
+- **Dark mode is frozen and already accepted** — the `dark` block in `colors.json` must not be
+  redesigned during light-mode implementation. Shared-token changes are allowed only where necessary
+  to prevent regressions or preserve accessibility.

@@ -11,7 +11,9 @@ Authentication flow supporting username-only accounts (email optional). Clear wa
 ## Layout Structure
 
 ### Browser (1440px)
-- Split layout: Left panel (branded, navy #1E3A5F background with app tagline/illustration), Right panel (white, form area)
+- Split layout: Left panel (branded, deep-navy #0F1B33 background with app tagline/illustration),
+  Right panel (content surface #E6ECF3 — **not** pure white; white is used only inside the input
+  interiors)
 - Form panel is vertically centered with max-width 400px
 
 ### Mobile (390px)
@@ -47,7 +49,7 @@ Authentication flow supporting username-only accounts (email optional). Clear wa
      "Without an email, we cannot recover your password if you forget it. Make sure to store your password securely."
 3. Password (required) — password input with strength indicator
    - Minimum 8 characters
-   - Strength bar: Weak (red) / Fair (amber) / Strong (emerald)
+   - Strength bar: Weak (red) / Fair (amber) / Strong (success green)
 4. Confirm Password (required) — must match password field
 
 ### Actions
@@ -84,19 +86,21 @@ Authentication flow supporting username-only accounts (email optional). Clear wa
 ## Component States
 
 ### Input Fields
-- Default: Gray border (#CBD5E1)
-- Focus: Navy border (#1E3A5F) + focus ring
-- Error: Red border (#B91C1C) + error message below in red
-- Success: Green border (#059669) + checkmark icon (for username availability)
+- Default: Subtle border (#C5CFDC); white input interior
+- Focus: Navy border (#0F1B33) + focus ring
+- Error: Destructive border (#DC2626) + error message below in red
+- Success: Success green border (#16A34A) + checkmark icon (for username availability)
 
 ### Buttons
-- Default: Emerald background
+- Default: Deep-navy primary (#0F1B33) — Sign In / Create Account are the screen's primary action,
+  not green
 - Loading: Spinner replaces text, button disabled
 - Disabled: Reduced opacity (0.5), no pointer events
 
 ### Password Strength Indicator
 - Bar below password field, fills left-to-right
-- Colors: less than 8 chars = red, 8-11 chars = amber, 12+ with mix = emerald
+- Colors: less than 8 chars = destructive red (#DC2626), 8-11 chars = warning amber (#D97706),
+  12+ with mix = success green (#16A34A)
 - Text label: "Weak" / "Fair" / "Strong"
 
 ## Accessibility

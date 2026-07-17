@@ -37,14 +37,14 @@ Chat interface where users ask questions about their uploaded documents. The AI 
 
 ### Message Bubble — User
 - Aligned right
-- Navy/dark background (#1E3A5F light mode, #374151 dark mode)
+- Deep-navy background (#0F1B33 light mode, #374151 dark mode)
 - White text
 - Rounded corners (12px, bottom-right squared)
 - Timestamp below (meta color, caption size)
 
 ### Message Bubble — AI
 - Aligned left
-- Card background (#EDF2F7 light mode, #1F2937 dark mode)
+- Content surface background (#E6ECF3 light mode, #1F2937 dark mode)
 - Standard text color
 - Rounded corners (12px, bottom-left squared)
 - AI avatar icon (small, left of first message in sequence)
@@ -56,7 +56,7 @@ Chat interface where users ask questions about their uploaded documents. The AI 
 ### Citation Pill
 - Inline pill badge within AI message text
 - Format: "Document Name, Page X" or just "Page X" if single document selected
-- Teal text color (#0D9488) with teal background at 10% opacity
+- Informational blue text color (#2563EB) with blue background at 10% opacity
 - On click (browser): Highlights the cited page in the Document Inspector panel
 - On click (mobile): Scrolls to show page reference
 - Citations are PAGE-LEVEL ONLY — no section names, no line numbers
@@ -73,7 +73,7 @@ Chat interface where users ask questions about their uploaded documents. The AI 
 
 ### Input Bar
 - Text input (multi-line, auto-expands up to 4 lines)
-- Send button (emerald, right side) — disabled when input is empty
+- Send button (deep navy primary #0F1B33, right side) — disabled when input is empty
 - Placeholder: "Ask about your document..."
 - Keyboard shortcut: Enter to send, Shift+Enter for new line
 
@@ -88,7 +88,7 @@ Chat interface where users ask questions about their uploaded documents. The AI 
 - "DOCUMENT PAGES" subheader
 - List of pages numbered sequentially (Page 1, Page 2, etc.)
 - Each page shows page number and first line of OCR text as preview
-- Cited pages highlighted with teal left border and "(cited)" label
+- Cited pages highlighted with informational blue (#2563EB) left border and "(cited)" label
 - Non-cited pages have neutral styling
 
 ## AI Behavior and Grounding Rules

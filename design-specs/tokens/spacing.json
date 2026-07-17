@@ -28,8 +28,9 @@
   },
   "radius": { "sm": "4px", "md": "8px", "lg": "12px", "full": "9999px" },
   "shadow": {
-    "card": "0 4px 12px rgba(30, 58, 95, 0.04)",
-    "cardHover": "0 8px 24px rgba(30, 58, 95, 0.08)",
-    "dropdown": "0 8px 32px rgba(30, 58, 95, 0.12)"
+    "_note": "Semantic elevation tokens for the approved light theme. Shadow color derives from the deep-navy #0F1B33 (rgba(15,27,51,...)) so elevation reads against the blue-gray canvas. These are the approved implementation values. Use elevation + surface tone (not borders alone) to separate layers. See design-specs/functionality/light-theme-visual-direction.md.",
+    "small": "0 1px 2px rgba(15, 27, 51, 0.08)",
+    "medium": "0 4px 12px rgba(15, 27, 51, 0.12)",
+    "large": "0 10px 24px rgba(15, 27, 51, 0.16)"
   }
 }
