@@ -1,5 +1,8 @@
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "primary" | "secondary" | "danger" | "ghost";
+  // "primary" is the default navy action (Sign In, Create Account, Send, New Document, general
+  // primary actions). "confirm" is the green success action, reserved for Save/Confirm/Complete
+  // (e.g. "Save workspace") per the approved semantic color rules.
+  variant?: "primary" | "confirm" | "secondary" | "danger" | "ghost";
   size?: "sm" | "md" | "lg";
   isLoading?: boolean;
   fullWidth?: boolean;
@@ -18,14 +21,17 @@ export function Button({
   const baseStyles = "inline-flex items-center justify-center rounded-md font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed";
   
   const variantStyles = {
-    primary: "bg-(--color-accent-success) text-white hover:bg-emerald-700 focus:ring-(--color-accent-success)",
-    secondary: "border border-(--color-border-card) text-(--color-text-body) hover:bg-(--color-background-subtle) focus:ring-(--color-border-card)",
+    // General primary action = deep navy (identity), NOT green.
+    primary: "bg-(--color-brand-primary) text-(--color-text-inverse) hover:bg-(--color-brand-primary-light) focus:ring-(--color-brand-primary)",
+    // Green success action, self-contained solid button (Save/Confirm/Complete only).
+    confirm: "bg-(--color-accent-success) text-white hover:bg-emerald-700 focus:ring-(--color-accent-success)",
+    secondary: "border border-(--color-border-strong) text-(--color-text-body) bg-(--color-surface-input) hover:bg-(--color-background-subtle) focus:ring-(--color-border-strong)",
     // A solid button's own bg/text contrast is self-contained and shouldn't shift with
     // page theme, unlike text-on-page-background uses of --color-accent-destructive
-    // (which does need a lighter dark-mode value -- see tokens.css). Uses the token's
-    // original light-mode value directly so this button looks identical in both themes.
+    // (which does need a lighter dark-mode value -- see tokens.css). Uses a fixed strong
+    // red so this button looks identical in both themes.
     danger: "bg-red-700 text-white hover:bg-red-800 focus:ring-(--color-accent-destructive)",
-    ghost: "text-(--color-text-body) hover:bg-(--color-background-subtle) focus:ring-(--color-border-card)",
+    ghost: "text-(--color-text-body) hover:bg-(--color-background-subtle) focus:ring-(--color-border-strong)",
   };
   
   const sizeStyles = {
