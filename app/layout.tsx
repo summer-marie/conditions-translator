@@ -6,6 +6,11 @@ export const metadata: Metadata = {
   title: APP_NAME,
   description:
     "Understand your supervision documents in plain language, grounded only in what you upload.",
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/apple-icon.png",
+  },
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({
