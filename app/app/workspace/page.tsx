@@ -1367,9 +1367,12 @@ export default function WorkspacePage() {
   );
 }
 
-// Editable proposed-transcription field for an OCR_COMPLETE page (docs/03_OCR_Specifications.md
-// §5, docs/OCR_Master_Implementation_Plan.md §7-8). Save is a distinct action from Accept: saving
-// only writes OcrResult.correctedText and never changes page/document status or the image.
+// Compact transcript preview (for an OCR_COMPLETE page) that opens a full-size <dialog> for
+// editing (docs/03_OCR_Specifications.md §5, docs/OCR_Master_Implementation_Plan.md §7-8). Save
+// is a distinct action from Accept: saving only writes OcrResult.correctedText and never changes
+// page/document status or the image. Kept as a single component (preview trigger + dialog)
+// rather than splitting further -- both halves share the same page/value/error/saved state and
+// there's only ever one caller.
 function PageCorrectionField({
   page,
   value,
@@ -1397,66 +1400,188 @@ function PageCorrectionField({
   const isInvalid = !!error || !!validationError;
   const fieldId = `correction-${page.id}`;
   const errorId = `${fieldId}-error`;
+  const dialogId = `correction-dialog-${page.id}`;
+  const titleId = `${dialogId}-title`;
   const fieldDisabled = disabled || isSaving;
+
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  function openModal() {
+    dialogRef.current?.showModal();
+    window.document.documentElement.classList.add("overflow-hidden");
+  }
+
+  function closeModal() {
+    dialogRef.current?.close();
+    window.document.documentElement.classList.remove("overflow-hidden");
+    triggerRef.current?.focus();
+  }
+
+  // The native "cancel" event fires on Escape (and only then, for a <dialog> opened via
+  // showModal()) -- prevented so closeModal can also unlock scroll and return focus, instead of
+  // just letting the dialog's own default close happen.
+  useEffect(() => {
+    const dialogEl = dialogRef.current;
+    if (!dialogEl) return;
+    function handleCancel(e: Event) {
+      e.preventDefault();
+      closeModal();
+    }
+    dialogEl.addEventListener("cancel", handleCancel);
+    return () => dialogEl.removeEventListener("cancel", handleCancel);
+  }, []);
 
   return (
     <div className="mt-2">
-      <label
-        htmlFor={fieldId}
-        className="block mb-1"
-        style={{ fontSize: 'var(--font-size-caption)', color: 'var(--color-text-meta)' }}
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={openModal}
+        className="block w-full rounded-md border p-3 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-border-focus-ring)"
+        style={{ borderColor: "var(--color-border-card)", backgroundColor: "var(--color-surface-input)" }}
+        aria-haspopup="dialog"
+        aria-controls={dialogId}
       >
-        Proposed transcription
-      </label>
-      <Textarea
-        id={fieldId}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        disabled={fieldDisabled}
-        invalid={isInvalid}
-        aria-describedby={error ? errorId : undefined}
-        rows={4}
-        className="text-xs font-mono"
-      />
-      <div className="flex items-center justify-between mt-1 gap-2 flex-wrap">
-        <span
-          style={{
-            fontSize: 'var(--font-size-caption)',
-            color: overLimit ? 'var(--color-accent-destructive)' : 'var(--color-text-meta)',
-          }}
-        >
-          {trimmedLength}/{OCR_MAX_CORRECTION_CHARACTERS}
-        </span>
-        <div className="flex items-center gap-2">
-          <span role="status">
-            {saved && !isSaving && (
-              <Badge variant="success" size="sm">
-                Saved
-              </Badge>
-            )}
+        <span className="mb-1 flex items-center justify-between gap-2">
+          <span style={{ fontSize: "var(--font-size-caption)", color: "var(--color-text-meta)" }}>
+            Proposed transcription
           </span>
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={onSave}
-            disabled={fieldDisabled || !!validationError}
-            isLoading={isSaving}
-          >
-            Save correction
-          </Button>
-        </div>
-      </div>
-      {error && (
-        <p
-          id={errorId}
-          role="alert"
-          className="mt-1"
-          style={{ fontSize: 'var(--font-size-caption)', color: 'var(--color-accent-destructive)' }}
+          {saved && !isSaving && (
+            <Badge variant="success" size="sm">
+              Saved
+            </Badge>
+          )}
+        </span>
+        <span
+          className="block max-h-16 overflow-hidden whitespace-pre-wrap font-mono text-xs leading-5"
+          style={{ color: "var(--color-text-body)" }}
         >
-          {error}
-        </p>
-      )}
+          {value || "No text extracted — tap to review"}
+        </span>
+        <span
+          className="mt-2 inline-flex text-xs font-medium"
+          style={{ color: "var(--color-accent-processing)" }}
+        >
+          View / edit full transcript
+        </span>
+        {error && (
+          <span
+            role="alert"
+            className="mt-1 block"
+            style={{ fontSize: "var(--font-size-caption)", color: "var(--color-accent-destructive)" }}
+          >
+            {error}
+          </span>
+        )}
+      </button>
+
+      <dialog
+        ref={dialogRef}
+        id={dialogId}
+        aria-labelledby={titleId}
+        className="m-auto w-[calc(100vw-2rem)] max-w-none rounded-xl border-0 p-0 shadow-lg backdrop:bg-black/50 sm:w-full sm:max-w-lg md:max-w-2xl lg:max-w-3xl"
+      >
+        <div
+          className="flex max-h-[95vh] flex-col rounded-xl sm:max-h-[85vh]"
+          style={{ backgroundColor: "var(--color-background-card)" }}
+        >
+          <div
+            className="flex items-start justify-between gap-4 border-b p-4 sm:p-6"
+            style={{ borderColor: "var(--color-border-divider)" }}
+          >
+            <div className="min-w-0">
+              <h2
+                id={titleId}
+                className="font-(--font-weight-h3)"
+                style={{ fontSize: "var(--font-size-h3)", color: "var(--color-text-heading)" }}
+              >
+                Page {page.order + 1} transcript
+              </h2>
+              <p
+                className="mt-1"
+                style={{ fontSize: "var(--font-size-caption)", color: "var(--color-text-meta)" }}
+              >
+                Review and edit the proposed transcription. Saving does not accept the page.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={closeModal}
+              aria-label="Close transcript dialog"
+              className="shrink-0"
+            >
+              Close
+            </Button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+            <label
+              htmlFor={fieldId}
+              className="mb-1 block"
+              style={{ fontSize: "var(--font-size-caption)", color: "var(--color-text-meta)" }}
+            >
+              Proposed transcription
+            </label>
+            <Textarea
+              id={fieldId}
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              disabled={fieldDisabled}
+              invalid={isInvalid}
+              aria-describedby={error ? errorId : undefined}
+              className="min-h-40 w-full font-mono text-xs sm:min-h-56 sm:text-sm md:min-h-64"
+            />
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+              <span
+                style={{
+                  fontSize: "var(--font-size-caption)",
+                  color: overLimit ? "var(--color-accent-destructive)" : "var(--color-text-meta)",
+                }}
+              >
+                {trimmedLength}/{OCR_MAX_CORRECTION_CHARACTERS}
+              </span>
+              <span role="status">
+                {saved && !isSaving && (
+                  <Badge variant="success" size="sm">
+                    Saved
+                  </Badge>
+                )}
+              </span>
+            </div>
+            {error && (
+              <p
+                id={errorId}
+                role="alert"
+                className="mt-2"
+                style={{ fontSize: "var(--font-size-caption)", color: "var(--color-accent-destructive)" }}
+              >
+                {error}
+              </p>
+            )}
+          </div>
+
+          <div
+            className="flex flex-col-reverse gap-3 border-t p-4 sm:flex-row sm:justify-end sm:p-6"
+            style={{ borderColor: "var(--color-border-divider)" }}
+          >
+            <Button type="button" variant="secondary" onClick={closeModal}>
+              Close
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={onSave}
+              disabled={fieldDisabled || !!validationError}
+              isLoading={isSaving}
+            >
+              Save correction
+            </Button>
+          </div>
+        </div>
+      </dialog>
     </div>
   );
 }
