@@ -266,7 +266,7 @@ export function AppNav({ children }: { children: React.ReactNode }) {
               key={href}
               href={href}
               aria-current={active ? "page" : undefined}
-              className={`flex min-h-[44px] flex-1 flex-col items-center justify-center gap-0.5 py-1.5 text-xs font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-(--color-surface-nav-foreground) ${
+              className={`flex min-h-11 flex-1 flex-col items-center justify-center gap-0.5 py-1.5 text-xs font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-(--color-surface-nav-foreground) ${
                 active ? "text-(--color-surface-nav-active-foreground)" : "text-(--color-surface-nav-foreground-muted)"
               }`}
             >
