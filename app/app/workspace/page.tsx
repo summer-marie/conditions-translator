@@ -601,8 +601,8 @@ export default function WorkspacePage() {
         }}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex-1">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0 flex-1">
               {isEditingTitle ? (
                 <div className="flex items-center gap-2">
                   <Input
@@ -624,9 +624,9 @@ export default function WorkspacePage() {
                   />
                 </div>
               ) : (
-                <div className="flex items-center gap-2 group">
+                <div className="flex min-w-0 items-center gap-2 group">
                   <h1
-                    className="font-bold cursor-pointer transition-colors"
+                    className="min-w-0 truncate font-bold cursor-pointer transition-colors"
                     onClick={() => {
                       setTitleInput(document.title);
                       setIsEditingTitle(true);
@@ -673,19 +673,19 @@ export default function WorkspacePage() {
               )}
             </div>
 
-            <div className="flex items-center gap-4">
-              <div 
-                className="text-sm" 
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+              <div
+                className="shrink-0 text-sm"
                 style={{ color: 'var(--color-text-body)' }}
               >
                 {document.pageCount}/10 pages
               </div>
 
-              <Badge 
+              <Badge
                 variant={
-                  isReady ? "success" : 
-                  isProcessingFailed ? "destructive" : 
-                  isProcessing ? "processing" : 
+                  isReady ? "success" :
+                  isProcessingFailed ? "destructive" :
+                  isProcessing ? "processing" :
                   "warning"
                 }
               >
@@ -698,7 +698,7 @@ export default function WorkspacePage() {
                   <button
                     onClick={handleSignOut}
                     disabled={isSigningOut}
-                    className="font-medium disabled:opacity-50"
+                    className="shrink-0 font-medium disabled:opacity-50"
                     style={{
                       color: 'var(--color-text-body)',
                       fontSize: 'var(--font-size-body)'
@@ -715,11 +715,11 @@ export default function WorkspacePage() {
                       read as two near-identical buttons. This is a stopgap so a signed-out
                       returning user has a way back in at all — the save/sign-in entry UX could
                       use a proper pass later (see .agent-memory/OPEN_QUESTIONS.md). */}
-                  <Link href="/app/save?mode=signin">
-                    <Button variant="secondary" size="md">Log in</Button>
+                  <Link href="/app/save?mode=signin" className="shrink-0">
+                    <Button variant="secondary" size="sm">Log in</Button>
                   </Link>
-                  <Link href="/app/save">
-                    <Button variant="confirm" size="md">Save workspace</Button>
+                  <Link href="/app/save" className="shrink-0">
+                    <Button variant="confirm" size="sm">Save workspace</Button>
                   </Link>
                 </>
               )}
@@ -1004,7 +1004,7 @@ export default function WorkspacePage() {
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <Button
                             onClick={() => handleAcceptPage(page.id)}
                             disabled={!canAccept}
