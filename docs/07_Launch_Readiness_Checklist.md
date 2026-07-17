@@ -142,13 +142,27 @@ Suggested long-chat warning:
 - [ ] OCR runs only through a secure server-side route.
 - [ ] OpenAI API keys are not exposed to the client.
 - [ ] OCR results are validated before display.
+- [ ] The uploaded image is preserved as the immutable visual source.
 - [ ] User sees the uploaded page preview and extracted-text preview.
 - [ ] Page acceptance is a quick page-level quality check.
 - [ ] Region-by-region OCR review is not required for MVP.
 - [ ] Unaccepted pages are excluded from Document AI context.
+- [ ] Raw or unaccepted OCR text never reaches AI context.
 - [ ] Failed OCR blocks page acceptance.
 - [ ] Obviously blurry, cut-off, sideways, incomplete, or unreadable pages cannot be accepted.
 - [ ] User receives clear instructions for improving a failed upload.
+
+## OCR transcription correction (approved architecture — verify once implemented)
+
+These items cover the approved OCR transcription correction workflow. It is approved and
+documented but not yet implemented (see `docs/OCR_Master_Implementation_Plan.md` and
+`docs/Decision_Log.md` ADR-001); verify these before release once the workflow is built.
+
+- [ ] User can correct the proposed OCR transcription before approving a page.
+- [ ] Correction applies to the transcription, never to the uploaded image or the legal document.
+- [ ] Corrected, approved text becomes the accepted page text (the AI source of truth).
+- [ ] A persistent notice communicates that the user is responsible for confirming the
+      transcription reflects the uploaded page.
 
 ---
 

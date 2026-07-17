@@ -302,6 +302,22 @@ tied to your private store. Re-run if credentials appear to have rotated.
 - Do not implement region-by-region review for MVP.
 - Do not implement canonical template matching for MVP.
 
+## Approved next OCR implementation — OCR transcription correction
+
+The Project Owner approved a page-level **OCR transcription correction** workflow after the PRD was
+frozen (see `docs/OCR_Master_Implementation_Plan.md` and `docs/Decision_Log.md` ADR-001). The
+implemented Phase 4 flow above exposes read-only extracted text with Accept / Re-upload / Delete;
+correction is **approved and documented but not yet built** and is the next OCR implementation
+target. When sequenced, it must:
+
+- Keep the uploaded image immutable; the user corrects the transcription, not the source document.
+- Let the user correct the proposed transcription before page approval.
+- Make corrected, approved text the accepted page text (the AI source of truth).
+- Continue to keep raw or unaccepted OCR text out of AI context.
+- Show a persistent user-responsibility notice during review.
+- Decide, at build time, whether a raw-vs-accepted split or edit metadata is needed (schema change
+  is out of scope until then — see `docs/04_Schema_Architecture.md`).
+
 ## Completion Criteria
 
 - OCR occurs only server-side.
