@@ -106,6 +106,54 @@ a future pass if this divergence should become the permanent documented journey.
   item above and the "Architecture note" earlier in this file for the redirect-removal
   decision.
 
+#### Workspace-preview variant ("Option B" navy) — hero + "Product Workspace" rows
+
+- **Spec**: `design-specs/wireframes/reference/browser-landing-page/browser-landingpage-spec-preview.md`
+  (the task that requested this named a `design-specs/functionality/landing-workspace-preview-spec.md`
+  path that does not exist — this is the actual file; flagged to the user, confirmed as the
+  intended source). Wireframe: `design-specs/wireframes/approved/desktop/browser-landingpage-navy.png`
+  (the spec's own `../wireframes/exports/...` path is also stale/missing, same root cause).
+- **Built**: hero extended to two columns (existing accurate headline/subtitle/CTAs unchanged,
+  left; new `components/landing/WorkspacePreviewCard.tsx` — static/mocked 3-page thumbnail
+  preview with Ready/Processing badges — right, hidden below `sm`). "How it works" replaced with
+  a "Product Workspace" tinted section containing two alternating rows via the new
+  `components/landing/StepFeatureRow.tsx`: an inline OCR-extraction card (reusing `Card`) +
+  Step 01 copy, then Step 02 copy + `components/landing/SectioningPreviewCard.tsx` (static
+  2-row section list, first row highlighted). All three new components reuse the existing
+  `Card`/`Badge` — no new Badge variants added.
+- **Disclosed deviations**:
+  - Kept the existing, accurate hero headline/subtitle ("Understand your supervision documents
+    in plain language...") instead of the wireframe's generic marketing copy ("Upload. Organize.
+    Understand." / "fully searchable, structured data stores... extract facts from tables"),
+    which describes a different, more generic document-intelligence product than this app
+    actually is.
+  - Kept the existing real secondary CTA ("See how it works", anchor-scroll) instead of the
+    wireframe's "Try a Demo" button — no demo route/feature exists.
+  - The spec's "Color Mapping" table lists stale hex values that predate the final light-theme
+    token re-roll (`511bbda`/`4d82a8d`) — built against the spec's token *names* instead (all of
+    which do exist in `tokens.css`), pulling live values from `tokens.css`, not the spec's table.
+  - The spec maps two fills (the workspace-preview panel body, and the sectioning card's inactive
+    row) to `--color-background-sidebar` — that token now resolves to deep-navy nav chrome (post
+    rebrand), not a light neutral tint. Substituted `--color-background-subtle` for both, per
+    `Card.tsx`'s own documented tone-separation rule and `Badge.tsx`'s existing `neutral` variant
+    using the same token.
+  - CTAs continue routing through `/app/save` variants + `GetStartedCTA`'s privacy-gate modal,
+    never to `/signup`/`/login` (matches this file's existing landing-spec deviation note above).
+- **Deferred** (per the spec's own "Deferred / Out of MVP" section, unchanged): dark-mode version
+  of this layout; whether this variant replaces, A/B tests, or is dropped vs. the simpler
+  already-shipped layout (still a product decision, not resolved here — both coexist in the same
+  page today since this pass only extended, not replaced, `app/page.tsx`); real (non-mocked) data
+  wiring for either preview card.
+- **Images not yet supplied** (placeholders in place, each with a code comment stating the exact
+  ask): three ~160×120px page thumbnails in `WorkspacePreviewCard.tsx`, and one ~600×360px OCR
+  extraction screenshot in `app/page.tsx`'s inline OCR card. The sectioning card needs no image
+  (text/badge rows only, matching the wireframe).
+- **Verified**: `tsc --noEmit`, `npm run lint` (baseline unchanged, 24 errors/4 warnings, none in
+  touched files), `npm run build`, and a real dev-server run screenshotted at 1440/768/390px —
+  two-column hero + alternating rows at desktop, preview card moves below hero copy at 768px,
+  preview card hidden and rows stack card-above-text with no alternation at 390px, all as
+  specified.
+
 ### Start / Privacy Notice Gate (mid-flow consent screen — NOT the public landing page above)
 - **Spec**: none dedicated — defined by the page's own code comment and the PRD's consent
   requirement (`docs/01_MVP_PRD.md`, `docs/05_Account_Creation_and_Temporary_Access.md`); not
