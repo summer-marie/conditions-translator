@@ -40,7 +40,8 @@ vi.mock("@/lib/database/prisma", () => ({
     },
     ocrResult: {
       deleteMany: vi.fn(),
-      update: vi.fn(),
+      updateMany: vi.fn(),
+      findUniqueOrThrow: vi.fn(),
     },
     $transaction: vi.fn(async (ops: Promise<unknown>[]) => Promise.all(ops)),
   },
@@ -62,6 +63,7 @@ vi.mock("@/lib/permissions/ownership", () => ({
   temporaryOwner: vi.fn(),
   getOwnedDocument: vi.fn(),
   createDocument: vi.fn(),
+  ownerWhere: vi.fn(),
 }));
 
 // Mock cache revalidation
@@ -739,8 +741,12 @@ describe("acceptPage", () => {
 });
 
 describe("correctPageOcr", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
+    // Default owner-scoping fragment used by the atomic conditional write; individual tests may
+    // override it, but most just need a stable value to assert the updateMany `where` against.
+    const { ownerWhere } = await import("@/lib/permissions/ownership");
+    vi.mocked(ownerWhere).mockReturnValue({ temporarySessionId: "session-123" });
   });
 
   const mockOcrCompletePage = {
@@ -751,6 +757,17 @@ describe("correctPageOcr", () => {
       pageId: "page-123",
       extractedText: "Report to your officer monthy.",
       correctedText: null,
+    },
+  };
+
+  // The where-clause the conditional write must send: proves ownership, document IN_PROGRESS,
+  // and page OCR_COMPLETE atomically at write time (not just at the earlier read).
+  const expectedConditionalWhere = {
+    pageId: "page-123",
+    page: {
+      documentId: "doc-123",
+      status: "OCR_COMPLETE",
+      document: { status: "IN_PROGRESS", temporarySessionId: "session-123" },
     },
   };
 
@@ -858,7 +875,7 @@ describe("correctPageOcr", () => {
     await expect(
       correctPageOcr("doc-123", "page-123", "Report to your officer monthly.")
     ).rejects.toThrow("must complete OCR successfully");
-    expect(prisma.ocrResult.update).not.toHaveBeenCalled();
+    expect(prisma.ocrResult.updateMany).not.toHaveBeenCalled();
   });
 
   it("throws if the page has no OCR result even though status is OCR_COMPLETE (defensive)", async () => {
@@ -882,7 +899,7 @@ describe("correctPageOcr", () => {
     await expect(correctPageOcr("doc-123", "page-123", "")).rejects.toThrow(
       "Correction text cannot be empty."
     );
-    expect(prisma.ocrResult.update).not.toHaveBeenCalled();
+    expect(prisma.ocrResult.updateMany).not.toHaveBeenCalled();
   });
 
   it("throws on whitespace-only text", async () => {
@@ -892,7 +909,7 @@ describe("correctPageOcr", () => {
     await expect(correctPageOcr("doc-123", "page-123", "   \n\t  ")).rejects.toThrow(
       "Correction text cannot be empty."
     );
-    expect(prisma.ocrResult.update).not.toHaveBeenCalled();
+    expect(prisma.ocrResult.updateMany).not.toHaveBeenCalled();
   });
 
   it("throws when text exceeds the maximum correction length", async () => {
@@ -904,7 +921,7 @@ describe("correctPageOcr", () => {
     await expect(correctPageOcr("doc-123", "page-123", tooLong)).rejects.toThrow(
       `Correction text cannot exceed ${OCR_MAX_CORRECTION_CHARACTERS} characters.`
     );
-    expect(prisma.ocrResult.update).not.toHaveBeenCalled();
+    expect(prisma.ocrResult.updateMany).not.toHaveBeenCalled();
   });
 
   it("accepts text at exactly the maximum correction length", async () => {
@@ -912,7 +929,8 @@ describe("correctPageOcr", () => {
     vi.mocked(prisma.page.findFirst).mockResolvedValue(mockOcrCompletePage as any);
 
     const exactlyMax = "a".repeat(OCR_MAX_CORRECTION_CHARACTERS);
-    vi.mocked(prisma.ocrResult.update).mockResolvedValue({
+    vi.mocked(prisma.ocrResult.updateMany).mockResolvedValue({ count: 1 } as any);
+    vi.mocked(prisma.ocrResult.findUniqueOrThrow).mockResolvedValue({
       pageId: "page-123",
       extractedText: "Report to your officer monthy.",
       correctedText: exactlyMax,
@@ -921,8 +939,8 @@ describe("correctPageOcr", () => {
     const result = await correctPageOcr("doc-123", "page-123", exactlyMax);
 
     expect(result.correctedText).toBe(exactlyMax);
-    expect(prisma.ocrResult.update).toHaveBeenCalledWith({
-      where: { pageId: "page-123" },
+    expect(prisma.ocrResult.updateMany).toHaveBeenCalledWith({
+      where: expectedConditionalWhere,
       data: { correctedText: exactlyMax },
     });
   });
@@ -930,7 +948,8 @@ describe("correctPageOcr", () => {
   it("trims outer whitespace before saving", async () => {
     await setUpOwnedInProgressDocument();
     vi.mocked(prisma.page.findFirst).mockResolvedValue(mockOcrCompletePage as any);
-    vi.mocked(prisma.ocrResult.update).mockResolvedValue({
+    vi.mocked(prisma.ocrResult.updateMany).mockResolvedValue({ count: 1 } as any);
+    vi.mocked(prisma.ocrResult.findUniqueOrThrow).mockResolvedValue({
       pageId: "page-123",
       extractedText: "Report to your officer monthy.",
       correctedText: "Report to your officer monthly.",
@@ -942,8 +961,8 @@ describe("correctPageOcr", () => {
       "   Report to your officer monthly.   "
     );
 
-    expect(prisma.ocrResult.update).toHaveBeenCalledWith({
-      where: { pageId: "page-123" },
+    expect(prisma.ocrResult.updateMany).toHaveBeenCalledWith({
+      where: expectedConditionalWhere,
       data: { correctedText: "Report to your officer monthly." },
     });
   });
@@ -952,7 +971,8 @@ describe("correctPageOcr", () => {
     await setUpOwnedInProgressDocument();
     vi.mocked(prisma.page.findFirst).mockResolvedValue(mockOcrCompletePage as any);
     const multilineText = "Line one.\nLine  two with double space.\n\nLine three.";
-    vi.mocked(prisma.ocrResult.update).mockResolvedValue({
+    vi.mocked(prisma.ocrResult.updateMany).mockResolvedValue({ count: 1 } as any);
+    vi.mocked(prisma.ocrResult.findUniqueOrThrow).mockResolvedValue({
       pageId: "page-123",
       extractedText: "Report to your officer monthy.",
       correctedText: multilineText,
@@ -960,8 +980,8 @@ describe("correctPageOcr", () => {
 
     await correctPageOcr("doc-123", "page-123", `  ${multilineText}  `);
 
-    expect(prisma.ocrResult.update).toHaveBeenCalledWith({
-      where: { pageId: "page-123" },
+    expect(prisma.ocrResult.updateMany).toHaveBeenCalledWith({
+      where: expectedConditionalWhere,
       data: { correctedText: multilineText },
     });
   });
@@ -969,7 +989,8 @@ describe("correctPageOcr", () => {
   it("updates only correctedText and never touches extractedText, page status, or document status", async () => {
     await setUpOwnedInProgressDocument();
     vi.mocked(prisma.page.findFirst).mockResolvedValue(mockOcrCompletePage as any);
-    vi.mocked(prisma.ocrResult.update).mockResolvedValue({
+    vi.mocked(prisma.ocrResult.updateMany).mockResolvedValue({ count: 1 } as any);
+    vi.mocked(prisma.ocrResult.findUniqueOrThrow).mockResolvedValue({
       pageId: "page-123",
       extractedText: "Report to your officer monthy.",
       correctedText: "Report to your officer monthly.",
@@ -977,10 +998,10 @@ describe("correctPageOcr", () => {
 
     await correctPageOcr("doc-123", "page-123", "Report to your officer monthly.");
 
-    // The update call's data must contain correctedText only — no extractedText, blobPath,
+    // The updateMany call's data must contain correctedText only — no extractedText, blobPath,
     // status, or any other field.
-    expect(prisma.ocrResult.update).toHaveBeenCalledWith({
-      where: { pageId: "page-123" },
+    expect(prisma.ocrResult.updateMany).toHaveBeenCalledWith({
+      where: expectedConditionalWhere,
       data: { correctedText: "Report to your officer monthly." },
     });
     expect(prisma.page.update).not.toHaveBeenCalled();
@@ -990,8 +1011,9 @@ describe("correctPageOcr", () => {
   it("allows repeated saves, each one safely overwriting the prior correction", async () => {
     await setUpOwnedInProgressDocument();
     vi.mocked(prisma.page.findFirst).mockResolvedValue(mockOcrCompletePage as any);
+    vi.mocked(prisma.ocrResult.updateMany).mockResolvedValue({ count: 1 } as any);
 
-    vi.mocked(prisma.ocrResult.update).mockResolvedValueOnce({
+    vi.mocked(prisma.ocrResult.findUniqueOrThrow).mockResolvedValueOnce({
       pageId: "page-123",
       extractedText: "Report to your officer monthy.",
       correctedText: "First correction.",
@@ -1000,7 +1022,7 @@ describe("correctPageOcr", () => {
     const first = await correctPageOcr("doc-123", "page-123", "First correction.");
     expect(first.correctedText).toBe("First correction.");
 
-    vi.mocked(prisma.ocrResult.update).mockResolvedValueOnce({
+    vi.mocked(prisma.ocrResult.findUniqueOrThrow).mockResolvedValueOnce({
       pageId: "page-123",
       extractedText: "Report to your officer monthy.",
       correctedText: "Second, corrected again.",
@@ -1009,15 +1031,34 @@ describe("correctPageOcr", () => {
     const second = await correctPageOcr("doc-123", "page-123", "Second, corrected again.");
     expect(second.correctedText).toBe("Second, corrected again.");
 
-    expect(prisma.ocrResult.update).toHaveBeenCalledTimes(2);
-    expect(prisma.ocrResult.update).toHaveBeenNthCalledWith(1, {
-      where: { pageId: "page-123" },
+    expect(prisma.ocrResult.updateMany).toHaveBeenCalledTimes(2);
+    expect(prisma.ocrResult.updateMany).toHaveBeenNthCalledWith(1, {
+      where: expectedConditionalWhere,
       data: { correctedText: "First correction." },
     });
-    expect(prisma.ocrResult.update).toHaveBeenNthCalledWith(2, {
-      where: { pageId: "page-123" },
+    expect(prisma.ocrResult.updateMany).toHaveBeenNthCalledWith(2, {
+      where: expectedConditionalWhere,
       data: { correctedText: "Second, corrected again." },
     });
+  });
+
+  it("rejects the write if the page/document state changed between validation and persistence (concurrency race)", async () => {
+    await setUpOwnedInProgressDocument();
+    vi.mocked(prisma.page.findFirst).mockResolvedValue(mockOcrCompletePage as any);
+    // Simulates a concurrent acceptPage/reuploadPage/finishDocument landing between the reads
+    // above and this write: the conditional updateMany matches no row, so it must fail closed
+    // rather than silently writing to a page that is no longer eligible.
+    vi.mocked(prisma.ocrResult.updateMany).mockResolvedValue({ count: 0 } as any);
+
+    await expect(
+      correctPageOcr("doc-123", "page-123", "Report to your officer monthly.")
+    ).rejects.toThrow("This page can no longer be corrected");
+
+    expect(prisma.ocrResult.updateMany).toHaveBeenCalledWith({
+      where: expectedConditionalWhere,
+      data: { correctedText: "Report to your officer monthly." },
+    });
+    expect(prisma.ocrResult.findUniqueOrThrow).not.toHaveBeenCalled();
   });
 });
 

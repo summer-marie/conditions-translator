@@ -13,6 +13,7 @@ import {
   type Owner,
   getOwnedDocument,
   createDocument as createOwnedDocument,
+  ownerWhere,
 } from "@/lib/permissions/ownership";
 import {
   TEMP_SESSION_TTL_HOURS,
@@ -295,9 +296,18 @@ export async function acceptPage(documentId: string, pageId: string) {
  * §7-8, docs/Decision_Log.md ADR-001). Does not change page or document status and does not
  * accept the page; only allowed while the page's OCR has completed and it has not yet been
  * accepted (an ACCEPTED page's status is never OCR_COMPLETE, so it is rejected here too).
+ *
+ * The initial reads below give clear, specific error messages, but they don't hold a lock — a
+ * concurrent acceptPage/reuploadPage/finishDocument could change the document or page state
+ * between that validation and this write (e.g. a page accepted a moment ago, which never touches
+ * OcrResult). The final write is therefore a conditional updateMany, mirroring the
+ * updateMany-then-check-count pattern in lib/documents/deletion.ts: its `where` re-proves every
+ * eligibility requirement (ownership, document IN_PROGRESS, page belongs to this document and is
+ * still OCR_COMPLETE) atomically, so the write silently no-ops instead of corrupting an
+ * already-accepted or otherwise-changed page.
  */
 export async function correctPageOcr(documentId: string, pageId: string, text: string) {
-  await requireInProgressOwnedDocument(documentId);
+  const { owner } = await requireInProgressOwnedDocument(documentId);
 
   const page = await prisma.page.findFirst({
     where: { id: pageId, documentId },
@@ -334,10 +344,27 @@ export async function correctPageOcr(documentId: string, pageId: string, text: s
     );
   }
 
-  const updatedOcr = await prisma.ocrResult.update({
-    where: { pageId },
+  const { count } = await prisma.ocrResult.updateMany({
+    where: {
+      pageId,
+      page: {
+        documentId,
+        status: "OCR_COMPLETE",
+        document: { status: "IN_PROGRESS", ...ownerWhere(owner) },
+      },
+    },
     data: { correctedText: trimmed },
   });
+
+  if (count === 0) {
+    throw new AppError(
+      "This page can no longer be corrected. It may have been accepted, re-uploaded, or the document may have changed.",
+      409,
+      "PAGE_STATE_CHANGED"
+    );
+  }
+
+  const updatedOcr = await prisma.ocrResult.findUniqueOrThrow({ where: { pageId } });
 
   revalidatePath("/app/workspace");
 
