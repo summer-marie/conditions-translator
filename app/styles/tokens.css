@@ -150,6 +150,15 @@
   --color-border-default: #3F3F46;
   --color-border-subtle: #27272A;
 
+  /* Elevation shadows - Dark Mode. Light mode's navy-tinted shadows (rgba(15,27,51,...)) were
+     never overridden here, so every Card's shadow was inherited unchanged into dark mode -- a
+     dark navy shadow against an already-dark card/page is essentially invisible, which is why
+     cards read as flat/blended-in in dark mode. White-tinted shadows give visible separation
+     against dark surfaces instead. */
+  --shadow-sm: 0 1px 2px rgba(255, 255, 255, 0.06);
+  --shadow-md: 0 4px 12px rgba(255, 255, 255, 0.10);
+  --shadow-lg: 0 10px 24px rgba(255, 255, 255, 0.14);
+
   /* Text Colors - Dark Mode (frozen) */
   --color-text-heading: #FAFAFA;
   --color-text-body: #D4D4D8;
