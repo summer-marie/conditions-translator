@@ -1,15 +1,40 @@
-// Regression tests for the OCR transcription correction UI's pure logic
-// (docs/03_OCR_Specifications.md §5, docs/OCR_Master_Implementation_Plan.md §7-8): the initial
-// textarea value and the client-side validation mirror of correctPageOcr's server-side rules.
+// Regression tests for the workspace page's pure logic and constants: the OCR transcription
+// correction UI (docs/03_OCR_Specifications.md §5, docs/OCR_Master_Implementation_Plan.md §7-8)
+// -- the initial textarea value and the client-side validation mirror of correctPageOcr's
+// server-side rules -- and the shared camera-capture file-input props used by both the initial
+// upload and re-upload inputs.
 //
 // No component-rendering harness exists in this repo (vitest runs in the "node" environment —
 // see vitest.config.ts — with no jsdom/React Testing Library), so this exercises the exported
-// pure helpers directly rather than rendering the page, matching the approach already used in
-// tests/components/chat/DocumentInspector.test.ts.
+// pure helpers/constants directly rather than rendering the page, matching the approach already
+// used in tests/components/chat/DocumentInspector.test.ts.
 
 import { describe, it, expect } from "vitest";
-import { initialCorrectionValue, validateCorrectionText } from "@/app/app/workspace/page";
+import {
+  initialCorrectionValue,
+  validateCorrectionText,
+  PAGE_IMAGE_FILE_INPUT_PROPS,
+} from "@/app/app/workspace/page";
 import { OCR_MAX_CORRECTION_CHARACTERS } from "@/lib/constants";
+
+// Both the initial upload input and the re-upload input spread this same object (see
+// app/app/workspace/page.tsx), so asserting on it covers both call sites at once without a
+// component-rendering harness (see the file header comment above for why one doesn't exist here).
+describe("PAGE_IMAGE_FILE_INPUT_PROPS", () => {
+  it("accepts any image type so the browser's camera/gallery picker isn't narrowed", () => {
+    expect(PAGE_IMAGE_FILE_INPUT_PROPS.accept).toBe("image/*");
+  });
+
+  it("hints the rear-facing camera via the standard capture attribute", () => {
+    expect(PAGE_IMAGE_FILE_INPUT_PROPS.capture).toBe("environment");
+  });
+
+  it("does not set any attribute that would restrict desktop to camera-only capture", () => {
+    // Desktop browsers ignore `capture` entirely and fall back to the normal file picker; this
+    // object must never grow a `multiple: false` or similar restriction that could interfere.
+    expect(Object.keys(PAGE_IMAGE_FILE_INPUT_PROPS).sort()).toEqual(["accept", "capture"]);
+  });
+});
 
 describe("initialCorrectionValue", () => {
   it("initializes from correctedText when a correction already exists", () => {

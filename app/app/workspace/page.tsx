@@ -85,6 +85,18 @@ interface Document {
   sections: GeneratedSection[];
 }
 
+// Shared attributes for both page-image file inputs (initial upload and re-upload): prefers
+// opening the rear camera on supported mobile browsers via the standard capture-attribute hint,
+// while desktop browsers ignore both attributes and open the normal file picker. This is a
+// browser/OS hint, not a guarantee -- some mobile browsers show a camera/gallery choice instead of
+// jumping straight to the camera, and none of this is enforced; actual format/size validation
+// happens server-side in lib/validation/image.ts regardless of what was selected. Exported (like
+// the helpers below) so it can be asserted on without a component-rendering harness.
+export const PAGE_IMAGE_FILE_INPUT_PROPS = {
+  accept: "image/*",
+  capture: "environment" as const,
+};
+
 // Initial value for a page's correction textarea: the current accepted-text source
 // (correctedText ?? extractedText), matching the same selection used by section generation,
 // chat context, and the document inspector. Exported so this and validateCorrectionText below
@@ -1003,7 +1015,7 @@ function WorkspacePageContent() {
                     <input
                       type="file"
                       className="hidden"
-                      accept="image/jpeg,image/png,image/webp"
+                      {...PAGE_IMAGE_FILE_INPUT_PROPS}
                       multiple
                       onChange={handleFileUpload}
                       disabled={isUploading || newDocumentUploadDisabled}
@@ -1248,7 +1260,11 @@ function WorkspacePageContent() {
                               reuploadInputRefs.current[page.id] = el;
                             }}
                             className="hidden"
-                            accept="image/jpeg,image/png,image/webp"
+                            // Same camera-first hint as the initial upload input, and for the same
+                            // reason: re-upload's purpose is retaking a photo of the physical page
+                            // (see the retake-guidance copy shown on a blocked page), not browsing
+                            // an existing gallery image.
+                            {...PAGE_IMAGE_FILE_INPUT_PROPS}
                             disabled={!canReupload}
                             aria-hidden="true"
                             tabIndex={-1}
