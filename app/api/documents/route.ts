@@ -1,15 +1,18 @@
 // GET /api/documents
 //
-// Lists the current owner's active documents. The owner is resolved from cookies
-// (getCurrentOwner) — a signed-in user (Phase 7) sees their saved documents; otherwise the
-// temporary session sees its documents. The query is always owner-scoped (never by document id
-// alone), so this same route serves both temporary and saved workspaces after ownership transfer.
+// Lists the current owner's active, not-yet-expired documents. The owner is resolved from
+// cookies (getCurrentOwner) — a signed-in user (Phase 7) sees their saved documents; otherwise
+// the temporary session sees its documents. The query is always owner-scoped (never by document
+// id alone), so this same route serves both temporary and saved workspaces after ownership
+// transfer. This route needs a Document include (_count.pages, sections) that the shared
+// listOwnedDocuments() helper doesn't support, so it applies the same notExpiredWhere() filter
+// directly rather than calling that helper -- see lib/permissions/ownership.ts.
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/database/prisma";
 import { AppError } from "@/lib/errors";
 import { getCurrentOwner } from "@/lib/auth/session";
-import { ownerWhere } from "@/lib/permissions/ownership";
+import { ownerWhere, notExpiredWhere } from "@/lib/permissions/ownership";
 
 export async function GET() {
   try {
@@ -22,6 +25,7 @@ export async function GET() {
       where: {
         ...ownerWhere(owner),
         deletionState: "ACTIVE",
+        ...notExpiredWhere(),
       },
       include: {
         _count: {

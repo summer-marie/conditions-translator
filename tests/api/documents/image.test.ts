@@ -87,7 +87,12 @@ describe("GET /api/documents/[documentId]/pages/[pageId]/image", () => {
 
     expect(response.status).toBe(200);
     expect(prisma.document.findFirst).toHaveBeenCalledWith({
-      where: { id: "doc-123", userId: "user-123", deletionState: "ACTIVE" },
+      where: {
+        id: "doc-123",
+        userId: "user-123",
+        deletionState: "ACTIVE",
+        OR: [{ expiresAt: null }, { expiresAt: { gt: expect.any(Date) } }],
+      },
     });
   });
 

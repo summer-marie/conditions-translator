@@ -10,7 +10,7 @@ import {
   userOwner,
 } from "@/lib/permissions/ownership";
 import { AppError } from "@/lib/errors";
-import { OwnerCleanup, futureDate, isLiveDbConfigured } from "./helpers";
+import { OwnerCleanup, futureDate, pastDate, isLiveDbConfigured } from "./helpers";
 
 // Integration tests against a live database. The XOR-ownership and expiry rules are enforced by
 // DB CHECK constraints (see the init migration), so these tests exercise the real Prisma client
@@ -186,6 +186,47 @@ describe.skipIf(!isLiveDbConfigured())("Document ownership", () => {
     await expect(
       getDeletableDocument(temporaryOwner(session.id), deleted.id)
     ).resolves.toBeNull();
+  });
+
+  it("excludes an expired temporary Document from ownership reads (read-time retention filter)", async () => {
+    const session = await owners.createTemporarySession();
+
+    const expired = await createDocument(temporaryOwner(session.id), {
+      title: "Expired",
+      expiresAt: pastDate(),
+    });
+    const notExpired = await createDocument(temporaryOwner(session.id), {
+      title: "Still valid",
+      expiresAt: futureDate(),
+    });
+
+    await expect(getOwnedDocument(temporaryOwner(session.id), expired.id)).resolves.toBeNull();
+    await expect(
+      getOwnedDocument(temporaryOwner(session.id), notExpired.id)
+    ).resolves.toMatchObject({ id: notExpired.id });
+
+    const listed = await listOwnedDocuments(temporaryOwner(session.id));
+    expect(listed.map((d) => d.id)).toEqual([notExpired.id]);
+
+    // Deliberately not filtered: getDeletableDocument must still find an expired Document so a
+    // future Phase 9 cleanup sweep can route it through the existing deletion pipeline.
+    await expect(
+      getDeletableDocument(temporaryOwner(session.id), expired.id)
+    ).resolves.toMatchObject({ id: expired.id });
+  });
+
+  it("never excludes a saved Document (expiresAt: null always matches the not-expired filter)", async () => {
+    const user = await owners.createUser();
+
+    const saved = await createDocument(userOwner(user.id), { title: "Saved, never expires" });
+    expect(saved.expiresAt).toBeNull();
+
+    await expect(getOwnedDocument(userOwner(user.id), saved.id)).resolves.toMatchObject({
+      id: saved.id,
+    });
+    await expect(listOwnedDocuments(userOwner(user.id))).resolves.toMatchObject([
+      { id: saved.id },
+    ]);
   });
 
   it("assertOwnedDocument throws 404 for a non-owner", async () => {

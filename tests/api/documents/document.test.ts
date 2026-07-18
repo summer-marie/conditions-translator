@@ -64,7 +64,12 @@ describe("GET /api/documents/[documentId]", () => {
     expect(response.status).toBe(200);
     expect(data.document.sections).toHaveLength(1);
     expect(prisma.document.findFirst).toHaveBeenCalledWith({
-      where: { id: "doc-123", temporarySessionId: "session-123", deletionState: "ACTIVE" },
+      where: {
+        id: "doc-123",
+        temporarySessionId: "session-123",
+        deletionState: "ACTIVE",
+        OR: [{ expiresAt: null }, { expiresAt: { gt: expect.any(Date) } }],
+      },
       include: {
         sections: {
           orderBy: { order: "asc" },
@@ -86,7 +91,12 @@ describe("GET /api/documents/[documentId]", () => {
     await GET(request, { params: Promise.resolve({ documentId: "doc-123" }) });
 
     expect(prisma.document.findFirst).toHaveBeenCalledWith({
-      where: { id: "doc-123", userId: "user-123", deletionState: "ACTIVE" },
+      where: {
+        id: "doc-123",
+        userId: "user-123",
+        deletionState: "ACTIVE",
+        OR: [{ expiresAt: null }, { expiresAt: { gt: expect.any(Date) } }],
+      },
       include: expect.any(Object),
     });
   });
