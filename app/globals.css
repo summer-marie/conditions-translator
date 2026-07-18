@@ -9,6 +9,42 @@ body {
   background-color: var(--color-background-page);
 }
 
+/* Sitewide pointer-cursor rule (every page, not just the landing page). `(any-pointer: fine)`
+   scopes this to devices with a mouse/trackpad -- on touch-only devices there's no cursor to
+   show, and forcing `cursor: pointer` there is meaningless (and would defeat the disabled-state
+   reset below, since touch has no hover/cursor concept to reset in the first place). Targets only
+   genuinely interactive/expandable elements -- native clickable elements, explicit button/link
+   ARIA roles, focusable custom controls, elements with an inline click handler, and the
+   `.cursor-pointer` escape hatch for custom clickable controls that don't otherwise match any
+   selector here. Deliberately does NOT target plain containers, since a pointer cursor on a
+   non-interactive element is a false affordance. */
+@media (any-pointer: fine) {
+  a[href],
+  button,
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"],
+  input[type="image"],
+  summary,
+  label[for],
+  select,
+  [role="button"],
+  [role="link"],
+  [tabindex]:not([tabindex="-1"]),
+  [onclick],
+  .cursor-pointer {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  input:disabled,
+  select:disabled,
+  textarea:disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+}
+
 /* Semantic elevation utilities (navy-derived --shadow-* tokens). Used to separate surfaces by
    real elevation rather than faint borders alone, per the approved visual direction. */
 .u-elevation-sm {
