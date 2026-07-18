@@ -90,10 +90,17 @@ Record:
 
 ## 8. Phase 9 — Scheduled Cleanup (Cron)
 
-`vercel.json` defines an hourly Vercel Cron Job hitting `/api/cron/cleanup` (see
-`lib/cleanup/sweep.ts` and `app/api/cron/cleanup/route.ts`), which deletes expired
-`ChatSession`s and, for each expired `TemporarySession`, cleans up its Documents (Blob images
-then DB rows, reusing the Phase 8 deletion pipeline) before removing the session row itself.
+`vercel.json` defines a **once-daily** Vercel Cron Job (`0 3 * * *`, 03:00 UTC) hitting
+`/api/cron/cleanup` (see `lib/cleanup/sweep.ts` and `app/api/cron/cleanup/route.ts`), which
+deletes expired `ChatSession`s and, for each expired `TemporarySession`, cleans up its Documents
+(Blob images then DB rows, reusing the Phase 8 deletion pipeline) before removing the session row
+itself.
+
+Cleanup runs once daily because this project is deployed on the **Vercel Hobby plan**, which does
+not allow cron schedules more frequent than once per day. If more frequent cleanup is ever needed,
+migrating the scheduler to a **GitHub Actions** workflow (calling this same bearer-token-protected
+endpoint on its own schedule) is a possible future improvement — not needed today, and not
+implemented as part of this change.
 
 Required Vercel env vars for this to work:
 

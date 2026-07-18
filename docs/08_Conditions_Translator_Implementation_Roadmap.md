@@ -635,14 +635,18 @@ All agents implementing features from wireframes must read `AGENTS.md`, `CLAUDE.
 
 # 12. Phase 9 — Cleanup, Reliability, and Demo Validation
 
-> **Status note (2026-07-17/18, `feat/phase-9-cleanup-retention`):** Retention and cleanup are
-> implemented — a serverless cron (Vercel Cron, `vercel.json`, hourly) hits a protected route
+> **Status note (2026-07-17/18, merged via `feat/phase-9-cleanup-retention`, PR #25; cron cadence
+> updated 2026-07-18 for Hobby-plan compatibility):** Retention and cleanup are implemented — a
+> serverless cron (Vercel Cron, `vercel.json`, once daily — daily rather than hourly because the
+> Vercel Hobby plan does not allow more-frequent cron schedules) hits a protected route
 > (`app/api/cron/cleanup/route.ts`) running `lib/cleanup/sweep.ts`, which deletes expired chat
 > sessions directly and, for each expired temporary session, cleans up its Documents via the
 > existing Phase 8 deletion pipeline before removing the session row. No schema change was needed.
-> See `docs/TESTING_GUIDE.md`'s Phase 9 entry for full test detail (unit + live-DB verification).
-> Not yet independently confirmed: a real Vercel Cron invocation on a deployed environment (only a
-> manual trigger was verified). This phase's own text below is left as historical planning detail.
+> Migrating the scheduler to GitHub Actions is a possible future option if more-than-daily cleanup
+> is ever needed — not implemented now. See `docs/TESTING_GUIDE.md`'s Phase 9 entry for full test
+> detail (unit + live-DB verification). Not yet independently confirmed: a real Vercel Cron
+> invocation on a deployed environment (only a manual trigger was verified). This phase's own text
+> below is left as historical planning detail.
 
 ## Goal
 
