@@ -79,8 +79,8 @@ export function PrivacyGateModal({
               style={{ color: "var(--color-accent-processing)" }}
             >
               <li>
-                <strong>Your data is temporary:</strong> Documents expire after 24 hours and are
-                automatically deleted.
+                <strong>Your data is temporary:</strong> Temporary documents become unavailable
+                after 24 hours.
               </li>
               <li>
                 <strong>No account required:</strong> You can upload and translate documents
@@ -102,9 +102,9 @@ export function PrivacyGateModal({
           </Alert>
 
           <p>
-            By clicking &quot;I Understand&quot;, you acknowledge that your data will be
-            temporary and automatically deleted after 24 hours. You can choose to create an
-            account later if you want to save your work permanently.
+            By clicking &quot;I Understand&quot;, you acknowledge that your data is temporary and
+            will become unavailable after 24 hours. You can choose to create an account later if
+            you want to save your work permanently.
           </p>
         </div>
 
