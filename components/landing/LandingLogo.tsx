@@ -1,32 +1,14 @@
-"use client";
+// Landing page header logo, swapped per theme. Presentational only -- theme state lives in
+// PublicHeader (the shared parent of this and PublicThemeToggle) and is passed down as a prop,
+// so both stay in sync the instant the toggle is clicked. Previously this component tracked its
+// own theme state via a mount-only effect, which meant it never updated after the toggle button
+// was added elsewhere in the header -- toggling changed <html data-theme> but this component had
+// no way to know, so the logo stayed on whichever theme it saw at first paint.
 
-// Landing page header logo, swapped per theme. Reuses the app's existing theme source
-// (the data-theme attribute set by the blocking script in app/layout.tsx) rather than a
-// separate theme system -- same "start light to match SSR, sync from the DOM after mount"
-// pattern as components/layout/AppNav.tsx, whose ThemeToggleButton is the source of truth
-// for what data-theme is set to.
-
-import { useEffect, useState } from "react";
 import Image from "next/image";
 import { APP_NAME } from "@/lib/constants";
 
-type Theme = "light" | "dark";
-
-export function LandingLogo() {
-  // Always starts "light" to exactly match the server render (server has no access to the
-  // data-theme attribute the blocking script sets before hydration). Reading it during the
-  // initial client render instead would make this component's hydrated output differ from the
-  // server's -- see AppNav.tsx's theme state for the full rationale.
-  const [theme, setTheme] = useState<Theme>("light");
-
-  useEffect(() => {
-    const current = document.documentElement.getAttribute("data-theme");
-    if (current === "light" || current === "dark") {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setTheme(current);
-    }
-  }, []);
-
+export function LandingLogo({ theme }: { theme: "light" | "dark" }) {
   return (
     <Image
       src={theme === "dark" ? "/dark-mode-logo.png" : "/logo-no-words.png"}
