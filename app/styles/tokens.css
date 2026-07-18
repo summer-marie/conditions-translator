@@ -14,6 +14,10 @@
   --color-background-card: #E6ECF3;    /* elevated content surface (soft neutral) */
   --color-background-sidebar: #0B1426; /* deep-navy navigation chrome */
   --color-background-subtle: #CDD9E6;  /* quiet nested fill (insets, bubbles, skeletons) */
+  /* True grey (Tailwind slate-400) for alternating landing-page section stripes in light mode --
+     distinct from --color-background-subtle's blue-gray tint. Dark mode reuses the existing
+     subtle-fill dark value below, so dark mode's appearance is unchanged by this token. */
+  --color-background-section-alt: #94A3B8;
 
   /* Additional semantic surfaces */
   --color-surface-input: #FFFFFF;              /* input interiors, document previews (white allowed) */
@@ -120,6 +124,7 @@
   --color-background-card: #27272A;
   --color-background-sidebar: #18181B;
   --color-background-subtle: #27272A;
+  --color-background-section-alt: #27272A; /* same as subtle -- dark mode unchanged by this token */
 
   /* Additional semantic surfaces - Dark Mode.
      Values reuse the existing frozen dark palette to preserve current appearance; the only
@@ -144,6 +149,15 @@
   --color-border-focus-ring: rgba(250, 250, 250, 0.18);
   --color-border-default: #3F3F46;
   --color-border-subtle: #27272A;
+
+  /* Elevation shadows - Dark Mode. Light mode's navy-tinted shadows (rgba(15,27,51,...)) were
+     never overridden here, so every Card's shadow was inherited unchanged into dark mode -- a
+     dark navy shadow against an already-dark card/page is essentially invisible, which is why
+     cards read as flat/blended-in in dark mode. White-tinted shadows give visible separation
+     against dark surfaces instead. */
+  --shadow-sm: 0 1px 2px rgba(255, 255, 255, 0.06);
+  --shadow-md: 0 4px 12px rgba(255, 255, 255, 0.10);
+  --shadow-lg: 0 10px 24px rgba(255, 255, 255, 0.14);
 
   /* Text Colors - Dark Mode (frozen) */
   --color-text-heading: #FAFAFA;

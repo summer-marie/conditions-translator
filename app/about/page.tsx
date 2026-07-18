@@ -1,5 +1,5 @@
 // About page. Public marketing page, outside the authenticated app shell (app/app/layout.tsx +
-// AppNav) -- shares PublicHeader/Footer/FooterCTA with the landing page and /terms instead.
+// AppNav) -- shares PublicHeader/FooterCTA with the landing page and /terms instead.
 //
 // Content provided by the project owner 2026-07-17 -- not authored by Claude. The bracketed
 // numbers ([1][2]...) are citation markers from the source text; no reference list was supplied
@@ -7,8 +7,8 @@
 // Flagged back to the project owner -- confirm whether a reference list should be added or these
 // should be removed.
 
+import Image from "next/image";
 import { PublicHeader } from "@/components/landing/PublicHeader";
-import { Footer } from "@/components/landing/Footer";
 import { FooterCTA } from "@/components/landing/FooterCTA";
 import { Card } from "@/components/ui/Card";
 import { APP_NAME } from "@/lib/constants";
@@ -59,7 +59,7 @@ export const metadata = {
 
 export default function AboutPage() {
   return (
-    <div className="bg-(--color-background-page) min-h-screen">
+    <div className="landing-page-glow min-h-screen">
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-(--color-background-page) focus:px-4 focus:py-2 focus:text-(--color-text-heading) focus:outline-none focus:ring-2 focus:ring-(--color-border-focus-ring)"
@@ -71,21 +71,36 @@ export default function AboutPage() {
 
       <main id="main-content" className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
       <Card padding="lg">
-        <h1
+        {/* Fixed light backing (not a theme token) because logo-with-slogan.png is a solid
+            navy-on-transparent asset, not theme-aware -- it would go near-invisible against this
+            Card's dark-charcoal background in dark mode otherwise, same issue already fixed for
+            the navbar logo. */}
+        <div
+          className="rounded-md p-4 mb-6 flex justify-center"
+          style={{ backgroundColor: "#FFFFFF" }}
+        >
+          <Image
+            src="/logo-with-slogan.png"
+            alt={`${APP_NAME} — Truth, translated into language you can actually understand.`}
+            width={1162}
+            height={372}
+            className="h-auto w-full max-w-sm"
+            priority
+          />
+        </div>
+        {/* <h1
           className="font-(--font-weight-h1) mb-6"
           style={{ fontSize: "var(--font-size-h1)", color: "var(--color-text-heading)" }}
         >
           About {APP_NAME}
-        </h1>
+        </h1> */}
 
         <div className="space-y-4 mb-10">
-          <p className="font-(--font-weight-h3)" style={{ ...BODY_TEXT, color: "var(--color-text-heading)" }}>
+          <p className="font-(--font-weight-h3)" style={{ ...BODY_TEXT, color: "var(--color-text-heading)", textAlign: "center" }}>
             Don&apos;t lose your freedom to a technicality. Upload your documents, ask anything,
             and stop the guesswork.
           </p>
-          <p className="font-(--font-weight-h3)" style={{ ...BODY_TEXT, color: "var(--color-text-heading)" }}>
-            Truth, translated into language you can actually understand.
-          </p>
+        
           <p style={BODY_TEXT}>
             {APP_NAME} helps people make sense of supervision terms and other hard-to-read legal
             documents by turning dense language into plain English. Your questions are answered
@@ -159,7 +174,6 @@ export default function AboutPage() {
       </Card>
       </main>
 
-      <Footer />
       <FooterCTA />
     </div>
   );

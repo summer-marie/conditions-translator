@@ -9,6 +9,42 @@ body {
   background-color: var(--color-background-page);
 }
 
+/* Sitewide pointer-cursor rule (every page, not just the landing page). `(any-pointer: fine)`
+   scopes this to devices with a mouse/trackpad -- on touch-only devices there's no cursor to
+   show, and forcing `cursor: pointer` there is meaningless (and would defeat the disabled-state
+   reset below, since touch has no hover/cursor concept to reset in the first place). Targets only
+   genuinely interactive/expandable elements -- native clickable elements, explicit button/link
+   ARIA roles, focusable custom controls, elements with an inline click handler, and the
+   `.cursor-pointer` escape hatch for custom clickable controls that don't otherwise match any
+   selector here. Deliberately does NOT target plain containers, since a pointer cursor on a
+   non-interactive element is a false affordance. */
+@media (any-pointer: fine) {
+  a[href],
+  button,
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"],
+  input[type="image"],
+  summary,
+  label[for],
+  select,
+  [role="button"],
+  [role="link"],
+  [tabindex]:not([tabindex="-1"]),
+  [onclick],
+  .cursor-pointer {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  input:disabled,
+  select:disabled,
+  textarea:disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+}
+
 /* Semantic elevation utilities (navy-derived --shadow-* tokens). Used to separate surfaces by
    real elevation rather than faint borders alone, per the approved visual direction. */
 .u-elevation-sm {
@@ -25,4 +61,306 @@ body {
 }
 .u-elevation-hover:hover {
   box-shadow: var(--shadow-md);
+}
+
+/* Landing-page fluid rem-based tokens (app/page.tsx and its landing-only sub-components only --
+   not used by the shared header/footer/UI primitives, which stay on the fixed rem values they
+   already had). Pattern: clamp(minRem, baseRem + Nvw, maxRem) -- min/max are always rem so
+   browser text-size settings and pinch-zoom still scale these; vw only supplies the fluid middle
+   term, never used bare. Replaces the previous discrete Tailwind breakpoint jumps (e.g.
+   `py-16 sm:py-24`, `px-4 sm:px-6 lg:px-8`) with continuous scaling instead. */
+:root {
+  --landing-font-display: clamp(1.5rem, 1.2rem + 1.5vw, 2.5rem); /* hero H1 + "display" section H2s */
+  --landing-font-h2: clamp(1.125rem, 1rem + 0.6vw, 1.5rem); /* "What it does" heading + step headings */
+  --landing-font-h3: clamp(1rem, 0.95rem + 0.3vw, 1.125rem); /* feature-card H3 */
+  --landing-font-body: clamp(0.9rem, 0.875rem + 0.15vw, 0.9375rem); /* landing body copy, mild growth only */
+
+  --landing-space-section-y: clamp(3rem, 2.6rem + 2vw, 6rem); /* section vertical padding */
+  --landing-space-gap-lg: clamp(2rem, 1.7rem + 1.6vw, 3rem); /* hero grid gap, workspace row/step gaps */
+  --landing-space-gap-md: clamp(1.5rem, 1.3rem + 1vw, 2rem); /* features grid gap */
+  --landing-container-px: clamp(1rem, 0.5rem + 2vw, 2rem); /* section container horizontal padding */
+}
+
+/* Landing-page ambient section backgrounds (light mode only for now, deliberately not yet ported
+   to dark mode -- see app/page.tsx for which section gets which class). Every color is derived
+   via color-mix() from existing tokens only (--color-background-page, --color-background-subtle,
+   --color-background-section-alt, --color-accent-processing, --color-brand-primary,
+   --color-background-card) -- no new palette, no token renamed. Kept below ~10% opacity per the
+   approved direction: quiet ambient lighting, not neon/glossy/glassmorphic.
+
+   All four sections share one derived "mid" blend tone (--landing-tone-mid) so adjacent sections'
+   gradients meet at an identical computed color instead of a hard seam -- each section's gradient
+   starts and ends on that same tone, with its own distinct color in the middle, and each has a
+   uniquely-placed radial glow so no two sections look identical. */
+:root {
+  --landing-tone-mid: color-mix(
+    in srgb,
+    var(--color-background-page) 55%,
+    var(--color-background-section-alt)
+  );
+}
+
+.landing-section-hero {
+  position: relative;
+  background:
+    radial-gradient(
+      circle at 72% 32%,
+      color-mix(in srgb, var(--color-accent-processing) 13%, transparent),
+      transparent 55%
+    ),
+    radial-gradient(
+      circle at 22% 30%,
+      color-mix(in srgb, var(--color-background-card) 24%, transparent),
+      transparent 52%
+    ),
+    linear-gradient(
+      165deg,
+      var(--color-background-page) 0%,
+      var(--color-background-page) 60%,
+      var(--landing-tone-mid) 100%
+    );
+}
+
+.landing-section-features {
+  background:
+    radial-gradient(
+      circle at 80% 70%,
+      color-mix(in srgb, var(--color-brand-primary) 9%, transparent),
+      transparent 50%
+    ),
+    radial-gradient(
+      circle at 15% 20%,
+      color-mix(in srgb, var(--color-background-card) 24%, transparent),
+      transparent 48%
+    ),
+    linear-gradient(
+      165deg,
+      var(--landing-tone-mid) 0%,
+      var(--color-background-section-alt) 45%,
+      var(--landing-tone-mid) 100%
+    );
+}
+
+.landing-section-workspace {
+  background:
+    radial-gradient(
+      circle at 25% 35%,
+      color-mix(in srgb, var(--color-accent-processing) 20%, transparent),
+      transparent 60%
+    ),
+    radial-gradient(
+      circle at 78% 15%,
+      color-mix(in srgb, var(--color-background-card) 32%, transparent),
+      transparent 55%
+    ),
+    radial-gradient(
+      circle at 60% 75%,
+      color-mix(in srgb, var(--color-brand-primary) 12%, transparent),
+      transparent 55%
+    ),
+    linear-gradient(
+      165deg,
+      var(--landing-tone-mid) 0%,
+      var(--color-background-page) 45%,
+      var(--landing-tone-mid) 100%
+    );
+}
+
+.landing-section-cta {
+  background:
+    radial-gradient(
+      circle at 55% 25%,
+      color-mix(in srgb, var(--color-brand-primary) 10%, transparent),
+      transparent 48%
+    ),
+    radial-gradient(
+      circle at 18% 82%,
+      color-mix(in srgb, var(--color-background-card) 24%, transparent),
+      transparent 46%
+    ),
+    linear-gradient(
+      165deg,
+      var(--landing-tone-mid) 0%,
+      var(--color-background-section-alt) 60%,
+      var(--color-background-section-alt) 100%
+    );
+}
+
+/* Dark-mode mirror of the four .landing-section-* glows above -- same positions/shapes, but the
+   "pop" highlight in each is re-sourced from --color-brand-primary instead of
+   --color-background-card: in dark mode --color-brand-primary resolves to a near-white (#FAFAFA),
+   while --color-background-card (#27272A) sits too close to --color-background-page (#18181B) to
+   read as a highlight at all. Hero/features/workspace are intentionally more subdued than their
+   light-mode counterparts (roughly half the opacity) per approved direction -- only the CTA
+   section below keeps the fuller intensity. */
+[data-theme="dark"] .landing-section-hero {
+  background:
+    radial-gradient(
+      circle at 72% 32%,
+      color-mix(in srgb, var(--color-accent-processing) 8%, transparent),
+      transparent 55%
+    ),
+    radial-gradient(
+      circle at 22% 30%,
+      color-mix(in srgb, var(--color-brand-primary) 4%, transparent),
+      transparent 52%
+    ),
+    linear-gradient(
+      165deg,
+      var(--color-background-page) 0%,
+      var(--color-background-page) 60%,
+      var(--landing-tone-mid) 100%
+    );
+}
+
+[data-theme="dark"] .landing-section-features {
+  background:
+    radial-gradient(
+      circle at 80% 70%,
+      color-mix(in srgb, var(--color-accent-processing) 6%, transparent),
+      transparent 50%
+    ),
+    radial-gradient(
+      circle at 15% 20%,
+      color-mix(in srgb, var(--color-brand-primary) 4%, transparent),
+      transparent 48%
+    ),
+    linear-gradient(
+      165deg,
+      var(--landing-tone-mid) 0%,
+      var(--color-background-section-alt) 45%,
+      var(--landing-tone-mid) 100%
+    );
+}
+
+[data-theme="dark"] .landing-section-workspace {
+  background:
+    radial-gradient(
+      circle at 25% 35%,
+      color-mix(in srgb, var(--color-accent-processing) 9%, transparent),
+      transparent 60%
+    ),
+    radial-gradient(
+      circle at 78% 15%,
+      color-mix(in srgb, var(--color-brand-primary) 5%, transparent),
+      transparent 55%
+    ),
+    radial-gradient(
+      circle at 60% 75%,
+      color-mix(in srgb, var(--color-accent-processing) 5%, transparent),
+      transparent 55%
+    ),
+    linear-gradient(
+      165deg,
+      var(--landing-tone-mid) 0%,
+      var(--color-background-page) 45%,
+      var(--landing-tone-mid) 100%
+    );
+}
+
+[data-theme="dark"] .landing-section-cta {
+  background:
+    radial-gradient(
+      circle at 55% 25%,
+      color-mix(in srgb, var(--color-accent-processing) 13%, transparent),
+      transparent 48%
+    ),
+    radial-gradient(
+      circle at 18% 82%,
+      color-mix(in srgb, var(--color-brand-primary) 7%, transparent),
+      transparent 46%
+    ),
+    linear-gradient(
+      165deg,
+      var(--landing-tone-mid) 0%,
+      var(--color-background-section-alt) 60%,
+      var(--color-background-section-alt) 100%
+    );
+}
+
+/* Single-section public pages (About, Terms, FAQ) -- these don't alternate between multiple
+   full-bleed sections like the landing page, so they get one ambient wash covering the whole
+   page instead of a per-section class. Same token-derivation rule and light-mode-only scope as
+   the .landing-section-* glows above. */
+.landing-page-glow {
+  background:
+    radial-gradient(
+      circle at 50% 0%,
+      color-mix(in srgb, var(--color-background-card) 26%, transparent),
+      transparent 56%
+    ),
+    radial-gradient(
+      circle at 12% 85%,
+      color-mix(in srgb, var(--color-accent-processing) 10%, transparent),
+      transparent 45%
+    ),
+    radial-gradient(
+      circle at 88% 90%,
+      color-mix(in srgb, var(--color-brand-primary) 8%, transparent),
+      transparent 42%
+    ),
+    var(--color-background-page);
+}
+/* Dark-mode mirror of the light glow above, same token-substitution reasoning as
+   .landing-section-hero's dark variant. Trial section for the dark-mode glow pass. */
+[data-theme="dark"] .landing-page-glow {
+  background:
+    radial-gradient(
+      circle at 50% 0%,
+      color-mix(in srgb, var(--color-brand-primary) 10%, transparent),
+      transparent 56%
+    ),
+    radial-gradient(
+      circle at 12% 85%,
+      color-mix(in srgb, var(--color-accent-processing) 12%, transparent),
+      transparent 45%
+    ),
+    radial-gradient(
+      circle at 88% 90%,
+      color-mix(in srgb, var(--color-brand-primary) 6%, transparent),
+      transparent 42%
+    ),
+    var(--color-background-page);
+}
+
+/* Subtle depth for the hero's product-preview card -- border + shadow only, no background
+   change. Same token-derivation rule as the glow above. */
+.landing-preview-glow {
+  border: 1px solid color-mix(in srgb, var(--color-accent-processing) 14%, transparent);
+  box-shadow:
+    0 28px 70px color-mix(in srgb, var(--color-brand-primary) 12%, transparent),
+    0 8px 24px color-mix(in srgb, var(--color-brand-primary) 7%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+/* Dark-mode mirror of the light preview-card treatment -- same shape, but the shadow's warm
+   navy tint (--color-brand-primary, navy in light mode) would be invisible against a near-black
+   page, so it's re-sourced from --color-accent-processing instead, and the inset top highlight
+   is dropped since a white inset line reads as a hard edge rather than a soft sheen on dark
+   surfaces. */
+[data-theme="dark"] .landing-preview-glow {
+  border: 1px solid color-mix(in srgb, var(--color-accent-processing) 22%, transparent);
+  box-shadow:
+    0 28px 70px color-mix(in srgb, var(--color-accent-processing) 18%, transparent),
+    0 8px 24px color-mix(in srgb, var(--color-accent-processing) 10%, transparent);
+}
+
+/* Ambient pop for PublicHeader's fixed charcoal bar (see that component for why the bar's own
+   background-color is a hard-coded, non-token value applied via inline style regardless of
+   theme). Layered as background-image only (not the `background` shorthand) so it composites on
+   top of that inline background-color instead of fighting it for the same property. Same
+   token-derivation rule as the other glows; higher opacity than the light-mode section glows
+   since it needs to read against a much darker backing color. Theme-independent, same as the
+   bar's own background. */
+.landing-header-glow {
+  background-image:
+    radial-gradient(
+      ellipse 70% 140% at 15% 100%,
+      color-mix(in srgb, var(--color-accent-processing) 50%, transparent),
+      transparent 75%
+    ),
+    radial-gradient(
+      ellipse 65% 130% at 95% 0%,
+      color-mix(in srgb, var(--color-background-card) 38%, transparent),
+      transparent 70%
+    );
 }

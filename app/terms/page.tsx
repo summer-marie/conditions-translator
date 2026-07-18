@@ -1,9 +1,8 @@
 // Terms of Service page. Public marketing page, outside the authenticated app shell
-// (app/app/layout.tsx + AppNav) -- shares PublicHeader/Footer/FooterCTA with the landing page
+// (app/app/layout.tsx + AppNav) -- shares PublicHeader/FooterCTA with the landing page
 // and /about instead.
 
 import { PublicHeader } from "@/components/landing/PublicHeader";
-import { Footer } from "@/components/landing/Footer";
 import { FooterCTA } from "@/components/landing/FooterCTA";
 import { Card } from "@/components/ui/Card";
 import { APP_NAME } from "@/lib/constants";
@@ -158,7 +157,7 @@ function TermsBlockView({ block }: { block: TermsBlock }) {
 
 export default function TermsPage() {
   return (
-    <div className="bg-(--color-background-page) min-h-screen">
+    <div className="landing-page-glow min-h-screen">
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-(--color-background-page) focus:px-4 focus:py-2 focus:text-(--color-text-heading) focus:outline-none focus:ring-2 focus:ring-(--color-border-focus-ring)"
@@ -201,7 +200,6 @@ export default function TermsPage() {
       </Card>
       </main>
 
-      <Footer />
       <FooterCTA />
     </div>
   );
