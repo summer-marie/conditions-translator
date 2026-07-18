@@ -214,6 +214,11 @@ function WorkspacePageContent() {
   }>({ isOpen: false, pageId: null, isDeleting: false, error: null });
   const deletePageModalRef = useRef<HTMLDivElement | null>(null);
   useFocusTrap(deletePageModal.isOpen, deletePageModalRef);
+  // Keyed by page id: an explicit ref->click() trigger for each page's hidden re-upload file
+  // input, since a <label> wrapping both a visible Button and the input resolves its implicit
+  // control to the first labelable descendant (the button), not the input -- clicking never
+  // opened the file picker. See docs/USABILITY_UI_AUDIT.md follow-up diagnosis.
+  const reuploadInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   // Set once the workspace is owned by a signed-in account (Phase 7). null while temporary.
   const [savedUserId, setSavedUserId] = useState<string | null>(null);
   const [isSigningOut, setIsSigningOut] = useState(false);
@@ -1227,27 +1232,32 @@ function WorkspacePageContent() {
                             Accept
                           </Button>
 
-                          <label>
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              disabled={!canReupload}
-                              className="min-h-11 sm:min-h-0"
-                            >
-                              <span>Re-upload</span>
-                            </Button>
-                            <input
-                              type="file"
-                              className="hidden"
-                              accept="image/jpeg,image/png,image/webp"
-                              disabled={!canReupload}
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) handleReuploadPage(page.id, file);
-                                e.target.value = "";
-                              }}
-                            />
-                          </label>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            disabled={!canReupload}
+                            className="min-h-11 sm:min-h-0"
+                            onClick={() => reuploadInputRefs.current[page.id]?.click()}
+                          >
+                            Re-upload
+                          </Button>
+                          <input
+                            type="file"
+                            ref={(el) => {
+                              reuploadInputRefs.current[page.id] = el;
+                            }}
+                            className="hidden"
+                            accept="image/jpeg,image/png,image/webp"
+                            disabled={!canReupload}
+                            aria-hidden="true"
+                            tabIndex={-1}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) handleReuploadPage(page.id, file);
+                              e.target.value = "";
+                            }}
+                          />
 
                           <Button
                             onClick={() => handleDeletePageClick(page.id)}
