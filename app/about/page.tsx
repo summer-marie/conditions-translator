@@ -1,5 +1,5 @@
 // About page. Public marketing page, outside the authenticated app shell (app/app/layout.tsx +
-// AppNav) -- shares PublicHeader/Footer/FooterCTA with the landing page and /terms instead.
+// AppNav) -- shares PublicHeader/FooterCTA with the landing page and /terms instead.
 //
 // Content provided by the project owner 2026-07-17 -- not authored by Claude. The bracketed
 // numbers ([1][2]...) are citation markers from the source text; no reference list was supplied
@@ -8,7 +8,6 @@
 // should be removed.
 
 import { PublicHeader } from "@/components/landing/PublicHeader";
-import { Footer } from "@/components/landing/Footer";
 import { FooterCTA } from "@/components/landing/FooterCTA";
 import { Card } from "@/components/ui/Card";
 import { APP_NAME } from "@/lib/constants";
@@ -159,7 +158,6 @@ export default function AboutPage() {
       </Card>
       </main>
 
-      <Footer />
       <FooterCTA />
     </div>
   );

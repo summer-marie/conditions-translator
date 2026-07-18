@@ -1,9 +1,8 @@
 // Terms of Service page. Public marketing page, outside the authenticated app shell
-// (app/app/layout.tsx + AppNav) -- shares PublicHeader/Footer/FooterCTA with the landing page
+// (app/app/layout.tsx + AppNav) -- shares PublicHeader/FooterCTA with the landing page
 // and /about instead.
 
 import { PublicHeader } from "@/components/landing/PublicHeader";
-import { Footer } from "@/components/landing/Footer";
 import { FooterCTA } from "@/components/landing/FooterCTA";
 import { Card } from "@/components/ui/Card";
 import { APP_NAME } from "@/lib/constants";
@@ -201,7 +200,6 @@ export default function TermsPage() {
       </Card>
       </main>
 
-      <Footer />
       <FooterCTA />
     </div>
   );
