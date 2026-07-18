@@ -36,7 +36,7 @@
   /* Text Colors - Light Mode */
   --color-text-heading: #0F1B33;
   --color-text-body: #475467;
-  --color-text-meta: #6B7280;
+  --color-text-meta: #4B5563;  /* darkened from #6B7280 to clear 4.5:1 WCAG AA vs page/card/subtle backgrounds */
   --color-text-inverse: #FFFFFF;
 
   /* Accent Colors (semantic) */
