@@ -59,7 +59,7 @@ export const metadata = {
 
 export default function FaqPage() {
   return (
-    <div className="bg-(--color-background-page) min-h-screen">
+    <div className="landing-page-glow min-h-screen">
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-(--color-background-page) focus:px-4 focus:py-2 focus:text-(--color-text-heading) focus:outline-none focus:ring-2 focus:ring-(--color-border-focus-ring)"

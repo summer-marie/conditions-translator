@@ -140,6 +140,34 @@ body {
   background: none;
 }
 
+/* Single-section public pages (About, Terms, FAQ) -- these don't alternate between multiple
+   full-bleed sections like the landing page, so they get one ambient wash covering the whole
+   page instead of a per-section class. Same token-derivation rule and light-mode-only scope as
+   the .landing-section-* glows above. */
+.landing-page-glow {
+  background:
+    radial-gradient(
+      circle at 50% 0%,
+      color-mix(in srgb, var(--color-background-card) 26%, transparent),
+      transparent 56%
+    ),
+    radial-gradient(
+      circle at 12% 85%,
+      color-mix(in srgb, var(--color-accent-processing) 10%, transparent),
+      transparent 45%
+    ),
+    radial-gradient(
+      circle at 88% 90%,
+      color-mix(in srgb, var(--color-brand-primary) 8%, transparent),
+      transparent 42%
+    ),
+    var(--color-background-page);
+}
+[data-theme="dark"] .landing-page-glow {
+  /* Not ported to dark mode yet -- falls back to the page's own plain background. */
+  background: var(--color-background-page);
+}
+
 /* Subtle depth for the hero's product-preview card -- border + shadow only, no background
    change. Same token-derivation rule as the glow above. */
 .landing-preview-glow {
@@ -152,4 +180,25 @@ body {
 [data-theme="dark"] .landing-preview-glow {
   border: none;
   box-shadow: none;
+}
+
+/* Ambient pop for PublicHeader's fixed charcoal bar (see that component for why the bar's own
+   background-color is a hard-coded, non-token value applied via inline style regardless of
+   theme). Layered as background-image only (not the `background` shorthand) so it composites on
+   top of that inline background-color instead of fighting it for the same property. Same
+   token-derivation rule as the other glows; higher opacity than the light-mode section glows
+   since it needs to read against a much darker backing color. Theme-independent, same as the
+   bar's own background. */
+.landing-header-glow {
+  background-image:
+    radial-gradient(
+      ellipse 70% 140% at 15% 100%,
+      color-mix(in srgb, var(--color-accent-processing) 50%, transparent),
+      transparent 75%
+    ),
+    radial-gradient(
+      ellipse 65% 130% at 95% 0%,
+      color-mix(in srgb, var(--color-background-card) 38%, transparent),
+      transparent 70%
+    );
 }

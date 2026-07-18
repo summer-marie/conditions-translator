@@ -53,7 +53,7 @@ export function PublicHeader() {
     // always-dark sidebar) instead of the theme-swapped colors that assumed a light-mode
     // background.
     <header
-      className="border-b border-(--color-border-divider)"
+      className="border-b border-(--color-border-divider) landing-header-glow"
       style={{ backgroundColor: "#52525B" }}
     >
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
