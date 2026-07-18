@@ -246,6 +246,12 @@ Suggested checks:
 
 # 7. Phase 4 — OCR and Page Acceptance
 
+> **Status note (2026-07-17/18):** The "Approved next OCR implementation" section below describes
+> OCR transcription correction as approved-but-not-yet-built. It has since shipped (PR #20, merged
+> to `main`) — `OcrResult.correctedText` and the `correctPageOcr` Server Action are implemented.
+> See `.agent-memory/DECISIONS.md` and `docs/Decision_Log.md` ADR-001 for the current record; this
+> phase section's text is left as historical planning detail, not rewritten.
+
 ## Goal
 
 Convert uploaded page images into accepted source text using the approved page-level review flow.
@@ -600,6 +606,13 @@ Suggested tests:
 ---
 
 # Phase E2E — End-to-End User Flow Testing and Stabilization
+
+> **Status note (2026-07-17/18):** All fixes identified during the E2E testing pass described
+> below are merged to `main` (verified: every non-`main` branch in the repo other than the active
+> Phase 9 work is fully merged, zero unique commits ahead of `main`). The real-Vercel-deployment +
+> real-phone-camera validation bar stated below has partial documented evidence (the mobile
+> camera-first upload change) but has not been independently reconfirmed end-to-end.
+
 Runs after Phase 8 and before Phase 9 Cleanup, Reliability, and Demo Validation. This phase validates all implemented user-facing flows (upload, OCR, READY, chat, account creation, transfer, dashboard, deletion) via realistic testing and fixes any blockers before cleanup and demo work.
 
 Phase E2E is not considered complete until the app has also been exercised on a real Vercel deployment with real phone-camera uploads, not just local browser testing — OCR latency/quality and ownership-transfer behavior can differ on deployed infrastructure. See `docs/Deployment_Vercel.md` for deployment setup and `docs/Mobile_OCR_Tests_plan.md` for the mobile OCR test cases. Findings from this pass are recorded in `docs/TESTING_GUIDE.md` (§13, Deployment and Mobile Testing) and `.agent-memory/OPEN_QUESTIONS.md`.
@@ -621,6 +634,15 @@ All agents implementing features from wireframes must read `AGENTS.md`, `CLAUDE.
 ---
 
 # 12. Phase 9 — Cleanup, Reliability, and Demo Validation
+
+> **Status note (2026-07-17/18, `feat/phase-9-cleanup-retention`):** Retention and cleanup are
+> implemented — a serverless cron (Vercel Cron, `vercel.json`, hourly) hits a protected route
+> (`app/api/cron/cleanup/route.ts`) running `lib/cleanup/sweep.ts`, which deletes expired chat
+> sessions directly and, for each expired temporary session, cleans up its Documents via the
+> existing Phase 8 deletion pipeline before removing the session row. No schema change was needed.
+> See `docs/TESTING_GUIDE.md`'s Phase 9 entry for full test detail (unit + live-DB verification).
+> Not yet independently confirmed: a real Vercel Cron invocation on a deployed environment (only a
+> manual trigger was verified). This phase's own text below is left as historical planning detail.
 
 ## Goal
 
