@@ -26,3 +26,130 @@ body {
 .u-elevation-hover:hover {
   box-shadow: var(--shadow-md);
 }
+
+/* Landing-page ambient section backgrounds (light mode only for now, deliberately not yet ported
+   to dark mode -- see app/page.tsx for which section gets which class). Every color is derived
+   via color-mix() from existing tokens only (--color-background-page, --color-background-subtle,
+   --color-background-section-alt, --color-accent-processing, --color-brand-primary,
+   --color-background-card) -- no new palette, no token renamed. Kept below ~10% opacity per the
+   approved direction: quiet ambient lighting, not neon/glossy/glassmorphic.
+
+   All four sections share one derived "mid" blend tone (--landing-tone-mid) so adjacent sections'
+   gradients meet at an identical computed color instead of a hard seam -- each section's gradient
+   starts and ends on that same tone, with its own distinct color in the middle, and each has a
+   uniquely-placed radial glow so no two sections look identical. */
+:root {
+  --landing-tone-mid: color-mix(
+    in srgb,
+    var(--color-background-page) 55%,
+    var(--color-background-section-alt)
+  );
+}
+
+.landing-section-hero {
+  position: relative;
+  background:
+    radial-gradient(
+      circle at 72% 32%,
+      color-mix(in srgb, var(--color-accent-processing) 13%, transparent),
+      transparent 55%
+    ),
+    radial-gradient(
+      circle at 22% 30%,
+      color-mix(in srgb, var(--color-background-card) 24%, transparent),
+      transparent 52%
+    ),
+    linear-gradient(
+      165deg,
+      var(--color-background-page) 0%,
+      var(--color-background-page) 60%,
+      var(--landing-tone-mid) 100%
+    );
+}
+
+.landing-section-features {
+  background:
+    radial-gradient(
+      circle at 80% 70%,
+      color-mix(in srgb, var(--color-brand-primary) 9%, transparent),
+      transparent 50%
+    ),
+    radial-gradient(
+      circle at 15% 20%,
+      color-mix(in srgb, var(--color-background-card) 24%, transparent),
+      transparent 48%
+    ),
+    linear-gradient(
+      165deg,
+      var(--landing-tone-mid) 0%,
+      var(--color-background-section-alt) 45%,
+      var(--landing-tone-mid) 100%
+    );
+}
+
+.landing-section-workspace {
+  background:
+    radial-gradient(
+      circle at 25% 35%,
+      color-mix(in srgb, var(--color-accent-processing) 20%, transparent),
+      transparent 60%
+    ),
+    radial-gradient(
+      circle at 78% 15%,
+      color-mix(in srgb, var(--color-background-card) 32%, transparent),
+      transparent 55%
+    ),
+    radial-gradient(
+      circle at 60% 75%,
+      color-mix(in srgb, var(--color-brand-primary) 12%, transparent),
+      transparent 55%
+    ),
+    linear-gradient(
+      165deg,
+      var(--landing-tone-mid) 0%,
+      var(--color-background-page) 45%,
+      var(--landing-tone-mid) 100%
+    );
+}
+
+.landing-section-cta {
+  background:
+    radial-gradient(
+      circle at 55% 25%,
+      color-mix(in srgb, var(--color-brand-primary) 10%, transparent),
+      transparent 48%
+    ),
+    radial-gradient(
+      circle at 18% 82%,
+      color-mix(in srgb, var(--color-background-card) 24%, transparent),
+      transparent 46%
+    ),
+    linear-gradient(
+      165deg,
+      var(--landing-tone-mid) 0%,
+      var(--color-background-section-alt) 60%,
+      var(--color-background-section-alt) 100%
+    );
+}
+
+[data-theme="dark"] .landing-section-hero,
+[data-theme="dark"] .landing-section-features,
+[data-theme="dark"] .landing-section-workspace,
+[data-theme="dark"] .landing-section-cta {
+  /* Not ported to dark mode yet -- falls back to each page's own plain background. */
+  background: none;
+}
+
+/* Subtle depth for the hero's product-preview card -- border + shadow only, no background
+   change. Same token-derivation rule as the glow above. */
+.landing-preview-glow {
+  border: 1px solid color-mix(in srgb, var(--color-accent-processing) 14%, transparent);
+  box-shadow:
+    0 28px 70px color-mix(in srgb, var(--color-brand-primary) 12%, transparent),
+    0 8px 24px color-mix(in srgb, var(--color-brand-primary) 7%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+[data-theme="dark"] .landing-preview-glow {
+  border: none;
+  box-shadow: none;
+}

@@ -21,7 +21,11 @@ const PREVIEW_PAGES: PreviewPage[] = [
 
 export function WorkspacePreviewCard() {
   return (
-    <Card padding="sm" className="w-full max-w-md mx-auto lg:mx-0">
+    <Card
+      padding="sm"
+      shadow={false}
+      className="w-full max-w-md mx-auto lg:mx-0 landing-preview-glow"
+    >
       <div className="flex items-center gap-2 border-b border-(--color-border-divider) pb-3 mb-3">
         <Image
           src="/icon.png"

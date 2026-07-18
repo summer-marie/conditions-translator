@@ -66,8 +66,11 @@ export default function LandingPage() {
       <PublicHeader />
 
       <main id="main-content">
-        {/* Hero */}
-        <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
+        {/* Hero -- full-bleed ambient background, see app/globals.css's .landing-section-hero
+          for the token-derived gradient stops (light mode only for now). Blends into the
+          Features section below via the shared --landing-tone-mid tone. */}
+        <section className="landing-section-hero">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
             <div className="text-center lg:text-left">
               <h1
@@ -109,11 +112,13 @@ export default function LandingPage() {
               <WorkspacePreviewCard />
             </div>
           </div>
+          </div>
         </section>
 
-        {/* Features -- full-bleed alternating-section background (see the "How It Works" comment
-          below for why this alternates with the section after it). */}
-        <section style={{ backgroundColor: "var(--color-background-section-alt)" }}>
+        {/* Features -- full-bleed ambient background, see app/globals.css's
+          .landing-section-features. Blends from the Hero section above and into How It Works
+          below via the shared --landing-tone-mid tone. */}
+        <section className="landing-section-features">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
           <h2
             className="font-(--font-weight-h2) text-center mb-8"
@@ -159,11 +164,10 @@ export default function LandingPage() {
         </section>
 
         {/* How It Works — "Product Workspace" alternating rows, per the approved navy wireframe.
-          Plain page background (no distinct tint) -- alternates with the Features section above
-          and the Bottom CTA section below, each of which uses --color-background-section-alt, for
-          a repeating zebra-stripe pattern down the page in light mode (dark mode is visually
-          unaffected -- see that token's definition in tokens.css). */}
-        <section id="how-it-works" className="scroll-mt-16">
+          Full-bleed ambient background, see app/globals.css's .landing-section-workspace. Blends
+          from Features above and into the Bottom CTA below via the shared --landing-tone-mid
+          tone. */}
+        <section id="how-it-works" className="scroll-mt-16 landing-section-workspace">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
             <div className="text-center mb-10">
               <p
@@ -245,9 +249,10 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Bottom CTA -- full-bleed alternating-section background, continuing the zebra-stripe
-          pattern from the Features/How It Works sections above. */}
-        <section style={{ backgroundColor: "var(--color-background-section-alt)" }}>
+        {/* Bottom CTA -- full-bleed ambient background, see app/globals.css's
+          .landing-section-cta. Blends from How It Works above via the shared
+          --landing-tone-mid tone. */}
+        <section className="landing-section-cta">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 text-center">
             <h2
               className="font-(--font-weight-display) tracking-tight mb-4"
