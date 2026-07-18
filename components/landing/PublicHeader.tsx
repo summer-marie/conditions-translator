@@ -43,20 +43,32 @@ export function PublicHeader() {
   }
 
   return (
-    <header className="border-b border-(--color-border-divider)">
+    // Fixed mid-charcoal (not a theme token) so the navbar stands out the same way regardless of
+    // light or dark mode. Two earlier attempts didn't work: slate-400 (#94A3B8) read as too blue,
+    // and the app's own dark-mode charcoal (#27272A) was too close to the dark-mode page
+    // background (#18181B) to stand out, and made the white-outline logo hard to see. #52525B
+    // (Tailwind zinc-600) sits clearly lighter than both. Since the background is fixed dark
+    // regardless of theme, the logo and text/icon colors below are also fixed to their "on dark
+    // chrome" values (--color-surface-nav-foreground, the same token AppNav.tsx uses for its
+    // always-dark sidebar) instead of the theme-swapped colors that assumed a light-mode
+    // background.
+    <header
+      className="border-b border-(--color-border-divider)"
+      style={{ backgroundColor: "#52525B" }}
+    >
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         <Link
           href="/"
           className="focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-border-focus-ring) rounded"
         >
-          <LandingLogo theme={theme} />
+          <LandingLogo theme="dark" />
         </Link>
         <div className="flex items-center gap-3">
           <PublicThemeToggle theme={theme} onToggle={toggleTheme} />
           <Link
             href="/app/save?mode=signin"
             className="text-sm font-medium hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-border-focus-ring) rounded"
-            style={{ color: "var(--color-text-body)" }}
+            style={{ color: "var(--color-surface-nav-foreground)" }}
           >
             Log in
           </Link>
