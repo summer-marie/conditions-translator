@@ -245,6 +245,57 @@ Validate:
 - saved Documents are not affected
 - logs do not contain sensitive text
 
+### Status (2026-07-17/18, `feat/phase-9-cleanup-retention`)
+
+**Implemented.** `lib/cleanup/sweep.ts` + `app/api/cron/cleanup/route.ts` (Vercel Cron, hourly,
+`vercel.json`). No schema change was needed — cleanup reuses the existing Phase 8 `deleteDocument`
+pipeline per Document (already Blob-then-DB retry-safe) and deletes expired `ChatSession` rows
+directly (any owner — chat is always temporary regardless of Document ownership).
+
+Tests run:
+
+- Unit (mocked Prisma): `tests/lib/cleanup/sweep.test.ts` (7 cases — expired-chat deletion,
+  zero-Document session deletion, multi-Document cleanup via `deleteDocument`, a still-pending
+  Document blocking session deletion, an unexpected `deleteDocument` throw also blocking session
+  deletion) and `tests/api/cron/cleanup.test.ts` (5 cases — missing/wrong/unset bearer token,
+  successful sweep response shape, sweep failure returns a safe 500).
+- Live-DB verification (2026-07-18, real Neon dev database, via a temporary `tsx` script deleted
+  after use — not committed): created one expired `TemporarySession` + `Document` (READY, one
+  ACCEPTED page, no Blob path) + one expired `ChatSession`, and one still-valid session/document/
+  chat as controls. After `runCleanupSweep()`: the expired session, its Document, and the expired
+  chat were gone; the still-valid controls were untouched. The same run also found and correctly
+  cleaned up 58 real, already-expired `TemporarySession` rows (12 Documents, 7 chat sessions) that
+  had accumulated in the dev database prior to this phase (no prior cleanup mechanism existed).
+- Full suite: `npm run test` 274/274 passing (262 pre-existing + 12 new). `npx tsc --noEmit`
+  clean. `npm run lint`: 30 problems, byte-for-byte the same pre-existing baseline as before this
+  branch (24 errors in `tests/lib/session/temporary.test.ts`, 6 pre-existing warnings elsewhere) —
+  zero new issues from this phase's files. `npm run build` succeeds; confirmed
+  `CLEANUP_JOB_SECRET`/`CRON_SECRET` do not appear anywhere in `.next/static`.
+
+Not tested this pass:
+
+- Real Vercel Cron invocation on a deployed preview/production environment (only a manual
+  `Invoke-RestMethod` call against the route was documented, in `docs/Deployment_Vercel.md`).
+- A genuine Blob-delete failure during the sweep (the retry path itself is unit-tested via a
+  mocked `deleteDocument` rejection/incomplete result, mirroring the existing Phase 8 deletion
+  tests, but not reproduced against real Vercel Blob).
+- Concurrent/overlapping cron invocations (the design relies on `deleteDocument`'s existing
+  conditional `updateMany`, which is already safe under concurrency per Phase 8's own tests, but
+  no explicit concurrent-sweep test was added).
+
+### Logging/privacy audit findings (Phase 9 requirement)
+
+Reviewed every `logger.*`/`console.*` call site in `lib/` and `app/api/`. Found and fixed 4 route
+catch-all blocks (`app/api/documents/route.ts`, `app/api/documents/[documentId]/route.ts` GET/PATCH,
+`app/api/documents/[documentId]/pages/route.ts` GET) that logged the raw `error` object instead of
+just `error.name`, inconsistent with the safe pattern already established in sibling routes (e.g.
+the `DELETE /api/documents/[documentId]` route). Fixed to match. The temporary `[ocr-diag]`
+diagnostic logging in `lib/ocr/client.ts`/the OCR route (added 2026-07-14 to investigate a real
+502 on phone photos) was reviewed and confirmed to log only ids/byte sizes/error metadata, never
+image bytes or extracted text — left in place since that investigation is still open (see
+`.agent-memory/OPEN_QUESTIONS.md`), not because it's unsafe. No other violations found: no chat
+content, page text, or secrets are logged anywhere in server code.
+
 ---
 
 # 5. AI Safety Test Categories

@@ -88,7 +88,32 @@ Record:
 - Any 502/timeout behavior
 - Differences between temporary vs signed-in flows
 
-## 8. Known Deployment Risks
+## 8. Phase 9 — Scheduled Cleanup (Cron)
+
+`vercel.json` defines an hourly Vercel Cron Job hitting `/api/cron/cleanup` (see
+`lib/cleanup/sweep.ts` and `app/api/cron/cleanup/route.ts`), which deletes expired
+`ChatSession`s and, for each expired `TemporarySession`, cleans up its Documents (Blob images
+then DB rows, reusing the Phase 8 deletion pipeline) before removing the session row itself.
+
+Required Vercel env vars for this to work:
+
+- `CLEANUP_JOB_SECRET` — the value the route checks against the incoming bearer token.
+- `CRON_SECRET` — set to the **same value** as `CLEANUP_JOB_SECRET`. Vercel's Cron feature only
+  auto-attaches `Authorization: Bearer <value>` when an env var literally named `CRON_SECRET`
+  exists; the route itself only ever reads `CLEANUP_JOB_SECRET`. Setting both to the same value
+  is what makes Vercel's automatic header match what the route expects.
+
+To trigger the sweep manually (e.g. to verify before relying on the schedule), from PowerShell:
+
+```powershell
+Invoke-RestMethod -Uri "https://<your-deployment>/api/cron/cleanup" `
+  -Method Post `
+  -Headers @{ Authorization = "Bearer $env:CLEANUP_JOB_SECRET" }
+```
+
+The response is a JSON summary of counts only (no document/page/chat content).
+
+## 9. Known Deployment Risks
 
 - OCR latency/timeouts on very large phone images.
 - Any remaining ownership-related bugs that only appear in

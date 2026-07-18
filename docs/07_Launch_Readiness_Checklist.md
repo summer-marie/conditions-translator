@@ -75,6 +75,12 @@ Suggested failure copy:
 
 # 3. Temporary Workspace
 
+> **Status note (2026-07-17/18, `feat/phase-9-cleanup-retention`):** "Temporary data expires
+> automatically" is now genuinely implemented (a scheduled sweep actually deletes expired
+> sessions/Documents/Pages/Blob images/chats, not just hides them) — see
+> `docs/TESTING_GUIDE.md`'s Phase 9 status entry for what was tested. Checkboxes in this document
+> are left as the project's own final-release-readiness gate, not checked off per-phase.
+
 - [ ] User can use the app without creating an account.
 - [ ] User can create Documents, upload pages, finish Documents, generate sections, and ask questions in temporary mode.
 - [ ] Temporary Documents are owned by the active temporary session.

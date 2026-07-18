@@ -50,7 +50,8 @@ export async function GET() {
       );
     }
 
-    console.error("Error listing documents:", error);
+    // Never log the raw error object verbatim — it may echo request/document content.
+    console.error("Error listing documents:", error instanceof Error ? error.name : "unknown error");
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
