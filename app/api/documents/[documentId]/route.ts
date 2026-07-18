@@ -51,7 +51,8 @@ export async function GET(
       );
     }
 
-    console.error("Error fetching document:", error);
+    // Never log the raw error object verbatim — it may echo request/document content.
+    console.error("Error fetching document:", error instanceof Error ? error.name : "unknown error");
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -110,7 +111,8 @@ export async function PATCH(
       );
     }
 
-    console.error("Error updating document:", error);
+    // Never log the raw error object verbatim — it may echo request/document content.
+    console.error("Error updating document:", error instanceof Error ? error.name : "unknown error");
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
