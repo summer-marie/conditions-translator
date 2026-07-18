@@ -27,6 +27,24 @@ body {
   box-shadow: var(--shadow-md);
 }
 
+/* Landing-page fluid rem-based tokens (app/page.tsx and its landing-only sub-components only --
+   not used by the shared header/footer/UI primitives, which stay on the fixed rem values they
+   already had). Pattern: clamp(minRem, baseRem + Nvw, maxRem) -- min/max are always rem so
+   browser text-size settings and pinch-zoom still scale these; vw only supplies the fluid middle
+   term, never used bare. Replaces the previous discrete Tailwind breakpoint jumps (e.g.
+   `py-16 sm:py-24`, `px-4 sm:px-6 lg:px-8`) with continuous scaling instead. */
+:root {
+  --landing-font-display: clamp(1.5rem, 1.2rem + 1.5vw, 2.5rem); /* hero H1 + "display" section H2s */
+  --landing-font-h2: clamp(1.125rem, 1rem + 0.6vw, 1.5rem); /* "What it does" heading + step headings */
+  --landing-font-h3: clamp(1rem, 0.95rem + 0.3vw, 1.125rem); /* feature-card H3 */
+  --landing-font-body: clamp(0.9rem, 0.875rem + 0.15vw, 0.9375rem); /* landing body copy, mild growth only */
+
+  --landing-space-section-y: clamp(3rem, 2.6rem + 2vw, 6rem); /* section vertical padding */
+  --landing-space-gap-lg: clamp(2rem, 1.7rem + 1.6vw, 3rem); /* hero grid gap, workspace row/step gaps */
+  --landing-space-gap-md: clamp(1.5rem, 1.3rem + 1vw, 2rem); /* features grid gap */
+  --landing-container-px: clamp(1rem, 0.5rem + 2vw, 2rem); /* section container horizontal padding */
+}
+
 /* Landing-page ambient section backgrounds (light mode only for now, deliberately not yet ported
    to dark mode -- see app/page.tsx for which section gets which class). Every color is derived
    via color-mix() from existing tokens only (--color-background-page, --color-background-subtle,

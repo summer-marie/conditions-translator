@@ -70,13 +70,13 @@ export default function LandingPage() {
           for the token-derived gradient stops (light mode only for now). Blends into the
           Features section below via the shared --landing-tone-mid tone. */}
         <section className="landing-section-hero">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+          <div className="max-w-6xl mx-auto px-(--landing-container-px) py-(--landing-space-section-y)">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-(--landing-space-gap-lg) items-center">
             <div className="text-center lg:text-left">
               <h1
                 className="font-(--font-weight-display) max-w-3xl mx-auto lg:mx-0 mb-4 tracking-tight"
                 style={{
-                  fontSize: "var(--font-size-display)",
+                  fontSize: "var(--landing-font-display)",
                   lineHeight: 1.15,
                   color: "var(--color-text-heading)",
                 }}
@@ -88,7 +88,7 @@ export default function LandingPage() {
               <p
                 className="max-w-2xl mx-auto lg:mx-0 mb-8"
                 style={{
-                  fontSize: "var(--font-size-body)",
+                  fontSize: "var(--landing-font-body)",
                   color: "var(--color-text-body)",
                 }}
               >
@@ -119,17 +119,17 @@ export default function LandingPage() {
           .landing-section-features. Blends from the Hero section above and into How It Works
           below via the shared --landing-tone-mid tone. */}
         <section className="landing-section-features">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
+          <div className="max-w-6xl mx-auto px-(--landing-container-px) py-(--landing-space-section-y)">
           <h2
             className="font-(--font-weight-h2) text-center mb-8"
             style={{
-              fontSize: "var(--font-size-h2)",
+              fontSize: "var(--landing-font-h2)",
               color: "var(--color-text-heading)",
             }}
           >
             What it does
           </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-(--landing-space-gap-md)">
             {FEATURES.map(({ title, description, icon: Icon }) => (
               <Card key={title} padding="lg" className="text-center">
                 <div
@@ -143,7 +143,7 @@ export default function LandingPage() {
                 <h3
                   className="font-(--font-weight-h3) mb-2"
                   style={{
-                    fontSize: "var(--font-size-h3)",
+                    fontSize: "var(--landing-font-h3)",
                     color: "var(--color-text-heading)",
                   }}
                 >
@@ -151,7 +151,7 @@ export default function LandingPage() {
                 </h3>
                 <p
                   style={{
-                    fontSize: "var(--font-size-body)",
+                    fontSize: "var(--landing-font-body)",
                     color: "var(--color-text-body)",
                   }}
                 >
@@ -168,7 +168,7 @@ export default function LandingPage() {
           from Features above and into the Bottom CTA below via the shared --landing-tone-mid
           tone. */}
         <section id="how-it-works" className="scroll-mt-16 landing-section-workspace">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
+          <div className="max-w-6xl mx-auto px-(--landing-container-px) py-(--landing-space-section-y)">
             <div className="text-center mb-10">
               <p
                 className="font-(--font-weight-h3) mb-2 uppercase tracking-wide"
@@ -182,7 +182,7 @@ export default function LandingPage() {
               <h2
                 className="font-(--font-weight-display) tracking-tight"
                 style={{
-                  fontSize: "var(--font-size-display)",
+                  fontSize: "var(--landing-font-display)",
                   color: "var(--color-text-heading)",
                 }}
               >
@@ -190,7 +190,7 @@ export default function LandingPage() {
               </h2>
             </div>
 
-            <div className="flex flex-col gap-12">
+            <div className="flex flex-col gap-(--landing-space-gap-lg)">
               <StepFeatureRow
                 step={WORKSPACE_STEPS[0].step}
                 heading={WORKSPACE_STEPS[0].heading}
@@ -253,16 +253,16 @@ export default function LandingPage() {
           .landing-section-cta. Blends from How It Works above via the shared
           --landing-tone-mid tone. */}
         <section className="landing-section-cta">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 text-center">
+          <div className="max-w-6xl mx-auto px-(--landing-container-px) py-(--landing-space-section-y) text-center">
             <h2
               className="font-(--font-weight-display) tracking-tight mb-4"
-              style={{ fontSize: "var(--font-size-display)", color: "var(--color-text-heading)" }}
+              style={{ fontSize: "var(--landing-font-display)", color: "var(--color-text-heading)" }}
             >
               Start understanding your files today
             </h2>
             <p
               className="max-w-2xl mx-auto mb-8"
-              style={{ fontSize: "var(--font-size-body)", color: "var(--color-text-body)" }}
+              style={{ fontSize: "var(--landing-font-body)", color: "var(--color-text-body)" }}
             >
               Skip the endless Google searches and confusing terminology. {APP_NAME} analyzes only
               the documents you upload to provide clear, personalized answers while keeping your
