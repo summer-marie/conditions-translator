@@ -71,9 +71,11 @@ a future pass if this divergence should become the permanent documented journey.
    for the guest entry flow.
 10. **Finished-document overflow actions (sidenav/mobile menu)** — DONE (2026-07-18):
     `components/layout/AppNav.tsx`. Each finished document listed in the sidenav (desktop) or
-    hamburger menu (mobile) — the same list built for the earlier "workspace multi-document
-    browsing" pass — now has an overflow (kebab) trigger alongside its title link, offering two
-    actions: **Review pages** and **Delete document**. See "Overflow actions
+    hamburger menu (mobile) remains visible there after completion, alongside the fixed
+    Dashboard/Workspace/Chat items. Clicking the title link is unchanged and still opens that
+    document's finished/organized view in `app/app/workspace/page.tsx` (Sections tab by default).
+    It now also has an overflow (kebab) trigger alongside the title link, offering two actions:
+    **Review pages** and **Delete document**. See "Overflow actions
     (popover/sheet)" under Shared Layout/Component Patterns below for the desktop-vs-mobile
     presentation and reuse notes. Reviewing pages lands on `app/app/workspace/page.tsx` with a
     new `?panel=pages` query param that switches the existing finished-document card from its
@@ -458,11 +460,18 @@ Implemented" section above for what actually happened and which commits/passes d
 - This file used to carry its own "Deferred from Phase E2E" and "Dependencies on Phase 9"
   lists, predating Phase 10 entirely; removed as stale duplicates of
   `.agent-memory/OPEN_QUESTIONS.md`, which is the actual source of truth for that older
-  material — check that file directly, not a summary here. Confirmed still live there: multi-document browsing in workspace, workspace document
-  list visibility after returning from chat ("Leaving chat makes saved documents look like they
-  disappeared from workspace"), and the save/sign-in entry UI redesign ("Save/sign-in entry UI
-  needs a real pass, not just a stopgap" — the `login-spec.md` split-layout design still hasn't
-  been implemented; the Save page's Phase 10 token-migration pass explicitly left this alone).
+  material — check that file directly, not a summary here. Of the items that file tracked:
+  the save/sign-in entry UI redesign remains open ("Save/sign-in entry UI needs a real pass, not
+  just a stopgap" — the `login-spec.md` split-layout design still hasn't been implemented; the
+  Save page's Phase 10 token-migration pass explicitly left this alone).
+- **RESOLVED 2026-07-18 by item 10 above.** Two related items tracked in
+  `.agent-memory/OPEN_QUESTIONS.md` — "workspace should support browsing multiple documents, not
+  just the active intake doc" and "leaving chat makes saved documents look like they disappeared
+  from workspace" — are resolved by the finished-document sidenav: it lists every finished
+  document (not just the active intake one), is present on every `/app/*` route including chat,
+  and switching to a listed document shows its pages nested underneath via Review pages. Neither
+  entry has been marked resolved in `.agent-memory/OPEN_QUESTIONS.md` itself yet — that file
+  wasn't in scope for this documentation pass; update it directly in a future pass.
 
 ---
 
