@@ -132,12 +132,96 @@ body {
     );
 }
 
-[data-theme="dark"] .landing-section-hero,
-[data-theme="dark"] .landing-section-features,
-[data-theme="dark"] .landing-section-workspace,
+/* Dark-mode mirror of the four .landing-section-* glows above -- same positions/shapes, but the
+   "pop" highlight in each is re-sourced from --color-brand-primary instead of
+   --color-background-card: in dark mode --color-brand-primary resolves to a near-white (#FAFAFA),
+   while --color-background-card (#27272A) sits too close to --color-background-page (#18181B) to
+   read as a highlight at all. Hero/features/workspace are intentionally more subdued than their
+   light-mode counterparts (roughly half the opacity) per approved direction -- only the CTA
+   section below keeps the fuller intensity. */
+[data-theme="dark"] .landing-section-hero {
+  background:
+    radial-gradient(
+      circle at 72% 32%,
+      color-mix(in srgb, var(--color-accent-processing) 8%, transparent),
+      transparent 55%
+    ),
+    radial-gradient(
+      circle at 22% 30%,
+      color-mix(in srgb, var(--color-brand-primary) 4%, transparent),
+      transparent 52%
+    ),
+    linear-gradient(
+      165deg,
+      var(--color-background-page) 0%,
+      var(--color-background-page) 60%,
+      var(--landing-tone-mid) 100%
+    );
+}
+
+[data-theme="dark"] .landing-section-features {
+  background:
+    radial-gradient(
+      circle at 80% 70%,
+      color-mix(in srgb, var(--color-accent-processing) 6%, transparent),
+      transparent 50%
+    ),
+    radial-gradient(
+      circle at 15% 20%,
+      color-mix(in srgb, var(--color-brand-primary) 4%, transparent),
+      transparent 48%
+    ),
+    linear-gradient(
+      165deg,
+      var(--landing-tone-mid) 0%,
+      var(--color-background-section-alt) 45%,
+      var(--landing-tone-mid) 100%
+    );
+}
+
+[data-theme="dark"] .landing-section-workspace {
+  background:
+    radial-gradient(
+      circle at 25% 35%,
+      color-mix(in srgb, var(--color-accent-processing) 9%, transparent),
+      transparent 60%
+    ),
+    radial-gradient(
+      circle at 78% 15%,
+      color-mix(in srgb, var(--color-brand-primary) 5%, transparent),
+      transparent 55%
+    ),
+    radial-gradient(
+      circle at 60% 75%,
+      color-mix(in srgb, var(--color-accent-processing) 5%, transparent),
+      transparent 55%
+    ),
+    linear-gradient(
+      165deg,
+      var(--landing-tone-mid) 0%,
+      var(--color-background-page) 45%,
+      var(--landing-tone-mid) 100%
+    );
+}
+
 [data-theme="dark"] .landing-section-cta {
-  /* Not ported to dark mode yet -- falls back to each page's own plain background. */
-  background: none;
+  background:
+    radial-gradient(
+      circle at 55% 25%,
+      color-mix(in srgb, var(--color-accent-processing) 13%, transparent),
+      transparent 48%
+    ),
+    radial-gradient(
+      circle at 18% 82%,
+      color-mix(in srgb, var(--color-brand-primary) 7%, transparent),
+      transparent 46%
+    ),
+    linear-gradient(
+      165deg,
+      var(--landing-tone-mid) 0%,
+      var(--color-background-section-alt) 60%,
+      var(--color-background-section-alt) 100%
+    );
 }
 
 /* Single-section public pages (About, Terms, FAQ) -- these don't alternate between multiple
@@ -163,9 +247,26 @@ body {
     ),
     var(--color-background-page);
 }
+/* Dark-mode mirror of the light glow above, same token-substitution reasoning as
+   .landing-section-hero's dark variant. Trial section for the dark-mode glow pass. */
 [data-theme="dark"] .landing-page-glow {
-  /* Not ported to dark mode yet -- falls back to the page's own plain background. */
-  background: var(--color-background-page);
+  background:
+    radial-gradient(
+      circle at 50% 0%,
+      color-mix(in srgb, var(--color-brand-primary) 10%, transparent),
+      transparent 56%
+    ),
+    radial-gradient(
+      circle at 12% 85%,
+      color-mix(in srgb, var(--color-accent-processing) 12%, transparent),
+      transparent 45%
+    ),
+    radial-gradient(
+      circle at 88% 90%,
+      color-mix(in srgb, var(--color-brand-primary) 6%, transparent),
+      transparent 42%
+    ),
+    var(--color-background-page);
 }
 
 /* Subtle depth for the hero's product-preview card -- border + shadow only, no background
@@ -177,9 +278,16 @@ body {
     0 8px 24px color-mix(in srgb, var(--color-brand-primary) 7%, transparent),
     inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
+/* Dark-mode mirror of the light preview-card treatment -- same shape, but the shadow's warm
+   navy tint (--color-brand-primary, navy in light mode) would be invisible against a near-black
+   page, so it's re-sourced from --color-accent-processing instead, and the inset top highlight
+   is dropped since a white inset line reads as a hard edge rather than a soft sheen on dark
+   surfaces. */
 [data-theme="dark"] .landing-preview-glow {
-  border: none;
-  box-shadow: none;
+  border: 1px solid color-mix(in srgb, var(--color-accent-processing) 22%, transparent);
+  box-shadow:
+    0 28px 70px color-mix(in srgb, var(--color-accent-processing) 18%, transparent),
+    0 8px 24px color-mix(in srgb, var(--color-accent-processing) 10%, transparent);
 }
 
 /* Ambient pop for PublicHeader's fixed charcoal bar (see that component for why the bar's own
