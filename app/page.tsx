@@ -111,8 +111,10 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Features */}
-        <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
+        {/* Features -- full-bleed alternating-section background (see the "How It Works" comment
+          below for why this alternates with the section after it). */}
+        <section style={{ backgroundColor: "var(--color-background-section-alt)" }}>
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
           <h2
             className="font-(--font-weight-h2) text-center mb-8"
             style={{
@@ -153,18 +155,15 @@ export default function LandingPage() {
               </Card>
             ))}
           </div>
+          </div>
         </section>
 
         {/* How It Works — "Product Workspace" alternating rows, per the approved navy wireframe.
-          Full-bleed background uses --color-background-subtle (a step off the page canvas,
-          --color-background-page) rather than the spec doc's stale --color-background-sidebar
-          mapping, which now resolves to deep-navy nav chrome after the light-theme token re-roll
-          -- see the session decision log for the substitution rationale. */}
-        <section
-          id="how-it-works"
-          className="scroll-mt-16"
-          style={{ backgroundColor: "var(--color-background-subtle)" }}
-        >
+          Plain page background (no distinct tint) -- alternates with the Features section above
+          and the Bottom CTA section below, each of which uses --color-background-section-alt, for
+          a repeating zebra-stripe pattern down the page in light mode (dark mode is visually
+          unaffected -- see that token's definition in tokens.css). */}
+        <section id="how-it-works" className="scroll-mt-16">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
             <div className="text-center mb-10">
               <p
@@ -246,23 +245,26 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Bottom CTA */}
-        <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 text-center">
-          <h2
-            className="font-(--font-weight-display) tracking-tight mb-4"
-            style={{ fontSize: "var(--font-size-display)", color: "var(--color-text-heading)" }}
-          >
-            Start understanding your files today
-          </h2>
-          <p
-            className="max-w-2xl mx-auto mb-8"
-            style={{ fontSize: "var(--font-size-body)", color: "var(--color-text-body)" }}
-          >
-            Skip the endless Google searches and confusing terminology. {APP_NAME} analyzes only
-            the documents you upload to provide clear, personalized answers while keeping your
-            information private and under your control.
-          </p>
-          <GetStartedCTA label="Create Free Account" size="md" />
+        {/* Bottom CTA -- full-bleed alternating-section background, continuing the zebra-stripe
+          pattern from the Features/How It Works sections above. */}
+        <section style={{ backgroundColor: "var(--color-background-section-alt)" }}>
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 text-center">
+            <h2
+              className="font-(--font-weight-display) tracking-tight mb-4"
+              style={{ fontSize: "var(--font-size-display)", color: "var(--color-text-heading)" }}
+            >
+              Start understanding your files today
+            </h2>
+            <p
+              className="max-w-2xl mx-auto mb-8"
+              style={{ fontSize: "var(--font-size-body)", color: "var(--color-text-body)" }}
+            >
+              Skip the endless Google searches and confusing terminology. {APP_NAME} analyzes only
+              the documents you upload to provide clear, personalized answers while keeping your
+              information private and under your control.
+            </p>
+            <GetStartedCTA label="Create Free Account" size="md" />
+          </div>
         </section>
       </main>
 

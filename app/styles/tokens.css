@@ -14,6 +14,10 @@
   --color-background-card: #E6ECF3;    /* elevated content surface (soft neutral) */
   --color-background-sidebar: #0B1426; /* deep-navy navigation chrome */
   --color-background-subtle: #CDD9E6;  /* quiet nested fill (insets, bubbles, skeletons) */
+  /* True grey (Tailwind slate-400) for alternating landing-page section stripes in light mode --
+     distinct from --color-background-subtle's blue-gray tint. Dark mode reuses the existing
+     subtle-fill dark value below, so dark mode's appearance is unchanged by this token. */
+  --color-background-section-alt: #94A3B8;
 
   /* Additional semantic surfaces */
   --color-surface-input: #FFFFFF;              /* input interiors, document previews (white allowed) */
@@ -120,6 +124,7 @@
   --color-background-card: #27272A;
   --color-background-sidebar: #18181B;
   --color-background-subtle: #27272A;
+  --color-background-section-alt: #27272A; /* same as subtle -- dark mode unchanged by this token */
 
   /* Additional semantic surfaces - Dark Mode.
      Values reuse the existing frozen dark palette to preserve current appearance; the only
