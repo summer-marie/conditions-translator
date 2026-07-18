@@ -74,7 +74,7 @@ export default function LandingPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-(--landing-space-gap-lg) items-center">
             <div className="text-center lg:text-left">
               <h1
-                className="font-(--font-weight-display) max-w-3xl mx-auto lg:mx-0 mb-4 tracking-tight"
+                className="font-(--font-weight-display) max-w-2xl mx-auto lg:mx-0 mb-4 tracking-tight"
                 style={{
                   fontSize: "var(--landing-font-display)",
                   lineHeight: 1.15,

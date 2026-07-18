@@ -19,7 +19,7 @@ export function StepFeatureRow({ step, heading, body, card, cardPosition }: Step
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-(--landing-space-gap-md) items-center">
       <div className={cardPosition === "start" ? "lg:order-1" : "lg:order-2"}>{card}</div>
-      <div className={cardPosition === "start" ? "lg:order-2" : "lg:order-1"}>
+      <div className={`max-w-xl ${cardPosition === "start" ? "lg:order-2" : "lg:order-1"}`}>
         <p
           className="font-(--font-weight-h3) mb-2 uppercase tracking-wide"
           style={{ fontSize: "var(--font-size-caption)", color: "var(--color-brand-primary)" }}
