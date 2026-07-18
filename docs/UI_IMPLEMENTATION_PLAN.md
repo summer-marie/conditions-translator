@@ -136,6 +136,20 @@ a future pass if this divergence should become the permanent documented journey.
 - **Current Implementation**: `app/page.tsx` — DONE. See the "Public marketing landing page"
   item above and the "Architecture note" earlier in this file for the redirect-removal
   decision.
+- **Follow-up visual/responsive pass (2026-07-18/19, `docs/landing-page-content-update`, merged
+  `main` PR #27)**: an `/faq` page was added (linked from the shared footer alongside About/
+  Terms); landing hero/how-it-works/bottom-CTA copy was rewritten; a token-derived ambient "glow"
+  background system was added to the landing page's four sections, the About/Terms/FAQ pages, and
+  the public header (`app/globals.css` — every gradient stop `color-mix()`-derived from existing
+  tokens, no new palette; light mode fully built, dark mode ported and intensity-tuned per
+  explicit user feedback); the landing page was converted to a rem-first fluid `clamp()` sizing
+  system (`--landing-font-*`/`--landing-space-*`/`--landing-container-px` tokens) replacing
+  discrete Tailwind breakpoint jumps, with a follow-up fix narrowing two headings' pre-breakpoint
+  max-widths after measuring a real ~200-490px width "snap" at the `lg` column-layout breakpoint;
+  and a sitewide (not landing-only) `@media (any-pointer: fine)` pointer-cursor rule was added.
+  See `.agent-memory/DECISIONS.md` and `WORK_LOG.md` for full detail. `PublicHeader`/`FooterCTA`
+  (shared with About/Terms/FAQ) and shared UI primitives were deliberately left out of the fluid
+  conversion, staying on their existing fixed-rem values.
 
 #### Workspace-preview variant ("Option B" navy) — hero + "Product Workspace" rows
 
