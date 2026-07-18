@@ -97,6 +97,23 @@ export const PAGE_IMAGE_FILE_INPUT_PROPS = {
   capture: "environment" as const,
 };
 
+// Builds the workspace URL for switching the finished-document view between its "Sections" tab
+// (default -- omits the param, matching today's plain sidenav document link) and its "Pages" tab
+// (read-only page set, reached via the sidenav overflow menu's "Review pages" action -- see
+// components/layout/AppNav.tsx). Takes the current search string so ?documentId= (and anything
+// else already present) survives the tab switch untouched. Exported so this can be
+// regression-tested without a component-rendering harness (see initialCorrectionValue below).
+export function buildWorkspacePanelUrl(currentSearch: string, panel: "sections" | "pages"): string {
+  const params = new URLSearchParams(currentSearch);
+  if (panel === "pages") {
+    params.set("panel", "pages");
+  } else {
+    params.delete("panel");
+  }
+  const qs = params.toString();
+  return `/app/workspace${qs ? `?${qs}` : ""}`;
+}
+
 // Initial value for a page's correction textarea: the current accepted-text source
 // (correctedText ?? extractedText), matching the same selection used by section generation,
 // chat context, and the document inspector. Exported so this and validateCorrectionText below
@@ -781,6 +798,15 @@ function WorkspacePageContent() {
   const isReady = document.status === "READY";
   const isProcessing = document.status === "COMPLETED" || document.status === "PROCESSING";
   const isProcessingFailed = document.status === "PROCESSING_FAILED";
+  // Which tab of the finished-document organized view is showing: "Sections" (default, matches
+  // today's behavior for the plain sidenav document link) or "Pages" (read-only page set, reached
+  // via the sidenav overflow menu's "Review pages" action -- see components/layout/AppNav.tsx).
+  // Derived straight from the URL, the same way ?documentId= itself already is, so switching tabs
+  // is just a query-param update and there's no separate state to keep in sync on document change.
+  const viewedPanel = searchParams.get("panel") === "pages" ? "pages" : "sections";
+  function setViewedPanel(panel: "sections" | "pages") {
+    router.push(buildWorkspacePanelUrl(searchParams.toString(), panel));
+  }
   const acceptedPageCount = pages.filter((p) => p.status === "ACCEPTED").length;
   const canFinish = acceptedPageCount > 0 && document.status === "IN_PROGRESS";
   const isViewingIntake = document.id === intakeDocument?.id;
@@ -1298,18 +1324,114 @@ function WorkspacePageContent() {
                 reading, not page-by-page review. */}
             {document.status !== "IN_PROGRESS" && (
               <Card variant="panel">
-                <h2
-                  className="mb-4"
-                  style={{
-                    fontSize: 'var(--font-size-h3)',
-                    fontWeight: 'var(--font-weight-h3)',
-                    color: 'var(--color-text-heading)',
-                    marginBottom: 'var(--spacing-4)'
-                  }}
-                >
-                  Sections
-                </h2>
-                {isReady && document.sections.length > 0 ? (
+                <div className="flex items-center justify-between mb-4" style={{ marginBottom: 'var(--spacing-4)' }}>
+                  <h2
+                    style={{
+                      fontSize: 'var(--font-size-h3)',
+                      fontWeight: 'var(--font-weight-h3)',
+                      color: 'var(--color-text-heading)',
+                    }}
+                  >
+                    {viewedPanel === "pages" ? "Pages" : "Sections"}
+                  </h2>
+                  <div
+                    role="tablist"
+                    aria-label="Document view"
+                    className="inline-flex rounded-md border border-(--color-border-card) p-0.5"
+                  >
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={viewedPanel === "sections"}
+                      onClick={() => setViewedPanel("sections")}
+                      className={`min-h-11 sm:min-h-0 rounded-[calc(var(--radius-md)-2px)] px-3 py-1.5 text-sm font-medium transition-colors ${
+                        viewedPanel === "sections"
+                          ? "bg-(--color-background-subtle) text-(--color-text-heading)"
+                          : "text-(--color-text-meta) hover:text-(--color-text-body)"
+                      }`}
+                    >
+                      Sections
+                    </button>
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={viewedPanel === "pages"}
+                      onClick={() => setViewedPanel("pages")}
+                      className={`min-h-11 sm:min-h-0 rounded-[calc(var(--radius-md)-2px)] px-3 py-1.5 text-sm font-medium transition-colors ${
+                        viewedPanel === "pages"
+                          ? "bg-(--color-background-subtle) text-(--color-text-heading)"
+                          : "text-(--color-text-meta) hover:text-(--color-text-body)"
+                      }`}
+                    >
+                      Pages
+                    </button>
+                  </div>
+                </div>
+                {viewedPanel === "pages" ? (
+                  pages.length === 0 ? (
+                    <p
+                      className="text-center py-8"
+                      style={{
+                        fontSize: 'var(--font-size-body)',
+                        color: 'var(--color-text-meta)',
+                        textAlign: 'center',
+                        padding: 'var(--spacing-8) 0'
+                      }}
+                    >
+                      This document has no pages.
+                    </p>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {pages.map((page) => (
+                        <div
+                          key={page.id}
+                          className="flex items-start gap-3"
+                          style={{
+                            border: `1px solid var(--color-border-card)`,
+                            borderRadius: 'var(--radius-md)',
+                            padding: 'var(--spacing-4)'
+                          }}
+                        >
+                          <button
+                            onClick={() => setExpandedImagePage(page)}
+                            className="shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-border-focus-ring) rounded"
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element -- Dynamic authenticated API route with private Blob storage */}
+                            <img
+                              src={`/api/documents/${document.id}/pages/${page.id}/image`}
+                              alt={`Page ${page.order + 1} (click to enlarge)`}
+                              style={{
+                                width: '5rem',
+                                height: '6.67rem',
+                                aspectRatio: '3/4',
+                                objectFit: 'cover',
+                                backgroundColor: 'var(--color-background-subtle)',
+                                borderRadius: 'var(--radius-sm)',
+                                cursor: 'pointer'
+                              }}
+                              className="hover:ring-2 hover:ring-blue-400 transition-all"
+                            />
+                          </button>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-2">
+                              <span style={{ fontSize: 'var(--font-size-body)', fontWeight: 'var(--font-weight-h3)', color: 'var(--color-text-heading)' }}>
+                                Page {page.order + 1}
+                              </span>
+                              <Badge variant={page.status === "ACCEPTED" ? "success" : "neutral"} size="sm">
+                                {statusLabel(page)}
+                              </Badge>
+                            </div>
+                            {page.ocr && (
+                              <p className="text-xs text-(--color-text-meta) mt-1 line-clamp-3">
+                                {page.ocr.correctedText ?? page.ocr.extractedText}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )
+                ) : isReady && document.sections.length > 0 ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-4)' }}>
                     {document.sections.map((section) => (
                       <div

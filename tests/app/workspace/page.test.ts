@@ -14,8 +14,36 @@ import {
   initialCorrectionValue,
   validateCorrectionText,
   PAGE_IMAGE_FILE_INPUT_PROPS,
+  buildWorkspacePanelUrl,
 } from "@/app/app/workspace/page";
 import { OCR_MAX_CORRECTION_CHARACTERS } from "@/lib/constants";
+
+// Covers the Sections/Pages tab toggle added for the finished-document overflow-actions pass
+// (components/layout/AppNav.tsx's "Review pages" action navigates to a ?panel=pages URL built
+// by this same function).
+describe("buildWorkspacePanelUrl", () => {
+  it("omits the panel param for the default Sections tab", () => {
+    expect(buildWorkspacePanelUrl("documentId=doc-1", "sections")).toBe(
+      "/app/workspace?documentId=doc-1"
+    );
+  });
+
+  it("adds panel=pages for the Pages tab", () => {
+    expect(buildWorkspacePanelUrl("documentId=doc-1", "pages")).toBe(
+      "/app/workspace?documentId=doc-1&panel=pages"
+    );
+  });
+
+  it("preserves documentId and drops only the panel param when switching back to Sections", () => {
+    expect(buildWorkspacePanelUrl("documentId=doc-1&panel=pages", "sections")).toBe(
+      "/app/workspace?documentId=doc-1"
+    );
+  });
+
+  it("produces a bare path when there is no other query param left", () => {
+    expect(buildWorkspacePanelUrl("", "sections")).toBe("/app/workspace");
+  });
+});
 
 // Both the initial upload input and the re-upload input spread this same object (see
 // app/app/workspace/page.tsx), so asserting on it covers both call sites at once without a

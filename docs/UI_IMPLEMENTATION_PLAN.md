@@ -69,6 +69,22 @@ a future pass if this divergence should become the permanent documented journey.
    `/app/workspace`, all through the existing `acceptPrivacy` Server Action. See the
    "Architecture note" above — this replaces a hard redirect that was previously load-bearing
    for the guest entry flow.
+10. **Finished-document overflow actions (sidenav/mobile menu)** — DONE (2026-07-18):
+    `components/layout/AppNav.tsx`. Each finished document listed in the sidenav (desktop) or
+    hamburger menu (mobile) — the same list built for the earlier "workspace multi-document
+    browsing" pass — now has an overflow (kebab) trigger alongside its title link, offering two
+    actions: **Review pages** and **Delete document**. See "Overflow actions
+    (popover/sheet)" under Shared Layout/Component Patterns below for the desktop-vs-mobile
+    presentation and reuse notes. Reviewing pages lands on `app/app/workspace/page.tsx` with a
+    new `?panel=pages` query param that switches the existing finished-document card from its
+    default "Sections" tab to a new read-only "Pages" tab (thumbnail grid reusing the existing
+    click-to-expand image modal; no Accept/Re-upload/Delete controls, since page-level mutation
+    stays IN_PROGRESS-only per `requireInProgressOwnedDocument`). Deleting reuses
+    `app/app/dashboard/page.tsx`'s existing delete-confirmation modal pattern verbatim (own state
+    in `AppNav`, same `DELETE /api/documents/[id]` endpoint); on success the document is removed
+    from the nav's own list and, if the user was currently viewing that exact document in the
+    workspace, they're redirected to the plain `/app/workspace` route (which already has a
+    graceful fallback to the active intake document or empty state).
 
 ## Relevant Wireframe/Design-Spec Files by Screen
 
@@ -249,6 +265,30 @@ a future pass if this divergence should become the permanent documented journey.
 - **Desktop**: Sidebar with navigation links, active state highlighted (emerald)
 - **Mobile**: Bottom tab bar with icons, active state highlighted
 - **App logo**: Always routes to dashboard when clicked
+
+### Overflow actions (popover/sheet) — added 2026-07-18
+For a per-item "..." actions trigger on a list row (first used for finished documents in the
+sidenav/mobile menu, `components/layout/AppNav.tsx`'s `DocumentActionsMenu`):
+- **Desktop**: small anchored popover (`role="menu"`, `--color-background-card` surface,
+  `--color-border-card` border, `shadow-lg`, positioned `absolute right-0 top-full` off the
+  trigger button) with an invisible full-viewport backdrop (click-outside-to-close, no dimming —
+  a popover is lighter-weight than a modal). Keep this style for any future per-row overflow menu
+  rather than inventing a new one.
+- **Mobile**: full-width bottom action sheet (`fixed inset-x-0 bottom-0`, `rounded-t-xl`, same
+  `--color-background-card`/`--color-border-card` surface, a real dimmed backdrop matching the
+  existing modal weight (`bg-black/50`), `min-h-11` rows for touch targets, an explicit trailing
+  Cancel row). Reuse this shape for any future mobile action-sheet need instead of a new pattern.
+- **Shared conventions**: both variants reuse `useFocusTrap` (already used by every other
+  modal/menu in the app) and their own Escape-key listener; destructive items use
+  `--color-accent-destructive` text on the card surface (not a solid danger button — that's
+  reserved for an actual confirmation modal's buttons, see Cards/destructive-modal note below);
+  no new colors were introduced — every surface/border/text token above already existed for both
+  light and dark mode.
+- **Destructive confirmation**: an overflow menu's destructive action (e.g. "Delete document")
+  should still open the existing full confirmation-modal pattern (see the dashboard's
+  delete-document modal, `app/app/dashboard/page.tsx`) rather than deleting directly from the
+  menu/sheet — the overflow menu only decides *which* document, the modal still gates the actual
+  destructive call.
 
 ### Cards
 - **Default**: Card background + subtle shadow

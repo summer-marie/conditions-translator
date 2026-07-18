@@ -11,9 +11,10 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { APP_NAME } from "@/lib/constants";
+import { Button } from "@/components/ui/Button";
 
 const NAV_ITEMS = [
   { href: "/app/dashboard", label: "Dashboard", icon: DashboardIcon },
@@ -49,6 +50,7 @@ export function AppNav({ children }: { children: React.ReactNode }) {
 }
 
 function AppNavContent({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [finishedDocuments, setFinishedDocuments] = useState<FinishedDocument[]>([]);
@@ -56,6 +58,87 @@ function AppNavContent({ children }: { children: React.ReactNode }) {
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
   const mobileMenuRef = useRef<HTMLElement | null>(null);
   useFocusTrap(menuOpen, mobileMenuRef);
+
+  // Overflow actions (Review pages / Delete document) for a finished document row in the sidenav
+  // or mobile menu -- id of the document whose menu/sheet is currently open, or null. Shared by
+  // both the desktop popover and mobile action sheet (DocumentActionsMenu below): only one is
+  // ever visible at a given viewport, so one state/ref pair is enough.
+  const [openActionsFor, setOpenActionsFor] = useState<string | null>(null);
+  const actionsPopoverRef = useRef<HTMLDivElement | null>(null);
+  const actionsSheetRef = useRef<HTMLDivElement | null>(null);
+  useFocusTrap(openActionsFor !== null, actionsPopoverRef);
+  useFocusTrap(openActionsFor !== null, actionsSheetRef);
+
+  const [deleteDocModal, setDeleteDocModal] = useState<{
+    isOpen: boolean;
+    document: FinishedDocument | null;
+    isDeleting: boolean;
+    error: string | null;
+  }>({ isOpen: false, document: null, isDeleting: false, error: null });
+  const deleteDocModalRef = useRef<HTMLDivElement | null>(null);
+  useFocusTrap(deleteDocModal.isOpen, deleteDocModalRef);
+
+  useEffect(() => {
+    if (openActionsFor === null) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpenActionsFor(null);
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [openActionsFor]);
+
+  useEffect(() => {
+    if (!deleteDocModal.isOpen) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") handleDeleteDocCancel();
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [deleteDocModal.isOpen]);
+
+  function handleReviewPagesClick() {
+    setOpenActionsFor(null);
+  }
+
+  function handleDeleteDocClick(doc: FinishedDocument) {
+    setOpenActionsFor(null);
+    setDeleteDocModal({ isOpen: true, document: doc, isDeleting: false, error: null });
+  }
+
+  function handleDeleteDocCancel() {
+    setDeleteDocModal({ isOpen: false, document: null, isDeleting: false, error: null });
+  }
+
+  async function handleDeleteDocConfirm() {
+    if (!deleteDocModal.document) return;
+    const documentId = deleteDocModal.document.id;
+
+    setDeleteDocModal((prev) => ({ ...prev, isDeleting: true, error: null }));
+
+    try {
+      const response = await fetch(`/api/documents/${documentId}`, { method: "DELETE" });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to delete document");
+      }
+
+      setFinishedDocuments((prev) => prev.filter((d) => d.id !== documentId));
+      setDeleteDocModal({ isOpen: false, document: null, isDeleting: false, error: null });
+
+      // If the deleted document was the one currently open in the workspace, its ?documentId=
+      // now points nowhere -- send the user back to the plain workspace route, which already
+      // falls back to the active intake document (or the empty state) on its own.
+      if (pathname === "/app/workspace" && searchParams.get("documentId") === documentId) {
+        router.push("/app/workspace");
+      }
+    } catch (error) {
+      setDeleteDocModal((prev) => ({
+        ...prev,
+        isDeleting: false,
+        error: error instanceof Error ? error.message : "Failed to delete document",
+      }));
+    }
+  }
   // Always starts "light" to exactly match the server render (server has no access to
   // localStorage/matchMedia). Reading those during the initial client render instead
   // would make this component's hydrated output differ from the server's, which forces
@@ -242,20 +325,41 @@ function AppNavContent({ children }: { children: React.ReactNode }) {
               {finishedDocuments.map((doc) => {
                 const active = pathname === "/app/workspace" && searchParams.get("documentId") === doc.id;
                 return (
-                  <Link
-                    key={doc.id}
-                    href={`/app/workspace?documentId=${doc.id}`}
-                    aria-current={active ? "page" : undefined}
-                    title={doc.title}
-                    className={`flex h-9 items-center gap-3 rounded-md px-3 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-surface-nav-foreground) ${
-                      active
-                        ? "bg-(--color-surface-nav-active-bg) text-(--color-surface-nav-active-foreground)"
-                        : "text-(--color-surface-nav-foreground) hover:bg-white/10"
-                    }`}
-                  >
-                    <DocumentIcon />
-                    <span className="truncate min-w-0">{doc.title}</span>
-                  </Link>
+                  <div key={doc.id} className="relative flex items-center gap-0.5">
+                    <Link
+                      href={`/app/workspace?documentId=${doc.id}`}
+                      aria-current={active ? "page" : undefined}
+                      title={doc.title}
+                      className={`flex h-9 min-w-0 flex-1 items-center gap-3 rounded-md px-3 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-surface-nav-foreground) ${
+                        active
+                          ? "bg-(--color-surface-nav-active-bg) text-(--color-surface-nav-active-foreground)"
+                          : "text-(--color-surface-nav-foreground) hover:bg-white/10"
+                      }`}
+                    >
+                      <DocumentIcon />
+                      <span className="truncate min-w-0">{doc.title}</span>
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => setOpenActionsFor(openActionsFor === doc.id ? null : doc.id)}
+                      aria-label={`Actions for ${doc.title}`}
+                      aria-haspopup="menu"
+                      aria-expanded={openActionsFor === doc.id}
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-(--color-surface-nav-foreground) hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-surface-nav-foreground)"
+                    >
+                      <OverflowIcon />
+                    </button>
+                    {openActionsFor === doc.id && (
+                      <DocumentActionsMenu
+                        variant="popover"
+                        document={doc}
+                        popoverRef={actionsPopoverRef}
+                        onClose={() => setOpenActionsFor(null)}
+                        onReviewPagesClick={handleReviewPagesClick}
+                        onDeleteClick={() => handleDeleteDocClick(doc)}
+                      />
+                    )}
+                  </div>
                 );
               })}
             </div>
@@ -334,20 +438,31 @@ function AppNavContent({ children }: { children: React.ReactNode }) {
                 {finishedDocuments.map((doc) => {
                   const active = pathname === "/app/workspace" && searchParams.get("documentId") === doc.id;
                   return (
-                    <Link
-                      key={doc.id}
-                      href={`/app/workspace?documentId=${doc.id}`}
-                      onClick={() => setMenuOpen(false)}
-                      aria-current={active ? "page" : undefined}
-                      className={`flex h-10 items-center gap-3 rounded-md px-3 text-sm font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-surface-nav-foreground) ${
-                        active
-                          ? "bg-(--color-surface-nav-active-bg) text-(--color-surface-nav-active-foreground)"
-                          : "text-(--color-surface-nav-foreground) hover:bg-white/10"
-                      }`}
-                    >
-                      <DocumentIcon />
-                      <span className="truncate min-w-0">{doc.title}</span>
-                    </Link>
+                    <div key={doc.id} className="flex items-center gap-0.5">
+                      <Link
+                        href={`/app/workspace?documentId=${doc.id}`}
+                        onClick={() => setMenuOpen(false)}
+                        aria-current={active ? "page" : undefined}
+                        className={`flex h-10 min-w-0 flex-1 items-center gap-3 rounded-md px-3 text-sm font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-surface-nav-foreground) ${
+                          active
+                            ? "bg-(--color-surface-nav-active-bg) text-(--color-surface-nav-active-foreground)"
+                            : "text-(--color-surface-nav-foreground) hover:bg-white/10"
+                        }`}
+                      >
+                        <DocumentIcon />
+                        <span className="truncate min-w-0">{doc.title}</span>
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => setOpenActionsFor(doc.id)}
+                        aria-label={`Actions for ${doc.title}`}
+                        aria-haspopup="menu"
+                        aria-expanded={openActionsFor === doc.id}
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-(--color-surface-nav-foreground) hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-surface-nav-foreground)"
+                      >
+                        <OverflowIcon />
+                      </button>
+                    </div>
                   );
                 })}
               </div>
@@ -383,6 +498,90 @@ function AppNavContent({ children }: { children: React.ReactNode }) {
       <main id="main-content" className="min-w-0 flex-1 pt-14 pb-16 md:pt-0 md:pb-0">
         {children}
       </main>
+
+      {/* Mobile action sheet: rendered once here at the top level (not nested inside the mobile
+          menu's own <nav>) because that nav and the fixed bottom tab bar are z-index siblings --
+          the bottom tab bar comes later in DOM order and would otherwise win the stacking tie and
+          intercept taps on the sheet's buttons despite the sheet's own higher z-index, since a
+          z-index only wins against siblings within the same stacking context as its parent. */}
+      {openActionsFor &&
+        (() => {
+          const doc = finishedDocuments.find((d) => d.id === openActionsFor);
+          if (!doc) return null;
+          return (
+            <div id="mobile-action-sheet-root" className="md:hidden">
+              <DocumentActionsMenu
+                variant="sheet"
+                document={doc}
+                sheetRef={actionsSheetRef}
+                onClose={() => setOpenActionsFor(null)}
+                onReviewPagesClick={() => {
+                  setOpenActionsFor(null);
+                  setMenuOpen(false);
+                }}
+                onDeleteClick={() => handleDeleteDocClick(doc)}
+              />
+            </div>
+          );
+        })()}
+
+      {/* Delete document confirmation modal, reachable from the sidenav/mobile-menu overflow
+          actions on any finished document. Mirrors app/app/dashboard/page.tsx's delete-document
+          modal pattern exactly (same copy, same layout, same Cancel/Delete Button pair) since
+          this is the same destructive action, just reachable from a second entry point. */}
+      {deleteDocModal.isOpen && deleteDocModal.document && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={handleDeleteDocCancel}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="nav-delete-modal-title"
+        >
+          <div
+            ref={deleteDocModalRef}
+            className="bg-(--color-background-card) rounded-lg shadow-xl max-w-md w-full p-6 border border-(--color-border-card)"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4">
+              <h2
+                id="nav-delete-modal-title"
+                className="font-(--font-weight-h2) mb-2"
+                style={{ fontSize: 'var(--font-size-h2)', color: 'var(--color-text-heading)' }}
+              >
+                Delete document?
+              </h2>
+              <p style={{ fontSize: 'var(--font-size-body)', color: 'var(--color-text-body)' }}>
+                This will permanently delete{" "}
+                <span className="font-medium">{deleteDocModal.document.title}</span> and all its
+                pages. This action cannot be undone.
+              </p>
+              {deleteDocModal.error && (
+                <p className="text-(--color-accent-destructive) text-sm mt-2">{deleteDocModal.error}</p>
+              )}
+            </div>
+
+            <div className="flex gap-3 justify-end">
+              <Button
+                onClick={handleDeleteDocCancel}
+                disabled={deleteDocModal.isDeleting}
+                variant="secondary"
+                size="md"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleDeleteDocConfirm}
+                disabled={deleteDocModal.isDeleting}
+                variant="danger"
+                size="md"
+                isLoading={deleteDocModal.isDeleting}
+              >
+                Delete
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -456,6 +655,118 @@ function DocumentIcon() {
         strokeLinejoin="round"
       />
       <path d="M12 3v3h3" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+// Overflow actions (Review pages / Delete document) for one finished-document sidenav/mobile-menu
+// row. Deliberately short and focused -- two actions only, per the chosen UX direction. Renders
+// either an anchored popover (desktop, "popover") or a bottom action sheet (mobile, "sheet");
+// callers pass the matching ref/variant rather than this component picking responsively itself,
+// since the two call sites already live in separate desktop/mobile JSX blocks (matching this
+// file's existing convention of duplicating desktop vs. mobile nav markup rather than branching
+// internally on viewport).
+function DocumentActionsMenu({
+  variant,
+  document,
+  popoverRef,
+  sheetRef,
+  onClose,
+  onReviewPagesClick,
+  onDeleteClick,
+}: {
+  variant: "popover" | "sheet";
+  document: FinishedDocument;
+  popoverRef?: React.RefObject<HTMLDivElement | null>;
+  sheetRef?: React.RefObject<HTMLDivElement | null>;
+  onClose: () => void;
+  onReviewPagesClick: () => void;
+  onDeleteClick: () => void;
+}) {
+  if (variant === "popover") {
+    return (
+      <>
+        {/* Invisible backdrop: closes the popover on an outside click without dimming the page,
+            matching typical popover (not modal) weight. */}
+        <div className="fixed inset-0 z-40" onClick={onClose} />
+        <div
+          ref={popoverRef}
+          role="menu"
+          aria-label={`Actions for ${document.title}`}
+          className="absolute right-0 top-full z-50 mt-1 w-48 rounded-md border border-(--color-border-card) bg-(--color-background-card) py-1 shadow-lg"
+        >
+          <Link
+            href={`/app/workspace?documentId=${document.id}&panel=pages`}
+            role="menuitem"
+            onClick={onReviewPagesClick}
+            className="flex h-9 items-center px-3 text-sm text-(--color-text-body) hover:bg-(--color-background-subtle)"
+          >
+            Review pages
+          </Link>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={onDeleteClick}
+            className="flex h-9 w-full items-center px-3 text-left text-sm text-(--color-accent-destructive) hover:bg-(--color-background-subtle)"
+          >
+            Delete document
+          </button>
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <div className="fixed inset-0 z-40 bg-black/50" onClick={onClose} aria-hidden="true" />
+      <div
+        ref={sheetRef}
+        role="menu"
+        aria-label={`Actions for ${document.title}`}
+        className="fixed inset-x-0 bottom-0 z-50 rounded-t-xl border-t border-(--color-border-card) bg-(--color-background-card) p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-lg"
+      >
+        <p className="truncate px-3 pb-2 pt-1 text-sm font-medium text-(--color-text-meta)">
+          {document.title}
+        </p>
+        <Link
+          href={`/app/workspace?documentId=${document.id}&panel=pages`}
+          role="menuitem"
+          onClick={onReviewPagesClick}
+          className="flex min-h-11 items-center rounded-md px-3 text-base text-(--color-text-body) hover:bg-(--color-background-subtle)"
+        >
+          Review pages
+        </Link>
+        <button
+          type="button"
+          role="menuitem"
+          onClick={onDeleteClick}
+          className="flex min-h-11 w-full items-center rounded-md px-3 text-left text-base text-(--color-accent-destructive) hover:bg-(--color-background-subtle)"
+        >
+          Delete document
+        </button>
+        <button
+          type="button"
+          onClick={onClose}
+          className="mt-1 flex min-h-11 w-full items-center justify-center rounded-md border border-(--color-border-strong) text-base font-medium text-(--color-text-body) hover:bg-(--color-background-subtle)"
+        >
+          Cancel
+        </button>
+      </div>
+    </>
+  );
+}
+
+function OverflowIcon() {
+  return (
+    <svg
+      className="h-5 w-5 shrink-0"
+      aria-hidden="true"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+    >
+      <circle cx="10" cy="4.5" r="1.4" />
+      <circle cx="10" cy="10" r="1.4" />
+      <circle cx="10" cy="15.5" r="1.4" />
     </svg>
   );
 }
