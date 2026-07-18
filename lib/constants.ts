@@ -70,3 +70,11 @@ export const DEFAULT_DOCUMENT_TITLE = "Untitled Document";
 export function isDefaultDocumentTitle(title: string): boolean {
   return title.trim().toLowerCase() === DEFAULT_DOCUMENT_TITLE.toLowerCase();
 }
+
+// window CustomEvent name dispatched by the workspace page right after Finish Document succeeds.
+// components/layout/AppNav.tsx's shared sidenav listens for this to refresh its finished-document
+// list immediately -- its own fetch is otherwise keyed to route (pathname) changes only, so a
+// document finishing while the user stays on /app/workspace would not appear there until an
+// unrelated navigation happened to trigger a refetch. No shared state/context between the two
+// components exists (or is needed) beyond this one signal.
+export const DOCUMENTS_CHANGED_EVENT = "workspace:documents-changed";

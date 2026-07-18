@@ -25,6 +25,7 @@ import {
   DEFAULT_DOCUMENT_TITLE,
   isDefaultDocumentTitle,
   OCR_MAX_CORRECTION_CHARACTERS,
+  DOCUMENTS_CHANGED_EVENT,
 } from "@/lib/constants";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -651,6 +652,11 @@ function WorkspacePageContent() {
     try {
       await finishDocument(document.id);
       await refetchDocument(document.id);
+      // Finishing moves this Document out of IN_PROGRESS, making it newly eligible for the
+      // sidenav's "Documents" list (components/layout/AppNav.tsx) -- that list only re-fetches
+      // on route changes otherwise, so without this the just-finished document wouldn't appear
+      // there until an unrelated navigation happened to trigger a refetch.
+      window.dispatchEvent(new Event(DOCUMENTS_CHANGED_EVENT));
     } catch (error) {
       alert(error instanceof Error ? error.message : "Failed to finish document");
     } finally {

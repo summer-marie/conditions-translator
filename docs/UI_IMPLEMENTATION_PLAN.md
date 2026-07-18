@@ -85,6 +85,19 @@ a future pass if this divergence should become the permanent documented journey.
     from the nav's own list and, if the user was currently viewing that exact document in the
     workspace, they're redirected to the plain `/app/workspace` route (which already has a
     graceful fallback to the active intake document or empty state).
+    **Follow-up fix (2026-07-18, same day):** the sidenav's finished-document list only re-fetched
+    on route (pathname) changes, so a document that had just been finished via **Finish Document**
+    (an in-place status transition on the same `/app/workspace` route, no navigation) did not
+    appear in the sidenav — and therefore had no overflow-actions entry point — until the user
+    happened to navigate elsewhere and back. Fixed by adding a `DOCUMENTS_CHANGED_EVENT` window
+    event (`lib/constants.ts`): `app/app/workspace/page.tsx`'s `handleFinishDocument` dispatches it
+    right after `finishDocument()` succeeds, and `AppNav`'s existing fetch effect now also listens
+    for it (in addition to its `[pathname]` dependency), refetching immediately. Confirmed live via
+    a real upload → OCR → accept → Finish Document round trip (not a DB fixture): the sidenav now
+    shows the document, and its overflow menu's "Review pages" works, immediately after finishing
+    — with no navigation in between. The main workspace view's default state is unaffected: a
+    freshly finished document still centers its Sections tab by default, with Pages reachable only
+    through Review pages, exactly as designed.
 
 ## Relevant Wireframe/Design-Spec Files by Screen
 

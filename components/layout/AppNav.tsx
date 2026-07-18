@@ -13,7 +13,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
-import { APP_NAME } from "@/lib/constants";
+import { APP_NAME, DOCUMENTS_CHANGED_EVENT } from "@/lib/constants";
 import { Button } from "@/components/ui/Button";
 
 const NAV_ITEMS = [
@@ -212,8 +212,11 @@ function AppNavContent({ children }: { children: React.ReactNode }) {
   // sidenav destinations, alongside the fixed Dashboard/Workspace/Chat items. Reuses the existing
   // owner-aware GET /api/documents endpoint used elsewhere (dashboard, chat, workspace) -- guests
   // get their temporary session's documents, signed-in users get their persisted ones, with no
-  // separate nav-specific persistence. Re-fetched on route change so a document finished in the
-  // workspace shows up here without a full reload.
+  // separate nav-specific persistence. Re-fetched on route change (a document finished on a prior
+  // route shows up here without a full reload) AND on DOCUMENTS_CHANGED_EVENT, which the workspace
+  // page dispatches right after Finish Document succeeds -- that transition happens without any
+  // route/pathname change, so the pathname trigger alone would leave a just-finished document
+  // missing from this list until an unrelated navigation happened to refetch it.
   useEffect(() => {
     if (HIDDEN_ROUTES.includes(pathname)) return;
     let cancelled = false;
@@ -232,8 +235,10 @@ function AppNavContent({ children }: { children: React.ReactNode }) {
       }
     }
     loadFinishedDocuments();
+    window.addEventListener(DOCUMENTS_CHANGED_EVENT, loadFinishedDocuments);
     return () => {
       cancelled = true;
+      window.removeEventListener(DOCUMENTS_CHANGED_EVENT, loadFinishedDocuments);
     };
   }, [pathname]);
 
