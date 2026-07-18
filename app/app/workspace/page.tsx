@@ -206,6 +206,14 @@ function WorkspacePageContent() {
   const [expandedImagePage, setExpandedImagePage] = useState<Page | null>(null);
   const expandedImageModalRef = useRef<HTMLDivElement | null>(null);
   useFocusTrap(expandedImagePage !== null, expandedImageModalRef);
+  const [deletePageModal, setDeletePageModal] = useState<{
+    isOpen: boolean;
+    pageId: string | null;
+    isDeleting: boolean;
+    error: string | null;
+  }>({ isOpen: false, pageId: null, isDeleting: false, error: null });
+  const deletePageModalRef = useRef<HTMLDivElement | null>(null);
+  useFocusTrap(deletePageModal.isOpen, deletePageModalRef);
   // Set once the workspace is owned by a signed-in account (Phase 7). null while temporary.
   const [savedUserId, setSavedUserId] = useState<string | null>(null);
   const [isSigningOut, setIsSigningOut] = useState(false);
@@ -572,17 +580,31 @@ function WorkspacePageContent() {
     }
   };
 
-  const handleDeletePage = async (pageId: string) => {
-    if (!document) return;
-    if (!window.confirm("Delete this page? This cannot be undone.")) return;
+  const handleDeletePageClick = (pageId: string) => {
+    setDeletePageModal({ isOpen: true, pageId, isDeleting: false, error: null });
+  };
 
+  const handleDeletePageCancel = () => {
+    setDeletePageModal({ isOpen: false, pageId: null, isDeleting: false, error: null });
+  };
+
+  const handleDeletePageConfirm = async () => {
+    if (!document || !deletePageModal.pageId) return;
+    const pageId = deletePageModal.pageId;
+
+    setDeletePageModal((prev) => ({ ...prev, isDeleting: true, error: null }));
     setActioningPageId(pageId);
     try {
       await deletePage(document.id, pageId);
       await refetchPages(document.id);
       setDocument((prev) => (prev ? { ...prev, pageCount: prev.pageCount - 1 } : null));
+      setDeletePageModal({ isOpen: false, pageId: null, isDeleting: false, error: null });
     } catch (error) {
-      alert(error instanceof Error ? error.message : "Failed to delete page");
+      setDeletePageModal((prev) => ({
+        ...prev,
+        isDeleting: false,
+        error: error instanceof Error ? error.message : "Failed to delete page",
+      }));
     } finally {
       setActioningPageId(null);
     }
@@ -681,6 +703,15 @@ function WorkspacePageContent() {
     window.document.addEventListener("keydown", handleKeyDown);
     return () => window.document.removeEventListener("keydown", handleKeyDown);
   }, [expandedImagePage]);
+
+  useEffect(() => {
+    if (!deletePageModal.isOpen) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") handleDeletePageCancel();
+    }
+    window.document.addEventListener("keydown", handleKeyDown);
+    return () => window.document.removeEventListener("keydown", handleKeyDown);
+  }, [deletePageModal.isOpen]);
 
   if (isLoading) {
     return (
@@ -953,7 +984,7 @@ function WorkspacePageContent() {
                           marginBottom: 'var(--spacing-2)'
                         }}
                       >
-                        <span style={{ fontWeight: 'var(--font-weight-h3)' }}>Click to upload</span> or drag and drop
+                        <span style={{ fontWeight: 'var(--font-weight-h3)' }}>Click to upload</span>
                       </p>
                       <p
                         style={{
@@ -1191,6 +1222,7 @@ function WorkspacePageContent() {
                             disabled={!canAccept}
                             variant="primary"
                             size="sm"
+                            className="min-h-11 sm:min-h-0"
                           >
                             Accept
                           </Button>
@@ -1200,6 +1232,7 @@ function WorkspacePageContent() {
                               variant="secondary"
                               size="sm"
                               disabled={!canReupload}
+                              className="min-h-11 sm:min-h-0"
                             >
                               <span>Re-upload</span>
                             </Button>
@@ -1217,10 +1250,11 @@ function WorkspacePageContent() {
                           </label>
 
                           <Button
-                            onClick={() => handleDeletePage(page.id)}
+                            onClick={() => handleDeletePageClick(page.id)}
                             disabled={!canDelete}
                             variant="danger"
                             size="sm"
+                            className="min-h-11 sm:min-h-0"
                           >
                             Delete
                           </Button>
@@ -1531,6 +1565,59 @@ function WorkspacePageContent() {
           </div>
         </div>
       </main>
+
+      {/* Delete page confirmation modal (mirrors the dashboard's delete-document modal pattern) */}
+      {deletePageModal.isOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={handleDeletePageCancel}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-page-modal-title"
+        >
+          <div
+            ref={deletePageModalRef}
+            className="bg-(--color-background-card) rounded-lg shadow-xl max-w-md w-full p-6 border border-(--color-border-card)"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4">
+              <h2
+                id="delete-page-modal-title"
+                className="font-(--font-weight-h2) mb-2"
+                style={{ fontSize: 'var(--font-size-h2)', color: 'var(--color-text-heading)' }}
+              >
+                Delete this page?
+              </h2>
+              <p style={{ fontSize: 'var(--font-size-body)', color: 'var(--color-text-body)' }}>
+                This cannot be undone.
+              </p>
+              {deletePageModal.error && (
+                <p className="text-(--color-accent-destructive) text-sm mt-2">{deletePageModal.error}</p>
+              )}
+            </div>
+
+            <div className="flex gap-3 justify-end">
+              <Button
+                onClick={handleDeletePageCancel}
+                disabled={deletePageModal.isDeleting}
+                variant="secondary"
+                size="md"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleDeletePageConfirm}
+                disabled={deletePageModal.isDeleting}
+                variant="danger"
+                size="md"
+                isLoading={deletePageModal.isDeleting}
+              >
+                Delete
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Expanded image modal */}
       {expandedImagePage && document && (
