@@ -7,6 +7,11 @@
 // CRON_SECRET to the same value as CLEANUP_JOB_SECRET (see docs/Deployment_Vercel.md) — this
 // route only ever reads CLEANUP_JOB_SECRET, keeping one canonical secret name in application code.
 //
+// Schedule: vercel.json currently triggers this once daily (Vercel Hobby plan does not allow
+// more-than-daily cron frequency). If more frequent cleanup is ever needed, migrating the
+// scheduler to a GitHub Actions workflow (calling this same bearer-token-protected endpoint on
+// its own cron) is the likely future option — not needed today.
+//
 // Never returns or logs document/page/chat content — only counts (see lib/cleanup/sweep.ts).
 
 import { NextResponse } from "next/server";

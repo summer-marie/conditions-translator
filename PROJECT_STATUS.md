@@ -34,12 +34,14 @@ shipped and is live on `main`.
 - Phase E2E — Stabilization: **complete**. All fixes identified during E2E manual testing are
   merged to `main`. No outstanding unmerged branch was found (verified: every branch in the repo
   other than `main` has zero commits ahead of it).
-- Phase 9 — Cleanup, Reliability, Demo Validation: **implemented, tested** on
-  `feat/phase-9-cleanup-retention` (not yet merged). A scheduled cleanup sweep
-  (`lib/cleanup/sweep.ts`, hourly via Vercel Cron, `vercel.json`) now actually deletes expired
-  temporary sessions/Documents/Pages/Blob images and expired chat sessions, reusing the existing
-  Phase 8 deletion pipeline for retry-safety. No schema change was needed. See
-  `docs/TESTING_GUIDE.md`'s Phase 9 entry for full test detail, including a live-DB verification
+- Phase 9 — Cleanup, Reliability, Demo Validation: **implemented, tested, merged** to `main` (PR
+  #25). A scheduled cleanup sweep (`lib/cleanup/sweep.ts`, once daily via Vercel Cron, `vercel.json`
+  — daily rather than hourly because the project runs on the Vercel Hobby plan, which does not
+  allow more-frequent cron schedules; migrating to GitHub Actions is a possible future option, not
+  needed today) now actually deletes expired temporary sessions/Documents/Pages/Blob images and
+  expired chat sessions, reusing the existing Phase 8 deletion pipeline for retry-safety. No schema
+  change was needed. See `docs/TESTING_GUIDE.md`'s Phase 9 entry for full test detail, including a
+  live-DB verification
   run. A logging/privacy audit found and fixed 4 routes logging raw error objects; no sensitive
   content (page/chat text, secrets) was found logged anywhere.
 - Phase 10 — UI Refinement and Documentation: **in progress, extensive**. Design tokens, shared

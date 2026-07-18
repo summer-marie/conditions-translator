@@ -245,12 +245,15 @@ Validate:
 - saved Documents are not affected
 - logs do not contain sensitive text
 
-### Status (2026-07-17/18, `feat/phase-9-cleanup-retention`)
+### Status (2026-07-17/18, merged via `feat/phase-9-cleanup-retention`, PR #25; cron cadence
+updated 2026-07-18 for Vercel Hobby-plan compatibility)
 
-**Implemented.** `lib/cleanup/sweep.ts` + `app/api/cron/cleanup/route.ts` (Vercel Cron, hourly,
-`vercel.json`). No schema change was needed — cleanup reuses the existing Phase 8 `deleteDocument`
-pipeline per Document (already Blob-then-DB retry-safe) and deletes expired `ChatSession` rows
-directly (any owner — chat is always temporary regardless of Document ownership).
+**Implemented.** `lib/cleanup/sweep.ts` + `app/api/cron/cleanup/route.ts` (Vercel Cron, once daily,
+`vercel.json` — daily rather than hourly because the Vercel Hobby plan does not allow more-frequent
+cron schedules; see `docs/Deployment_Vercel.md`). No schema change was needed — cleanup reuses the
+existing Phase 8 `deleteDocument` pipeline per Document (already Blob-then-DB retry-safe) and
+deletes expired `ChatSession` rows directly (any owner — chat is always temporary regardless of
+Document ownership).
 
 Tests run:
 
