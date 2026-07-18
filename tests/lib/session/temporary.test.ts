@@ -70,7 +70,7 @@ describe("getOrCreateTemporarySession", () => {
       expect.objectContaining({
         httpOnly: true,
         secure: false,
-        sameSite: "strict",
+        sameSite: "lax",
         path: "/",
       })
     );

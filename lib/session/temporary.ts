@@ -60,11 +60,20 @@ export async function getOrCreateTemporarySession(
     },
   });
 
-  // Set the cookie
+  // Set the cookie. sameSite must be "lax", not "strict": this cookie is set on the
+  // /api/session/bootstrap redirect response that app/app/layout.tsx sends unauthenticated
+  // visitors through, and a "strict" cookie set during a redirect is not guaranteed to be sent
+  // back on the very next request when the browsing context is a fresh top-level navigation with
+  // no same-site referrer -- exactly what happens every time an installed PWA is (re)launched
+  // from the OS home screen/icon. That dropped the cookie on the follow-up request, which
+  // re-triggered the same bootstrap redirect forever (the installed-PWA "too many redirects"
+  // loop). "lax" is also this project's documented default for the analogous auth session cookie
+  // (see AUTH_COOKIE_SAME_SITE in env.example / lib/auth/session.ts's cookieSameSite()) --  this
+  // temporary-session cookie just hadn't been kept in sync with that convention.
   cookieStore.set(TMP_SESSION_COOKIE, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
+    sameSite: "lax",
     maxAge: TMP_SESSION_MAX_AGE,
     path: "/",
   });
