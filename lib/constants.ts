@@ -60,7 +60,7 @@ export const ALLOWED_IMAGE_MIME_TYPES = [
 ] as const;
 
 // App display name shown in metadata and nav branding (env.example: NEXT_PUBLIC_APP_NAME).
-export const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || "Conditions Translator";
+export const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || "Verity";
 
 // Default label a temporary Document is created with before the user names it (Phase 3 intake).
 // Centralized so the creation call and any "still unnamed?" check never drift apart.
@@ -70,3 +70,11 @@ export const DEFAULT_DOCUMENT_TITLE = "Untitled Document";
 export function isDefaultDocumentTitle(title: string): boolean {
   return title.trim().toLowerCase() === DEFAULT_DOCUMENT_TITLE.toLowerCase();
 }
+
+// window CustomEvent name dispatched by the workspace page right after Finish Document succeeds.
+// components/layout/AppNav.tsx's shared sidenav listens for this to refresh its finished-document
+// list immediately -- its own fetch is otherwise keyed to route (pathname) changes only, so a
+// document finishing while the user stays on /app/workspace would not appear there until an
+// unrelated navigation happened to trigger a refetch. No shared state/context between the two
+// components exists (or is needed) beyond this one signal.
+export const DOCUMENTS_CHANGED_EVENT = "workspace:documents-changed";

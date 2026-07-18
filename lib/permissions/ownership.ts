@@ -28,6 +28,17 @@ export function ownerWhere(owner: Owner): Prisma.DocumentWhereInput {
     : { temporarySessionId: owner.temporarySessionId };
 }
 
+// WHERE fragment excluding temporary Documents whose expiresAt has passed. Saved Documents
+// (expiresAt: null) always match. This is read-time visibility only -- it hides an expired
+// Document from every normal access path but does not delete its row, Pages, or Blob images
+// (no cleanup job exists yet; see docs/08_Conditions_Translator_Implementation_Roadmap.md Phase 9).
+// Deliberately NOT applied to getDeletableDocument: a future Phase 9 cleanup sweep will need to
+// find expired-but-ACTIVE Documents specifically in order to run them through deleteDocument's
+// existing cleanup pipeline, so that lookup must keep seeing expired rows.
+export function notExpiredWhere(): Prisma.DocumentWhereInput {
+  return { OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] };
+}
+
 // Owner-scoped unique WHERE for update()/delete() calls that must target one Document by id
 // while still enforcing ownership in the same query (never `{ id: documentId }` alone).
 export function ownerScopedDocumentWhere(
@@ -83,14 +94,14 @@ export async function getOwnedDocument(
   documentId: string
 ): Promise<Document | null> {
   return prisma.document.findFirst({
-    where: { id: documentId, ...ownerWhere(owner), deletionState: "ACTIVE" },
+    where: { id: documentId, ...ownerWhere(owner), deletionState: "ACTIVE", ...notExpiredWhere() },
   });
 }
 
-// Lists all ACTIVE Documents belonging to the given owner, newest first.
+// Lists all ACTIVE, not-yet-expired Documents belonging to the given owner, newest first.
 export async function listOwnedDocuments(owner: Owner): Promise<Document[]> {
   return prisma.document.findMany({
-    where: { ...ownerWhere(owner), deletionState: "ACTIVE" },
+    where: { ...ownerWhere(owner), deletionState: "ACTIVE", ...notExpiredWhere() },
     orderBy: { createdAt: "desc" },
   });
 }

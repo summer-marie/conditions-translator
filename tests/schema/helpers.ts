@@ -61,3 +61,7 @@ export class OwnerCleanup {
 export function futureDate(msFromNow = ONE_HOUR_MS): Date {
   return new Date(Date.now() + msFromNow);
 }
+
+export function pastDate(msAgo = ONE_HOUR_MS): Date {
+  return new Date(Date.now() - msAgo);
+}

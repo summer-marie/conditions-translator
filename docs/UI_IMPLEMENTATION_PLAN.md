@@ -69,6 +69,37 @@ a future pass if this divergence should become the permanent documented journey.
    `/app/workspace`, all through the existing `acceptPrivacy` Server Action. See the
    "Architecture note" above — this replaces a hard redirect that was previously load-bearing
    for the guest entry flow.
+10. **Finished-document overflow actions (sidenav/mobile menu)** — DONE (2026-07-18):
+    `components/layout/AppNav.tsx`. Each finished document listed in the sidenav (desktop) or
+    hamburger menu (mobile) remains visible there after completion, alongside the fixed
+    Dashboard/Workspace/Chat items. Clicking the title link is unchanged and still opens that
+    document's finished/organized view in `app/app/workspace/page.tsx` (Sections tab by default).
+    It now also has an overflow (kebab) trigger alongside the title link, offering two actions:
+    **Review pages** and **Delete document**. See "Overflow actions
+    (popover/sheet)" under Shared Layout/Component Patterns below for the desktop-vs-mobile
+    presentation and reuse notes. Reviewing pages lands on `app/app/workspace/page.tsx` with a
+    new `?panel=pages` query param that switches the existing finished-document card from its
+    default "Sections" tab to a new read-only "Pages" tab (thumbnail grid reusing the existing
+    click-to-expand image modal; no Accept/Re-upload/Delete controls, since page-level mutation
+    stays IN_PROGRESS-only per `requireInProgressOwnedDocument`). Deleting reuses
+    `app/app/dashboard/page.tsx`'s existing delete-confirmation modal pattern verbatim (own state
+    in `AppNav`, same `DELETE /api/documents/[id]` endpoint); on success the document is removed
+    from the nav's own list and, if the user was currently viewing that exact document in the
+    workspace, they're redirected to the plain `/app/workspace` route (which already has a
+    graceful fallback to the active intake document or empty state).
+    **Follow-up fix (2026-07-18, same day):** the sidenav's finished-document list only re-fetched
+    on route (pathname) changes, so a document that had just been finished via **Finish Document**
+    (an in-place status transition on the same `/app/workspace` route, no navigation) did not
+    appear in the sidenav — and therefore had no overflow-actions entry point — until the user
+    happened to navigate elsewhere and back. Fixed by adding a `DOCUMENTS_CHANGED_EVENT` window
+    event (`lib/constants.ts`): `app/app/workspace/page.tsx`'s `handleFinishDocument` dispatches it
+    right after `finishDocument()` succeeds, and `AppNav`'s existing fetch effect now also listens
+    for it (in addition to its `[pathname]` dependency), refetching immediately. Confirmed live via
+    a real upload → OCR → accept → Finish Document round trip (not a DB fixture): the sidenav now
+    shows the document, and its overflow menu's "Review pages" works, immediately after finishing
+    — with no navigation in between. The main workspace view's default state is unaffected: a
+    freshly finished document still centers its Sections tab by default, with Pages reachable only
+    through Review pages, exactly as designed.
 
 ## Relevant Wireframe/Design-Spec Files by Screen
 
@@ -250,6 +281,30 @@ a future pass if this divergence should become the permanent documented journey.
 - **Mobile**: Bottom tab bar with icons, active state highlighted
 - **App logo**: Always routes to dashboard when clicked
 
+### Overflow actions (popover/sheet) — added 2026-07-18
+For a per-item "..." actions trigger on a list row (first used for finished documents in the
+sidenav/mobile menu, `components/layout/AppNav.tsx`'s `DocumentActionsMenu`):
+- **Desktop**: small anchored popover (`role="menu"`, `--color-background-card` surface,
+  `--color-border-card` border, `shadow-lg`, positioned `absolute right-0 top-full` off the
+  trigger button) with an invisible full-viewport backdrop (click-outside-to-close, no dimming —
+  a popover is lighter-weight than a modal). Keep this style for any future per-row overflow menu
+  rather than inventing a new one.
+- **Mobile**: full-width bottom action sheet (`fixed inset-x-0 bottom-0`, `rounded-t-xl`, same
+  `--color-background-card`/`--color-border-card` surface, a real dimmed backdrop matching the
+  existing modal weight (`bg-black/50`), `min-h-11` rows for touch targets, an explicit trailing
+  Cancel row). Reuse this shape for any future mobile action-sheet need instead of a new pattern.
+- **Shared conventions**: both variants reuse `useFocusTrap` (already used by every other
+  modal/menu in the app) and their own Escape-key listener; destructive items use
+  `--color-accent-destructive` text on the card surface (not a solid danger button — that's
+  reserved for an actual confirmation modal's buttons, see Cards/destructive-modal note below);
+  no new colors were introduced — every surface/border/text token above already existed for both
+  light and dark mode.
+- **Destructive confirmation**: an overflow menu's destructive action (e.g. "Delete document")
+  should still open the existing full confirmation-modal pattern (see the dashboard's
+  delete-document modal, `app/app/dashboard/page.tsx`) rather than deleting directly from the
+  menu/sheet — the overflow menu only decides *which* document, the modal still gates the actual
+  destructive call.
+
 ### Cards
 - **Default**: Card background + subtle shadow
 - **Hover**: Elevated shadow + quick actions appear
@@ -405,11 +460,18 @@ Implemented" section above for what actually happened and which commits/passes d
 - This file used to carry its own "Deferred from Phase E2E" and "Dependencies on Phase 9"
   lists, predating Phase 10 entirely; removed as stale duplicates of
   `.agent-memory/OPEN_QUESTIONS.md`, which is the actual source of truth for that older
-  material — check that file directly, not a summary here. Confirmed still live there: multi-document browsing in workspace, workspace document
-  list visibility after returning from chat ("Leaving chat makes saved documents look like they
-  disappeared from workspace"), and the save/sign-in entry UI redesign ("Save/sign-in entry UI
-  needs a real pass, not just a stopgap" — the `login-spec.md` split-layout design still hasn't
-  been implemented; the Save page's Phase 10 token-migration pass explicitly left this alone).
+  material — check that file directly, not a summary here. Of the items that file tracked:
+  the save/sign-in entry UI redesign remains open ("Save/sign-in entry UI needs a real pass, not
+  just a stopgap" — the `login-spec.md` split-layout design still hasn't been implemented; the
+  Save page's Phase 10 token-migration pass explicitly left this alone).
+- **RESOLVED 2026-07-18 by item 10 above.** Two related items tracked in
+  `.agent-memory/OPEN_QUESTIONS.md` — "workspace should support browsing multiple documents, not
+  just the active intake doc" and "leaving chat makes saved documents look like they disappeared
+  from workspace" — are resolved by the finished-document sidenav: it lists every finished
+  document (not just the active intake one), is present on every `/app/*` route including chat,
+  and switching to a listed document shows its pages nested underneath via Review pages. Neither
+  entry has been marked resolved in `.agent-memory/OPEN_QUESTIONS.md` itself yet — that file
+  wasn't in scope for this documentation pass; update it directly in a future pass.
 
 ---
 

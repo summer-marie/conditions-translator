@@ -8,13 +8,13 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/database/prisma";
 import { AppError } from "@/lib/errors";
 import { getCurrentOwner } from "@/lib/auth/session";
-import { getOwnedDocument, ownerWhere } from "@/lib/permissions/ownership";
+import { getOwnedDocument, ownerWhere, notExpiredWhere } from "@/lib/permissions/ownership";
 import { deleteDocument } from "@/lib/documents/deletion";
 
 /**
  * GET /api/documents/[documentId]
- * Fetches a single owned, ACTIVE document (with its generated sections, if any). Used to refresh
- * state after Finish Document / Retry, and by the dashboard.
+ * Fetches a single owned, ACTIVE, not-yet-expired document (with its generated sections, if any).
+ * Used to refresh state after Finish Document / Retry, and by the dashboard.
  */
 export async function GET(
   request: Request,
@@ -29,7 +29,7 @@ export async function GET(
     }
 
     const document = await prisma.document.findFirst({
-      where: { id: documentId, ...ownerWhere(owner), deletionState: "ACTIVE" },
+      where: { id: documentId, ...ownerWhere(owner), deletionState: "ACTIVE", ...notExpiredWhere() },
       include: {
         sections: {
           orderBy: { order: "asc" },
