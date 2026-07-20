@@ -1,16 +1,24 @@
 import type { Metadata, Viewport } from "next";
-import { APP_NAME } from "@/lib/constants";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: APP_NAME,
+  metadataBase: new URL("https://my-verity.com"),
+  title: "Verity | Understand Legal Documents",
   description:
-    "Understand your supervision documents in plain language, grounded only in what you upload.",
+    "Verity helps justice-impacted individuals understand probation and parole documents using OCR and source-grounded AI.",
   icons: {
     icon: "/favicon.ico",
     apple: "/apple-icon.png",
   },
   manifest: "/manifest.json",
+  openGraph: {
+    type: "website",
+    url: "https://my-verity.com",
+    siteName: "Verity",
+  },
+  twitter: {
+    card: "summary_large_image",
+  },
 };
 
 // viewportFit: "cover" lets content draw under the notch/home-indicator area on iOS, which is
