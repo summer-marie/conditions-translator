@@ -1,11 +1,7 @@
 // About page. Public marketing page, outside the authenticated app shell (app/app/layout.tsx +
 // AppNav) -- shares PublicHeader/FooterCTA with the landing page and /terms instead.
 //
-// Content provided by the project owner 2026-07-17 -- not authored by Claude. The bracketed
-// numbers ([1][2]...) are citation markers from the source text; no reference list was supplied
-// alongside them, so they're kept as plain inline text rather than turned into links to nowhere.
-// Flagged back to the project owner -- confirm whether a reference list should be added or these
-// should be removed.
+// Content provided by the project owner 2026-07-17 -- not authored by Claude.
 
 import Image from "next/image";
 import { PublicHeader } from "@/components/landing/PublicHeader";
@@ -19,38 +15,14 @@ const HEADING_TEXT = {
   color: "var(--color-text-heading)",
 } as const;
 
-// Inline citation marker, e.g. "...paperwork.[1][2][3]" -- see the file-level note above.
-function Cite({ children }: { children: React.ReactNode }) {
-  return (
-    <sup style={{ fontSize: "var(--font-size-caption)", color: "var(--color-text-meta)" }}>
-      {children}
-    </sup>
-  );
-}
-
 const DOCUMENT_LIST = [
   "Probation and parole conditions.",
   "Court orders, sentencing paperwork, and compliance instructions.",
-  <>
-    Lease and rental agreements, including rent terms, notice rules, utilities, termination
-    conditions, and signatures.
-    <Cite>[6][7][8]</Cite>
-  </>,
+  "Lease and rental agreements, including rent terms, notice rules, utilities, termination conditions, and signatures.",
   "Housing paperwork such as landlord notices, move-in terms, and tenant responsibility documents.",
-  <>
-    Consumer contracts, service agreements, and everyday agreements written in hard-to-follow
-    legal language.
-    <Cite>[9][10]</Cite>
-  </>,
-  <>
-    Legal aid or court forms, intake paperwork, and service-related documents.
-    <Cite>[4][5]</Cite>
-  </>,
-  <>
-    Workplace policies, school conduct paperwork, and other rules-based documents where people
-    need clear explanations of expectations and consequences.
-    <Cite>[2][3]</Cite>
-  </>,
+  "Consumer contracts, service agreements, and everyday agreements written in hard-to-follow legal language.",
+  "Legal aid or court forms, intake paperwork, and service-related documents.",
+  "Workplace policies, school conduct paperwork, and other rules-based documents where people need clear explanations of expectations and consequences.",
 ];
 
 export const metadata = {
@@ -123,7 +95,6 @@ export default function AboutPage() {
             writing commonly applies across many document types, including contracts, policies,
             forms, and information guides, which makes the same translation approach useful
             beyond supervision paperwork.
-            <Cite>[1][2][3][4][5]</Cite>
           </p>
         </div>
 
