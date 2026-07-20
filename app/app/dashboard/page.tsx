@@ -5,6 +5,7 @@
 // - loading, empty, and error states
 // - delete confirmation modal wired to DELETE /api/documents/[documentId]
 // - navigation to view sections or start chat for READY documents
+// - account deletion (signed-in users only), via deleteAccountAction's Blob-then-DB safe delete
 //
 // "View sections" (document detail view) remains a stub — out of scope for the Phase 8
 // backend pass, which covers deletion + owner-aware reads only.
@@ -14,7 +15,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { signOut } from "@/lib/actions/auth";
+import { signOut, deleteAccountAction } from "@/lib/actions/auth";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
@@ -81,6 +82,14 @@ export default function DashboardPage() {
   }>({ isOpen: false, document: null, isDeleting: false, error: null });
   const deleteModalRef = useRef<HTMLDivElement | null>(null);
   useFocusTrap(deleteModal.isOpen, deleteModalRef);
+
+  const [deleteAccountModal, setDeleteAccountModal] = useState<{
+    isOpen: boolean;
+    isDeleting: boolean;
+    error: string | null;
+  }>({ isOpen: false, isDeleting: false, error: null });
+  const deleteAccountModalRef = useRef<HTMLDivElement | null>(null);
+  useFocusTrap(deleteAccountModal.isOpen, deleteAccountModalRef);
 
   const [sectionsModal, setSectionsModal] = useState<SectionsModalState>({
     isOpen: false,
@@ -202,6 +211,36 @@ export default function DashboardPage() {
     setDeleteModal({ isOpen: false, document: null, isDeleting: false, error: null });
   };
 
+  const handleDeleteAccountClick = () => {
+    setDeleteAccountModal({ isOpen: true, isDeleting: false, error: null });
+  };
+
+  const handleDeleteAccountConfirm = async () => {
+    setDeleteAccountModal((prev) => ({ ...prev, isDeleting: true, error: null }));
+
+    try {
+      await deleteAccountAction();
+      // Account + auth session are gone server-side; a full navigation (not a client-side
+      // router.push) ensures every cached page/layout state tied to the now-deleted user is
+      // dropped rather than potentially reused.
+      window.location.href = "/";
+    } catch (error) {
+      setDeleteAccountModal((prev) => ({
+        ...prev,
+        isDeleting: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : "We couldn't delete your account. Please try again.",
+      }));
+    }
+  };
+
+  const handleDeleteAccountCancel = () => {
+    if (deleteAccountModal.isDeleting) return;
+    setDeleteAccountModal({ isOpen: false, isDeleting: false, error: null });
+  };
+
   const handleViewSections = async (document: Document) => {
     setSectionsModal({
       isOpen: true,
@@ -243,15 +282,16 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
-    if (!deleteModal.isOpen && !sectionsModal.isOpen) return;
+    if (!deleteModal.isOpen && !sectionsModal.isOpen && !deleteAccountModal.isOpen) return;
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key !== "Escape") return;
       if (deleteModal.isOpen) handleDeleteCancel();
       if (sectionsModal.isOpen) handleCloseSectionsModal();
+      if (deleteAccountModal.isOpen) handleDeleteAccountCancel();
     }
     window.document.addEventListener("keydown", handleKeyDown);
     return () => window.document.removeEventListener("keydown", handleKeyDown);
-  }, [deleteModal.isOpen, sectionsModal.isOpen]);
+  }, [deleteModal.isOpen, sectionsModal.isOpen, deleteAccountModal.isOpen]);
 
   // Simple duplicate detection: case-insensitive equality with whitespace normalization
   const normalizeTitle = (title: string): string => {
@@ -392,13 +432,21 @@ export default function DashboardPage() {
             </p>
           </div>
           {savedUserId && (
-            <button
-              onClick={handleSignOut}
-              disabled={isSigningOut}
-              className="text-sm font-medium text-(--color-text-body) hover:text-(--color-text-heading) disabled:opacity-50 self-start sm:self-auto"
-            >
-              {isSigningOut ? "Signing out..." : "Sign out"}
-            </button>
+            <div className="flex items-center gap-4 self-start sm:self-auto">
+              <button
+                onClick={handleSignOut}
+                disabled={isSigningOut}
+                className="text-sm font-medium text-(--color-text-body) hover:text-(--color-text-heading) disabled:opacity-50"
+              >
+                {isSigningOut ? "Signing out..." : "Sign out"}
+              </button>
+              <button
+                onClick={handleDeleteAccountClick}
+                className="text-sm font-medium text-(--color-accent-destructive) hover:underline"
+              >
+                Delete account
+              </button>
+            </div>
           )}
         </div>
 
@@ -544,6 +592,62 @@ export default function DashboardPage() {
                 isLoading={deleteModal.isDeleting}
               >
                 Delete
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete account confirmation modal */}
+      {deleteAccountModal.isOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={handleDeleteAccountCancel}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-account-modal-title"
+        >
+          <div
+            ref={deleteAccountModalRef}
+            className="bg-(--color-background-card) rounded-lg shadow-xl max-w-md w-full p-6 border border-(--color-border-card)"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4">
+              <h2
+                id="delete-account-modal-title"
+                className="font-(--font-weight-h2) mb-2"
+                style={{ fontSize: 'var(--font-size-h2)', color: 'var(--color-text-heading)' }}
+              >
+                Delete your account?
+              </h2>
+              <p style={{ fontSize: 'var(--font-size-body)', color: 'var(--color-text-body)' }}>
+                This is permanent and cannot be undone. Your account, all saved documents, and
+                all chat history will be deleted.
+              </p>
+              {deleteAccountModal.error && (
+                <p className="text-(--color-accent-destructive) text-sm mt-2" role="alert">
+                  {deleteAccountModal.error}
+                </p>
+              )}
+            </div>
+
+            <div className="flex gap-3 justify-end">
+              <Button
+                onClick={handleDeleteAccountCancel}
+                disabled={deleteAccountModal.isDeleting}
+                variant="secondary"
+                size="md"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleDeleteAccountConfirm}
+                disabled={deleteAccountModal.isDeleting}
+                variant="danger"
+                size="md"
+                isLoading={deleteAccountModal.isDeleting}
+              >
+                Yes, delete my account
               </Button>
             </div>
           </div>

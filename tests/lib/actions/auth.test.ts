@@ -2,19 +2,21 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { signUpAndSave, signInAndSave, signOut } from "@/lib/actions/auth";
-import { createAccount, verifyCredentials } from "@/lib/auth/account";
-import { createAuthSession, destroyAuthSession } from "@/lib/auth/session";
+import { signUpAndSave, signInAndSave, signOut, deleteAccountAction } from "@/lib/actions/auth";
+import { createAccount, verifyCredentials, deleteAccount } from "@/lib/auth/account";
+import { createAuthSession, destroyAuthSession, getCurrentUser } from "@/lib/auth/session";
 import { transferWorkspaceToUser } from "@/lib/auth/transfer";
 import { getTemporarySession } from "@/lib/session/temporary";
 
 vi.mock("@/lib/auth/account", () => ({
   createAccount: vi.fn(),
   verifyCredentials: vi.fn(),
+  deleteAccount: vi.fn(),
 }));
 vi.mock("@/lib/auth/session", () => ({
   createAuthSession: vi.fn(),
   destroyAuthSession: vi.fn(),
+  getCurrentUser: vi.fn(),
 }));
 vi.mock("@/lib/auth/transfer", () => ({
   transferWorkspaceToUser: vi.fn(),
@@ -101,5 +103,53 @@ describe("signOut", () => {
   it("clears the auth session", async () => {
     await signOut();
     expect(destroyAuthSession).toHaveBeenCalled();
+  });
+});
+
+describe("deleteAccountAction", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("rejects an unauthenticated caller without touching account deletion or the session", async () => {
+    vi.mocked(getCurrentUser).mockResolvedValue(null);
+
+    await expect(deleteAccountAction()).rejects.toMatchObject({
+      statusCode: 401,
+      code: "UNAUTHENTICATED",
+    });
+
+    expect(deleteAccount).not.toHaveBeenCalled();
+    expect(destroyAuthSession).not.toHaveBeenCalled();
+  });
+
+  it("deletes the account, then clears the auth session cookie, for a signed-in user", async () => {
+    vi.mocked(getCurrentUser).mockResolvedValue({ id: "user-1" } as any);
+    vi.mocked(deleteAccount).mockResolvedValue(undefined);
+
+    const order: string[] = [];
+    vi.mocked(deleteAccount).mockImplementation(async () => {
+      order.push("deleteAccount");
+    });
+    vi.mocked(destroyAuthSession).mockImplementation(async () => {
+      order.push("destroyAuthSession");
+    });
+
+    await deleteAccountAction();
+
+    expect(deleteAccount).toHaveBeenCalledWith("user-1");
+    expect(destroyAuthSession).toHaveBeenCalled();
+    // The session cookie is only cleared after the account (and its data) is actually gone.
+    expect(order).toEqual(["deleteAccount", "destroyAuthSession"]);
+  });
+
+  it("does not clear the auth session if account deletion fails (e.g. Blob cleanup failure)", async () => {
+    vi.mocked(getCurrentUser).mockResolvedValue({ id: "user-1" } as any);
+    vi.mocked(deleteAccount).mockRejectedValue(
+      Object.assign(new Error("blob cleanup failed"), { code: "BLOB_CLEANUP_FAILED" })
+    );
+
+    await expect(deleteAccountAction()).rejects.toMatchObject({ code: "BLOB_CLEANUP_FAILED" });
+
+    // The user stays signed in and their account stays intact so they can safely retry.
+    expect(destroyAuthSession).not.toHaveBeenCalled();
   });
 });
