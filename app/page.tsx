@@ -8,6 +8,7 @@
 // workspace/chat detect an unaccepted session.
 
 import Image from "next/image";
+import { Special_Elite } from "next/font/google";
 import { Card } from "@/components/ui/Card";
 import { GetStartedCTA } from "@/components/landing/GetStartedCTA";
 import { PublicHeader } from "@/components/landing/PublicHeader";
@@ -16,6 +17,12 @@ import { WorkspacePreviewCard } from "@/components/landing/WorkspacePreviewCard"
 import { SectioningPreviewCard } from "@/components/landing/SectioningPreviewCard";
 import { StepFeatureRow } from "@/components/landing/StepFeatureRow";
 import { APP_NAME } from "@/lib/constants";
+
+// Typewriter display font for the Features-section value prop only -- deliberately distinct from
+// the rest of the landing page's Inter-based type scale so it reads as a standalone, human
+// statement rather than another heading level. User-directed choice (see .agent-memory/
+// DECISIONS.md) after a side-by-side comparison of serif/grotesk alternatives.
+const valueDisplayFont = Special_Elite({ subsets: ["latin"], weight: "400" });
 
 const FEATURES = [
   {
@@ -86,7 +93,7 @@ export default function LandingPage() {
                 Understand.
               </h1>
               <p
-                className="max-w-2xl mx-auto lg:mx-0 mb-8"
+                className=" mx-auto mb-8"
                 style={{
                   fontSize: "var(--landing-font-body)",
                   color: "var(--color-text-body)",
@@ -119,7 +126,19 @@ export default function LandingPage() {
           .landing-section-features. Blends from the Hero section above and into How It Works
           below via the shared --landing-tone-mid tone. */}
         <section className="landing-section-features">
-          <div className="max-w-6xl mx-auto px-(--landing-container-px) py-(--landing-space-section-y)">
+          <div className="max-w-6xl mx-auto px-(--landing-container-px) pt-0 pb-(--landing-space-section-y)">
+          <p
+            className={`${valueDisplayFont.className} text-center w-full mb-7`}
+            style={{
+              fontSize: "var(--landing-font-value-prop)",
+              lineHeight: 1.55,
+              letterSpacing: "0.01em",
+              color: "var(--color-text-heading)",
+            }}
+          >
+            Don&apos;t lose your freedom to a technicality. Upload your documents, ask anything,
+            and stop the guesswork.
+          </p>
           <h2
             className="font-(--font-weight-h2) text-center mb-8"
             style={{
