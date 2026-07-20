@@ -589,28 +589,31 @@ function WorkspacePageContent() {
     }
   };
 
+  /**
+   * Handles a page-image file selection: uploads each file to the intake document (creating one
+   * in temporary mode if needed), enforces the 10-page cap, and runs OCR on each new page.
+   *
+   * @param e - The file-input change event.
+   */
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    // The Upload box always targets the user's active intake document, not necessarily whatever
-    // is currently shown in the main content area (see intakeDocument's declaration above). If
-    // `document` already IS the intake document, it's the freshest copy -- handlers like
-    // handleFinishDocument only update `document`, not the separate intakeDocument snapshot, so
-    // checking intakeDocument.status directly here would go stale the moment the active intake
-    // document finishes.
+    // The Upload box always targets the user's active intake document, not necessarily what's
+    // shown in the main content area (see intakeDocument's declaration). When `document` already
+    // IS the intake document it's the freshest copy — handlers like handleFinishDocument update
+    // `document` but not the separate intakeDocument snapshot, so reading intakeDocument.status
+    // directly would go stale the moment the active intake document finishes.
     const liveIntake =
       document && intakeDocument && document.id === intakeDocument.id ? document : intakeDocument;
     let targetDocument = liveIntake && liveIntake.status === "IN_PROGRESS" ? liveIntake : null;
 
     if (!targetDocument) {
-      // No usable active intake document (none exists yet, or the previous one just finished) --
-      // start a new one. Reuses the existing guest auto-create action (createTemporaryDocument),
-      // just triggered here instead of only on mount. Signed-in accounts hit this only if the
-      // render guard below is bypassed, which it isn't: the Upload box is disabled for them in
-      // this state (see canOfferNewDocument/newDocumentUploadDisabled), since
-      // createTemporaryDocument doesn't yet resolve an authenticated owner -- a known,
-      // pre-existing gap this change doesn't attempt to fix.
+      // No usable active intake document (none yet, or the previous one just finished) — start a
+      // new one via the guest auto-create action, triggered here instead of only on mount.
+      // Signed-in accounts are bailed out here because createTemporaryDocument doesn't yet
+      // resolve an authenticated owner (a known, pre-existing gap); their Upload box is disabled
+      // in this state (see canOfferNewDocument/newDocumentUploadDisabled) so this is defensive.
       if (savedUserId) {
         e.target.value = "";
         return;
@@ -643,7 +646,7 @@ function WorkspacePageContent() {
       return;
     }
 
-    // Switch the main view to the intake document being uploaded to, so the new page is visible
+    // Switch the main view to the intake document being uploaded to, so the new page shows
     // immediately even if the user was browsing a different finished document via the sidenav.
     if (document?.id !== targetId) {
       router.push("/app/workspace");
@@ -680,11 +683,16 @@ function WorkspacePageContent() {
       alert(error instanceof Error ? error.message : "Failed to upload pages");
     } finally {
       setIsUploading(false);
-      // Reset file input
+      // Clear the input so selecting the same file again still fires a change event.
       e.target.value = "";
     }
   };
 
+  /**
+   * Accepts a page, marking its transcription as the authoritative source text.
+   *
+   * @param pageId - The page to accept.
+   */
   const handleAcceptPage = async (pageId: string) => {
     if (!document) return;
     setActioningPageId(pageId);
@@ -700,6 +708,12 @@ function WorkspacePageContent() {
     }
   };
 
+  /**
+   * Replaces a page's image and re-runs OCR on the new image.
+   *
+   * @param pageId - The page to replace.
+   * @param file - The new image file.
+   */
   const handleReuploadPage = async (pageId: string, file: File) => {
     if (!document) return;
     setActioningPageId(pageId);
@@ -728,14 +742,17 @@ function WorkspacePageContent() {
     }
   };
 
+  /** Opens the delete-page confirmation modal for a page. */
   const handleDeletePageClick = (pageId: string) => {
     setDeletePageModal({ isOpen: true, pageId, isDeleting: false, error: null });
   };
 
+  /** Closes the delete-page modal without deleting. */
   const handleDeletePageCancel = () => {
     setDeletePageModal({ isOpen: false, pageId: null, isDeleting: false, error: null });
   };
 
+  /** Confirms deletion of the modal's page, then refetches the (renumbered) page list. */
   const handleDeletePageConfirm = async () => {
     if (!document || !deletePageModal.pageId) return;
     const pageId = deletePageModal.pageId;
@@ -758,6 +775,10 @@ function WorkspacePageContent() {
     }
   };
 
+  /**
+   * Finishes the current document (closing intake and starting section generation), then
+   * notifies the sidenav so the newly-finished document appears in its list.
+   */
   const handleFinishDocument = async () => {
     if (!document) return;
 
@@ -765,10 +786,10 @@ function WorkspacePageContent() {
     try {
       await finishDocument(document.id);
       await refetchDocument(document.id);
-      // Finishing moves this Document out of IN_PROGRESS, making it newly eligible for the
-      // sidenav's "Documents" list (components/layout/AppNav.tsx) -- that list only re-fetches
-      // on route changes otherwise, so without this the just-finished document wouldn't appear
-      // there until an unrelated navigation happened to trigger a refetch.
+      // Finishing moves this document out of IN_PROGRESS, making it newly eligible for the
+      // sidenav's "Documents" list (components/layout/AppNav.tsx). That list otherwise only
+      // refetches on route changes, so this event is what makes the just-finished document
+      // appear there without an unrelated navigation.
       window.dispatchEvent(new Event(DOCUMENTS_CHANGED_EVENT));
     } catch (error) {
       alert(error instanceof Error ? error.message : "Failed to finish document");
@@ -777,6 +798,7 @@ function WorkspacePageContent() {
     }
   };
 
+  /** Retries section generation for a document stuck in PROCESSING_FAILED. */
   const handleRetryProcessing = async () => {
     if (!document) return;
 
@@ -791,6 +813,7 @@ function WorkspacePageContent() {
     }
   };
 
+  /** Persists the edited document title (or cancels the edit when blank). */
   const handleTitleSave = async () => {
     if (!document || !titleInput.trim()) {
       setIsEditingTitle(false);
@@ -814,6 +837,7 @@ function WorkspacePageContent() {
     }
   };
 
+  /** Signs the user out and returns to the public landing page. */
   const handleSignOut = async () => {
     setIsSigningOut(true);
     try {
