@@ -1,7 +1,8 @@
-// POST /api/documents/[documentId]/pages/[pageId]/ocr
-//
-// Runs OpenAI Vision OCR on an already-uploaded page image (docs/03_OCR_Specifications.md,
-// Phase 4 §4.2). Server-side only; never logs raw extracted text.
+/**
+ * Page OCR API route.
+ *
+ * @module app/api/documents/[documentId]/pages/[pageId]/ocr/route
+ */
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/database/prisma";
@@ -12,9 +13,25 @@ import { hasBlockingQualityIssue } from "@/lib/ocr/schema";
 import { getCurrentOwner } from "@/lib/auth/session";
 import { getOwnedDocument } from "@/lib/permissions/ownership";
 
+/** Fallback retake message used when the model returns no specific guidance. */
 const DEFAULT_RETAKE_GUIDANCE =
   "The image quality was too low to extract text. Please retake the photo in good lighting with the full page visible.";
 
+/**
+ * POST /api/documents/[documentId]/pages/[pageId]/ocr — runs OCR on a stored page image.
+ *
+ * Runs OpenAI Vision OCR (server-side only; never logs raw text) on an already-uploaded page
+ * image (`docs/03_OCR_Specifications.md`, Phase 4 §4.2). On an unreadable/empty result the
+ * page moves to OCR_FAILED with retake guidance; otherwise the extraction is upserted (always
+ * clearing any stale `correctedText`) and the page moves to OCR_COMPLETE.
+ *
+ * Response body: `{ page, ocr, blockingQualityIssue }` — `ocr` is `null` on failure.
+ *
+ * @param request - The incoming request (unused).
+ * @param context - Route context; `params` resolves to `{ documentId, pageId }`.
+ * @returns A JSON {@link NextResponse}; 400 bad status / accepted / missing image, 401
+ *   unauthenticated, 404 not found, 500 on unexpected failure.
+ */
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ documentId: string; pageId: string }> }
@@ -40,7 +57,8 @@ export async function POST(
       );
     }
 
-    // Ownership is scoped through the parent Document — never look up a Page by id alone.
+    // Scope the page lookup through its already-verified parent Document — never fetch a Page
+    // by id alone, which would bypass the ownership check.
     const page = await prisma.page.findFirst({
       where: { id: pageId, documentId },
     });
@@ -62,8 +80,8 @@ export async function POST(
     }
 
     const { buffer, contentType } = await readPageImage(page.blobPath);
-    // TEMP DIAGNOSTIC (2026-07-14, remove after the OCR-502 investigation is closed): ids and
-    // byte size only — never image content or extracted text.
+    // TEMP DIAGNOSTIC (added 2026-07-14; remove once the OCR-502 investigation closes).
+    // Logs only ids and byte size — never image content or extracted text.
     console.log("[ocr-diag] route invoking OCR", {
       documentId,
       pageId,
@@ -91,10 +109,10 @@ export async function POST(
       });
     }
 
-    // A fresh extraction always clears any prior correctedText — the correction was reviewed
-    // against the previous extractedText, which this OCR run is about to replace, so a stale
-    // correction must not be silently carried over onto new raw output (both branches are
-    // explicit about this, even though `create` has no prior row to carry a correction from).
+    // A fresh extraction always resets correctedText to null: the prior correction was
+    // reviewed against the previous extractedText that this run replaces, so it must not carry
+    // over onto new raw output. Both upsert branches set it explicitly (create has no prior row
+    // to carry from, but stays consistent).
     const ocrResult = await prisma.ocrResult.upsert({
       where: { pageId },
       create: {
@@ -130,8 +148,7 @@ export async function POST(
       );
     }
 
-    // Never interpolate the raw error (its message could echo request/document content) —
-    // only its name is safe to log.
+    // Log only the error name — the raw message could echo request/document content.
     console.error("Error running OCR", error instanceof Error ? error.name : "unknown error");
     return NextResponse.json(
       { error: "Internal server error" },

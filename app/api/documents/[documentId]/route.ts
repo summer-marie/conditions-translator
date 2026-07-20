@@ -1,8 +1,12 @@
-// API route for document operations (fetch with sections, title update, deletion).
-//
-// Owner-aware: resolves the current owner (signed-in user takes precedence over a temporary
-// session, docs/05_Account_Creation_and_Temporary_Access.md) so this route serves both saved and
-// temporary Documents. Never queries by document id alone (docs/09 R-002).
+/**
+ * Single-document API route: fetch with sections, title update, and deletion.
+ *
+ * Every handler is owner-aware — a signed-in user takes precedence over a temporary session
+ * (`docs/05_Account_Creation_and_Temporary_Access.md`) — so the route serves both saved and
+ * temporary Documents and never queries by document id alone (`docs/09` R-002).
+ *
+ * @module app/api/documents/[documentId]/route
+ */
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/database/prisma";
@@ -12,9 +16,15 @@ import { getOwnedDocument, ownerWhere, notExpiredWhere } from "@/lib/permissions
 import { deleteDocument } from "@/lib/documents/deletion";
 
 /**
- * GET /api/documents/[documentId]
- * Fetches a single owned, ACTIVE, not-yet-expired document (with its generated sections, if any).
- * Used to refresh state after Finish Document / Retry, and by the dashboard.
+ * GET /api/documents/[documentId] — fetches one owned, ACTIVE, non-expired document.
+ *
+ * Includes the document's generated sections (with their source page ids). Used to refresh
+ * state after Finish Document / Retry, and by the dashboard.
+ *
+ * @param request - The incoming request (unused).
+ * @param context - Route context; `params` resolves to `{ documentId }`.
+ * @returns A JSON {@link NextResponse} with `{ document }`; 401 unauthenticated, 404 not found,
+ *   500 on unexpected failure.
  */
 export async function GET(
   request: Request,
@@ -51,7 +61,7 @@ export async function GET(
       );
     }
 
-    // Never log the raw error object verbatim — it may echo request/document content.
+    // Log only the error name — never the raw error, which can echo request/document content.
     console.error("Error fetching document:", error instanceof Error ? error.name : "unknown error");
     return NextResponse.json(
       { error: "Internal server error" },
@@ -61,8 +71,15 @@ export async function GET(
 }
 
 /**
- * PATCH /api/documents/[documentId]
- * Updates a document's title.
+ * PATCH /api/documents/[documentId] — updates a document's title.
+ *
+ * Request body: `{ title: string }` (trimmed; must be non-empty and ≤ 200 chars). The update
+ * is owner-scoped so it can never rename another owner's document.
+ *
+ * @param request - The incoming request; its JSON body supplies the new `title`.
+ * @param context - Route context; `params` resolves to `{ documentId }`.
+ * @returns A JSON {@link NextResponse} with `{ document }`; 400 invalid title, 401
+ *   unauthenticated, 404 not found, 500 on unexpected failure.
  */
 export async function PATCH(
   request: Request,
@@ -111,7 +128,7 @@ export async function PATCH(
       );
     }
 
-    // Never log the raw error object verbatim — it may echo request/document content.
+    // Log only the error name — never the raw error, which can echo request/document content.
     console.error("Error updating document:", error instanceof Error ? error.name : "unknown error");
     return NextResponse.json(
       { error: "Internal server error" },
@@ -121,9 +138,15 @@ export async function PATCH(
 }
 
 /**
- * DELETE /api/documents/[documentId]
- * Starts (or retries) deletion. See lib/documents/deletion.ts for the full lifecycle. Idempotent:
- * safe to call again if a prior call's storage cleanup failed partway.
+ * DELETE /api/documents/[documentId] — starts or retries document deletion.
+ *
+ * Delegates to {@link deleteDocument} for the two-phase, idempotent lifecycle, so it's safe
+ * to call again when a prior call's storage cleanup failed partway.
+ *
+ * @param request - The incoming request (unused).
+ * @param context - Route context; `params` resolves to `{ documentId }`.
+ * @returns A JSON {@link NextResponse} with `{ deletionState, cleanupComplete }`; 401
+ *   unauthenticated, 404 not found, 500 on unexpected failure.
  */
 export async function DELETE(
   request: Request,

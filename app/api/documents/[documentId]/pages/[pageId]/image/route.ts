@@ -1,8 +1,8 @@
-// GET /api/documents/[documentId]/pages/[pageId]/image
-//
-// Streams a page's original image from private Blob storage after verifying ownership.
-// Never proxies bytes without an auth check (docs/03_OCR_Specifications.md §4.3 preview).
-// Owner-aware: works for both saved and temporary Documents.
+/**
+ * Page-image streaming API route.
+ *
+ * @module app/api/documents/[documentId]/pages/[pageId]/image/route
+ */
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/database/prisma";
@@ -11,6 +11,19 @@ import { readPageImage } from "@/lib/storage/blob";
 import { getCurrentOwner } from "@/lib/auth/session";
 import { getOwnedDocument } from "@/lib/permissions/ownership";
 
+/**
+ * GET /api/documents/[documentId]/pages/[pageId]/image — streams a page's original image.
+ *
+ * Verifies document ownership before proxying any bytes from private Blob storage — the image
+ * is never served without an auth check (`docs/03_OCR_Specifications.md` §4.3). Owner-aware,
+ * so it works for both saved and temporary Documents. Responds with the raw image bytes and
+ * `no-cache`/`nosniff` headers.
+ *
+ * @param request - The incoming request (unused).
+ * @param context - Route context; `params` resolves to `{ documentId, pageId }`.
+ * @returns The image bytes as a {@link NextResponse}; on error, a JSON body with 401
+ *   unauthenticated, 404 not found, or 500 on unexpected failure.
+ */
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ documentId: string; pageId: string }> }
