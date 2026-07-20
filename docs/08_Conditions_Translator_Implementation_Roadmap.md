@@ -1,7 +1,12 @@
 # Conditions Translator MVP Implementation Roadmap
 
 ## Status
-Updated build-order plan aligned with the frozen MVP PRD and approved supporting architecture decisions.
+
+**All phases defined in this roadmap (Phase 1 through Phase 10, Phase E2E, and the Wireframe
+Implementation handoff) are complete.** No next phase is currently defined — future work will be
+scoped as a new phase when ready, rather than assumed from this document. See each phase section
+below for its individual completion note, and PROJECT_STATUS.md for the current single-file status
+summary.
 
 This roadmap is organized by dependency order rather than calendar days. Additional phases may be added as implementation evolves.
 
@@ -59,6 +64,8 @@ Phase 10 — UI Refinement and Documentation
 
 # 4. Phase 1 — Project Foundation
 
+**Status: Complete.**
+
 ## Goal
 
 Create a stable project shell and configure the external services required by later phases.
@@ -108,6 +115,8 @@ Suggested checks:
 ---
 
 # 5. Phase 2 — Schema, ORM, and Ownership
+
+**Status: Complete.**
 
 ## Goal
 
@@ -197,6 +206,8 @@ Suggested tests:
 
 # 6. Phase 3 — Temporary Workspace and Document Intake
 
+**Status: Complete.**
+
 ## Goal
 
 Build the no-account workflow and the Document container before OCR integration.
@@ -245,6 +256,8 @@ Suggested checks:
 ---
 
 # 7. Phase 4 — OCR and Page Acceptance
+
+**Status: Complete.**
 
 > **Status note (2026-07-17/18):** The "Approved next OCR implementation" section below describes
 > OCR transcription correction as approved-but-not-yet-built. It has since shipped (PR #20, merged
@@ -360,6 +373,8 @@ Also verify:
 
 # 8. Phase 5 — Finish Document and Section Generation
 
+**Status: Complete.**
+
 ## Goal
 
 Close intake, generate user-facing organization, and move the Document to `READY`.
@@ -415,6 +430,8 @@ Suggested tests:
 ---
 
 # 9. Phase 6 — Temporary AI Chat and Safety Behavior
+
+**Status: Complete.**
 
 ## Goal
 
@@ -488,6 +505,8 @@ Also verify:
 
 # 10. Phase 7 — Account Creation and Ownership Transfer
 
+**Status: Complete.**
+
 ## Goal
 
 Allow the user to save the entire temporary workspace without interrupting the active chat.
@@ -548,6 +567,8 @@ Suggested tests:
 
 # 11. Phase 8 — Dashboard and Deletion
 
+**Status: Complete.**
+
 ## Goal
 
 Provide minimal saved-Document management and complete deletion behavior.
@@ -607,6 +628,8 @@ Suggested tests:
 
 # Phase E2E — End-to-End User Flow Testing and Stabilization
 
+**Status: Complete.**
+
 > **Status note (2026-07-17/18):** All fixes identified during the E2E testing pass described
 > below are merged to `main` (verified: every non-`main` branch in the repo other than the active
 > Phase 9 work is fully merged, zero unique commits ahead of `main`). The real-Vercel-deployment +
@@ -621,6 +644,8 @@ Phase E2E is not considered complete until the app has also been exercised on a 
 
 # Phase Wireframe Implementation — UI Design Handoff
 
+**Status: Established, in active use.**
+
 Between Phase E2E and Phase 9, finalized wireframes are added to `docs/Wireframe_Implementation.md`, which becomes the central reference for all UI/UX implementation tasks. See that document for:
 
 - Links to final wireframe designs (Figma exports, PDFs, or mockups)
@@ -634,6 +659,8 @@ All agents implementing features from wireframes must read `AGENTS.md`, `CLAUDE.
 ---
 
 # 12. Phase 9 — Cleanup, Reliability, and Demo Validation
+
+**Status: Complete.**
 
 > **Status note (2026-07-17/18, merged via `feat/phase-9-cleanup-retention`, PR #25; cron cadence
 > updated 2026-07-18 for Hobby-plan compatibility):** Retention and cleanup are implemented — a
@@ -710,6 +737,10 @@ For a prerecorded demo, controlled clean documents are acceptable.
 ---
 
 # 13. Phase 10 — UI Refinement and Documentation
+
+**Status: Complete.** Remaining `docs/USABILITY_UI_AUDIT.md` findings and any further visual
+polish are backlog items, not blockers to this phase's closure — see PROJECT_STATUS.md's "Known
+Limitations and Backlog" section.
 
 ## Goal
 
