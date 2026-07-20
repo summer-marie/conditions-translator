@@ -2,20 +2,24 @@
 
 ## Current Version
 
-Documentation v1.3
+Documentation v1.4
 
 Architecture Frozen
 
 ## Current Phase
 
-Phase 10 (UI Refinement) is in progress, extensive; Phase 9 (Cleanup, Reliability, Demo
-Validation) is complete and merged. Phases 1–9 are implemented and merged to `main` (Phase 9 via
-PR #25, its cron cadence adjusted to daily via PR #26 for Vercel Hobby-plan compatibility). Phase
-E2E (stabilization) is complete — all previously-tracked E2E fixes are merged; no known unmerged
-fixes remain in any historical branch. OCR transcription correction (previously listed as
-"approved, not yet implemented") has shipped and is live on `main`. Landing-page content/visual
-polish (PR #27) is also merged — see Phase 10 below. An installed-PWA redirect-loop bug fix is in
-progress on branch `fix/pwa-redirect-loop` (tested, not yet merged — see "In Progress" below).
+**All phases defined in `docs/08_Conditions_Translator_Implementation_Roadmap.md` are complete**
+(Phase 1 through Phase 10, Phase E2E, and the Wireframe Implementation handoff). Phases 1–9 are
+implemented and merged to `main` (Phase 9 via PR #25, its cron cadence adjusted to daily via PR #26
+for Vercel Hobby-plan compatibility). Phase E2E (stabilization) is complete — all previously-tracked
+E2E fixes are merged; no known unmerged fixes remain in any historical branch. OCR transcription
+correction (previously listed as "approved, not yet implemented") has shipped and is live on
+`main`. Phase 10 (UI Refinement) is complete: landing-page content/visual polish (PR #27) and the
+installed-PWA redirect-loop fix (PR #28) are both merged — see Phase 10 below.
+
+**No next phase is currently defined.** Remaining known issues and deferred work are tracked under
+"Known Limitations and Backlog" below, not as an open phase — the next phase will be scoped
+separately when work resumes.
 
 > Status terms used below: **approved** (decided/documented), **planned** (sequenced, not started),
 > **in progress** (partially built), **implemented** (code exists on `main` or a ready-to-merge
@@ -46,45 +50,44 @@ progress on branch `fix/pwa-redirect-loop` (tested, not yet merged — see "In P
   live-DB verification
   run. A logging/privacy audit found and fixed 4 routes logging raw error objects; no sensitive
   content (page/chat text, secrets) was found logged anywhere.
-- Phase 10 — UI Refinement and Documentation: **in progress, extensive**. Design tokens, shared
+- Phase 10 — UI Refinement and Documentation: **complete**. Design tokens, shared
   components, shared nav (desktop sidebar + mobile bottom tabs/hamburger + document list +
   overflow actions), dark mode, accessibility, public marketing landing page, About/Terms/FAQ
   pages, light-mode visual overhaul, and document-organization UI (Sections view for finished
   documents) are all merged. A usability audit (`docs/USABILITY_UI_AUDIT.md`) found 8 further
-  issues; roughly half fixed, half deferred per the audit's own priority order. Landing-page
-  content/visual pass (PR #27, merged): FAQ page added; landing hero/how-it-works/bottom-CTA copy
-  rewritten; a token-derived ambient "glow" background system added across the landing page, the
-  About/Terms/FAQ pages, and the public header (light mode fully, dark mode ported and
-  intensity-tuned per explicit feedback — CTA section kept full intensity, hero/features/workspace
-  sections deliberately more subdued); the landing page converted to a rem-first fluid `clamp()`
-  sizing system for headings/spacing/gaps (replacing discrete Tailwind breakpoint jumps), plus a
-  follow-up fix narrowing two headings' pre-breakpoint max-widths to remove a real measured
-  200-490px heading-width "snap" at the `lg` grid-column breakpoint; a sitewide (not landing-only)
-  `@media (any-pointer: fine)` pointer-cursor rule was also added in `app/globals.css` for
-  genuinely interactive elements only.
+  issues; roughly half fixed, half deferred per the audit's own priority order — the deferred
+  items are tracked under "Known Limitations and Backlog" below, not as blockers to this phase's
+  closure. Landing-page content/visual pass (PR #27, merged): FAQ page added; landing
+  hero/how-it-works/bottom-CTA copy rewritten; a token-derived ambient "glow" background system
+  added across the landing page, the About/Terms/FAQ pages, and the public header (light mode
+  fully, dark mode ported and intensity-tuned per explicit feedback — CTA section kept full
+  intensity, hero/features/workspace sections deliberately more subdued); the landing page
+  converted to a rem-first fluid `clamp()` sizing system for headings/spacing/gaps (replacing
+  discrete Tailwind breakpoint jumps), plus a follow-up fix narrowing two headings'
+  pre-breakpoint max-widths to remove a real measured 200-490px heading-width "snap" at the `lg`
+  grid-column breakpoint; a sitewide (not landing-only) `@media (any-pointer: fine)`
+  pointer-cursor rule was also added in `app/globals.css` for genuinely interactive elements only.
+  Also merged as part of Phase 10: the installed-PWA redirect-loop fix (PR #28) — the
+  temporary-session cookie (`lib/session/temporary.ts`) was changed from `SameSite=Strict` to
+  `SameSite=Lax` (a Strict cookie set mid-redirect isn't reliably sent back on the very next
+  request when the browsing context is a fresh top-level navigation with no same-site referrer —
+  exactly what an installed PWA relaunch from the OS home screen is, so the app was
+  re-triggering its own `/api/session/bootstrap` redirect forever), and an explicit
+  `start_url`/`scope` was added to `public/manifest.json`. A related fix in the same PR:
+  `app/app/layout.tsx`'s temp-session gate now checks `getCurrentUser()` first and skips the gate
+  entirely for signed-in users, so a signed-in user deep-linking into e.g. `/app/workspace` lands
+  there directly instead of being bounced to `/app/start`. Verified via raw HTTP
+  redirect-chain/cookie tracing and Playwright fresh-context tests simulating a cold PWA-style
+  launch; no real installed-PWA/device test was possible in that environment — devices that
+  installed the PWA under the old manifest won't get the fix until reinstalled or the OS/browser
+  re-fetches the manifest (platform-dependent).
 
-## In Progress
+## Historical: OCR Transcription Correction
 
-**Installed-PWA redirect loop fix** — branch `fix/pwa-redirect-loop` (2 commits, tested, not yet
-merged). Root cause: the temporary-session cookie (`lib/session/temporary.ts`) was set with
-`SameSite=Strict`; a Strict cookie set mid-redirect isn't reliably sent back on the very next
-request when the browsing context is a fresh top-level navigation with no same-site referrer —
-exactly what an installed PWA relaunch from the OS home screen is — so the app re-triggered its
-own `/api/session/bootstrap` redirect forever ("too many redirects"). Fixed by changing that
-cookie to `SameSite=Lax` (matching this project's own existing convention for the analogous auth
-session cookie) and by adding an explicit `start_url`/`scope` to `public/manifest.json` (it had
-neither, so an install could anchor to whatever page was open at install time instead of the
-public landing page). A related follow-up fix in the same branch: `app/app/layout.tsx`'s
-temp-session gate ran unconditionally regardless of sign-in status, so a signed-in user
-deep-linking straight into e.g. `/app/workspace` got bounced through the bootstrap redirect and
-landed on `/app/start` instead (not a loop, just the wrong landing spot) — fixed by checking
-`getCurrentUser()` first and skipping the temp-session gate entirely for signed-in users. Verified
-via raw HTTP redirect-chain/cookie tracing and Playwright fresh-context tests simulating a cold
-PWA-style launch; no real installed-PWA/device test was possible in this environment.
-
-## Approved Next Implementation
-
-**OCR transcription correction workflow** — **approved, documented, and implemented.**
+**OCR transcription correction workflow** — **approved, documented, and implemented.** This was
+the last "approved next implementation" tracked in this document; it has since shipped and there
+is currently no new approved-but-unbuilt implementation queued. Future work will be scoped as a
+new phase when defined.
 
 `OcrResult.correctedText` (schema column + migration), the `correctPageOcr` Server Action, and
 workspace UI for reviewing/correcting a page's transcription before approval all exist on `main`.
@@ -93,32 +96,33 @@ Remaining verification: the Launch Readiness Checklist's dedicated OCR-correctio
 
 ## Documentation Status
 
-Up to date as of 2026-07-19 (branch `fix/pwa-redirect-loop`). `.agent-memory/` files are kept
-current going forward — see `.agent-memory/WORK_LOG.md` for the fullest chronological detail,
-including this update.
+Up to date as of 2026-07-20. `.claude/session-memory/` (tracked in git as of this update — see
+`.gitignore`) holds ongoing session detail; see `.claude/session-memory/WORK_LOG.md` for the
+fullest chronological detail, including this update. **Note:** this file is hand-maintained and
+has previously gone stale between updates (e.g. this revision found three items in the previous
+"Outstanding Items" list that were already resolved) — verify against `git log`/current code
+before trusting its narrative as current fact.
 
-## Outstanding Items
+## Known Limitations and Backlog
 
-- Merge `fix/pwa-redirect-loop` (pending user review — see "In Progress" above).
+Not tied to any current phase — the phases that produced these are complete, but the items below
+remain true limitations or deferred work. Pick up as a newly-scoped phase when ready.
+
 - Real Vercel Cron invocation on a deployed environment has not been independently confirmed —
   only a manual trigger command is documented (`docs/Deployment_Vercel.md`).
-- Remaining `docs/USABILITY_UI_AUDIT.md` findings (deferred items — see that document).
-- Known, deliberately unfixed: `createTemporaryDocument` cannot create a document for a
-  signed-in user. See `.agent-memory/OPEN_QUESTIONS.md`.
-- Next work order (user-stated, 2026-07-17; items 1–2 now complete): (1) Phase 9 — done, merged;
-  (2) landing-page content updates — done, merged (PR #27), plus the installed-PWA fix above which
-  was reported and fixed in the interim; (3) real-phone OCR validation focused on handwriting —
-  not yet started.
-- `docs/01_MVP_PRD.md` §4 documents a redirect-only guest journey; the app now also has a public
-  marketing landing page, decided and implemented but not reconciled back into the PRD text (PRD
-  itself remains frozen/unedited, per architecture rules).
-- Duplicate-label warning (Launch Readiness Checklist §10) remains unimplemented.
+- Remaining `docs/USABILITY_UI_AUDIT.md` findings (2026-07-18, deferred items — see that
+  document). **Not re-verified since that audit** — confirm each against current code before
+  treating any specific one as still open.
+- `createTemporaryDocument` (`lib/actions/document.ts`) cannot create a document for a signed-in
+  user — confirmed still true by reading current code as of 2026-07-20.
 - The temporary `[ocr-diag]` diagnostic logging (added 2026-07-14 to investigate a real OCR 502 on
-  phone photos) is still in place — that investigation remains open.
+  phone photos) is still in place as of 2026-07-20 — that investigation remains open.
 - Any device that already installed the PWA under the old (missing-`start_url`) manifest cached
-  that manifest at install time — the `fix/pwa-redirect-loop` manifest fix only takes effect for
+  that manifest at install time — the redirect-loop fix's manifest change only takes effect for
   new installs or after the OS/browser re-fetches an updated manifest (platform-dependent);
   existing installs may need to be reinstalled to pick up the new `start_url`.
+- Real-phone OCR validation focused on handwriting (user-stated priority, 2026-07-17) — not yet
+  started.
 
 ## Future Documentation
 
