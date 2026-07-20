@@ -1,9 +1,16 @@
-// Password hashing for saved accounts (docs/05_Account_Creation_and_Temporary_Access.md,
-// docs/08 roadmap Phase 7: "Use secure password hashing").
-//
-// Uses Node's built-in scrypt (an OWASP-recommended, memory-hard KDF) so there is no native
-// dependency to build on Vercel. Each password gets a unique random salt; the stored value is
-// self-describing: `scrypt$<N>$<saltHex>$<hashHex>`. Verification is constant-time.
+/**
+ * Password hashing and verification for saved accounts
+ * (`docs/05_Account_Creation_and_Temporary_Access.md`, roadmap Phase 7:
+ * "Use secure password hashing").
+ *
+ * Uses Node's built-in scrypt — an OWASP-recommended, memory-hard KDF — so there is no
+ * native dependency to compile on Vercel. Every password gets a unique random salt, and
+ * the stored value is self-describing: `scrypt$<N>$<saltHex>$<hashHex>`. Embedding the
+ * cost parameter lets it be raised later without invalidating existing hashes.
+ * Verification is constant-time to resist timing attacks.
+ *
+ * @module lib/auth/password
+ */
 
 import {
   randomBytes,
@@ -12,8 +19,18 @@ import {
   type ScryptOptions,
 } from "node:crypto";
 
-// Promise wrapper around scrypt's options-aware callback overload (promisify() drops that overload
-// from its type signature, so we wrap it explicitly).
+/**
+ * Promise wrapper around scrypt's options-aware callback overload.
+ *
+ * `util.promisify()` drops that overload from its type signature, so the callback form
+ * is wrapped explicitly to keep `maxmem`/`N` typed.
+ *
+ * @param password - Plaintext password to derive from.
+ * @param salt - Per-password random salt.
+ * @param keylen - Desired derived-key length in bytes.
+ * @param options - scrypt cost options (`N`, `maxmem`, ...).
+ * @returns The derived key buffer.
+ */
 function scryptAsync(
   password: string,
   salt: Buffer,
@@ -28,16 +45,29 @@ function scryptAsync(
   });
 }
 
-// scrypt cost parameter (2^15). Kept in the encoded hash so it can be raised later without
-// invalidating existing hashes.
+/**
+ * scrypt cost parameter (2^15). Stored inside each encoded hash so it can be increased
+ * later without breaking verification of previously stored passwords.
+ */
 const SCRYPT_COST = 1 << 15;
+/** Derived-key length in bytes. */
 const KEY_LENGTH = 64;
+/** Random salt length in bytes. */
 const SALT_BYTES = 16;
-// At N=2^15 (r=8) scrypt needs ~32 MiB, which meets Node's default maxmem ceiling exactly and
-// errors; raise the limit with headroom so hashing succeeds.
+/**
+ * Memory ceiling for scrypt. At N=2^15 (r=8) scrypt needs ~32 MiB, which meets Node's
+ * default `maxmem` exactly and errors; this raises the limit with headroom so hashing
+ * succeeds.
+ */
 const SCRYPT_MAXMEM = 64 * 1024 * 1024;
 
-/** Hashes a plaintext password into a self-describing, storable string. */
+/**
+ * Hashes a plaintext password into a self-describing, storable string.
+ *
+ * @param password - The plaintext password. Must be non-empty.
+ * @returns A `scrypt$<N>$<saltHex>$<hashHex>` string safe to persist in `User.passwordHash`.
+ * @throws {Error} When `password` is empty.
+ */
 export async function hashPassword(password: string): Promise<string> {
   if (!password) {
     throw new Error("Cannot hash an empty password.");
@@ -51,8 +81,17 @@ export async function hashPassword(password: string): Promise<string> {
 }
 
 /**
- * Verifies a plaintext password against a stored hash. Returns false (never throws) for a
- * malformed or unrecognized stored value so callers get uniform "invalid credentials" behavior.
+ * Verifies a plaintext password against a previously stored hash.
+ *
+ * Parses the cost and salt out of the stored value and re-derives the key using the
+ * *stored* cost (not the current constant), so old hashes keep verifying after the cost
+ * is bumped. Any malformed, unrecognized, or absent stored value yields `false` rather
+ * than throwing, giving callers uniform "invalid credentials" behavior. The final
+ * comparison is constant-time.
+ *
+ * @param password - The plaintext password to check.
+ * @param storedHash - The stored `scrypt$...` value, or `null`/`undefined`.
+ * @returns `true` only when the password reproduces the stored hash; otherwise `false`.
  */
 export async function verifyPassword(
   password: string,
