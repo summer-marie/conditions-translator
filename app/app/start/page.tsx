@@ -1,9 +1,15 @@
-// Privacy notice gate.
-//
-// Before a temporary user can create their first Document, display a privacy notice.
-// The notice clearly states: data is temporary, retention policy, and that no
-// account is required to proceed.
-// User must explicitly accept (click "I Understand") before any Document is created.
+/**
+ * Standalone privacy-notice gate route (`/app/start`).
+ *
+ * Shown before a temporary user creates their first Document. The notice states that data is
+ * temporary, describes the retention policy, and makes clear no account is required. The user
+ * must explicitly accept (submitting "I Understand", which invokes the {@link acceptPrivacy}
+ * server action) before any Document is created. This is the fallback route reached when
+ * workspace/chat detect an unaccepted session; the landing page shows the same content via a
+ * modal instead.
+ *
+ * @module app/app/start/page
+ */
 
 import { acceptPrivacy } from "@/lib/actions/privacy";
 import { Button } from "@/components/ui/Button";
@@ -11,6 +17,11 @@ import { Card } from "@/components/ui/Card";
 import { Alert } from "@/components/ui/Alert";
 import { APP_NAME } from "@/lib/constants";
 
+/**
+ * Renders the privacy-notice gate page.
+ *
+ * @returns The rendered gate with its acceptance form.
+ */
 export default function StartPage() {
   return (
     <div className="min-h-screen bg-(--color-background-page) flex items-center justify-center p-4">
