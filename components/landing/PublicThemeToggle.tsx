@@ -1,9 +1,22 @@
-// Light/dark toggle button for public marketing pages. Presentational only -- theme state and
-// the toggle handler live in PublicHeader (the shared parent of this and LandingLogo), passed
-// down as props, so both stay in sync. Mirrors AppNav.tsx's ThemeToggleButton shape/icons/style
-// exactly -- PublicHeader's background is now a fixed dark charcoal regardless of site theme
-// (same as AppNav's sidebar), so this uses the same "on dark chrome" foreground/hover treatment.
+/**
+ * Light/dark theme toggle button for the public marketing header.
+ *
+ * Presentational only: theme state and the toggle handler live in {@link PublicHeader} (the
+ * shared parent of this and `LandingLogo`) and are passed down, so both stay in sync. Mirrors
+ * `AppNav`'s `ThemeToggleButton` shape/icons/style, using the same "on dark chrome" treatment
+ * because the header background is a fixed dark charcoal regardless of site theme.
+ *
+ * @module components/landing/PublicThemeToggle
+ */
 
+/**
+ * Renders the theme-toggle icon button.
+ *
+ * @param props - Component props.
+ * @param props.theme - The current theme (selects the icon and `aria-pressed`).
+ * @param props.onToggle - Called when the button is pressed.
+ * @returns The rendered toggle button.
+ */
 export function PublicThemeToggle({
   theme,
   onToggle,
@@ -25,6 +38,7 @@ export function PublicThemeToggle({
   );
 }
 
+/** Decorative sun glyph shown while in dark mode (tap to switch to light). */
 function SunIcon() {
   return (
     <svg
@@ -44,6 +58,7 @@ function SunIcon() {
   );
 }
 
+/** Decorative moon glyph shown while in light mode (tap to switch to dark). */
 function MoonIcon() {
   return (
     <svg

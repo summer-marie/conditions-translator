@@ -1,24 +1,38 @@
-// Static, illustrative hero preview -- mirrors design-specs/wireframes/approved/desktop/
-// browser-landingpage-navy.png. Not wired to a real session/Document; PREVIEW_PAGES below is
-// mocked marketing content only.
+/**
+ * Static, illustrative hero preview of the workspace for the landing page.
+ *
+ * Mirrors the approved landing wireframe. NOT wired to a real session/Document —
+ * {@link PREVIEW_PAGES} is mocked marketing content only.
+ *
+ * @module components/landing/WorkspacePreviewCard
+ */
 
 import Image from "next/image";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { APP_NAME } from "@/lib/constants";
 
+/** One illustrative uploaded-page thumbnail in the preview. */
 interface PreviewPage {
   label: string;
+  /** Fake processing status driving the badge tone. */
   status: "ready" | "processing";
+  /** Thumbnail image source. */
   src: string;
 }
 
+/** Mocked page thumbnails shown in the preview card. */
 const PREVIEW_PAGES: PreviewPage[] = [
   { label: "Page 1", status: "ready", src: "/landing/page-thumb-1.jpg" },
   { label: "Page 2", status: "ready", src: "/landing/page-thumb-2.jpg" },
   { label: "Page 3", status: "processing", src: "/landing/page-thumb-3.jpg" },
 ];
 
+/**
+ * Renders the static workspace-preview card.
+ *
+ * @returns The rendered preview card.
+ */
 export function WorkspacePreviewCard() {
   return (
     <Card
