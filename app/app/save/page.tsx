@@ -14,6 +14,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { signUpAndSave, signInAndSave } from "@/lib/actions/auth";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 import { Alert } from "@/components/ui/Alert";
 import { Card } from "@/components/ui/Card";
 
@@ -221,9 +222,8 @@ function SavePageContent() {
 
           <div>
             <label htmlFor="create-password" className="block text-sm font-medium text-(--color-text-body) mb-1">Password</label>
-            <Input
+            <PasswordInput
               id="create-password"
-              type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="At least 8 characters"
@@ -279,9 +279,8 @@ function SavePageContent() {
 
           <div>
             <label htmlFor="signin-password" className="block text-sm font-medium text-(--color-text-body) mb-1">Password</label>
-            <Input
+            <PasswordInput
               id="signin-password"
-              type="password"
               value={signInPassword}
               onChange={(e) => setSignInPassword(e.target.value)}
               autoComplete="current-password"
