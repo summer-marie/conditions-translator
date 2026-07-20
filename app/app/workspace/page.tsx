@@ -262,20 +262,30 @@ export default function WorkspacePage() {
   );
 }
 
+/**
+ * Stateful body of the workspace (inside {@link WorkspacePage}'s Suspense boundary).
+ *
+ * Drives the whole intake experience: resolving which document to show (the user's active
+ * intake document by default, or a finished document selected via `?documentId=`), the page
+ * list and all per-page actions (OCR, accept, correct, re-upload, delete), inline title
+ * editing, Finish/Retry, and the read-only Sections/Pages view of a finished document.
+ *
+ * @returns The rendered workspace.
+ */
 function WorkspacePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  // Presence of ?documentId= means the user picked a finished document from the sidenav; absence
-  // means "show my active intake document" (today's default behavior, unchanged).
+  // A ?documentId= param means the user picked a finished document from the sidenav; its absence
+  // means "show my active intake document" (the default).
   const viewedDocumentId = searchParams.get("documentId");
 
-  // The document currently rendered in the main content area -- either the active intake
-  // document (default) or a different, already-finished document selected via the sidenav.
+  // The document currently rendered in the main content area — either the active intake document
+  // (default) or a different, already-finished document opened from the sidenav.
   const [document, setDocument] = useState<Document | null>(null);
   const [pages, setPages] = useState<Page[]>([]);
   // The user's own active IN_PROGRESS document (or null if none exists yet). Kept separate from
-  // `document` above so the Upload Pages box always targets the user's real intake document, even
-  // while `document` is showing a different, finished document browsed from the sidenav.
+  // `document` so the Upload Pages box always targets the real intake document even while
+  // `document` is showing a finished document browsed from the sidenav.
   const [intakeDocument, setIntakeDocument] = useState<Document | null>(null);
   const [isLoadingViewedDocument, setIsLoadingViewedDocument] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -287,9 +297,9 @@ function WorkspacePageContent() {
   const [titleInput, setTitleInput] = useState("");
   const [ocrRunningIds, setOcrRunningIds] = useState<Record<string, boolean>>({});
   const [actioningPageId, setActioningPageId] = useState<string | null>(null);
-  // OCR transcription correction (docs/OCR_Master_Implementation_Plan.md §7-8): local textarea
-  // drafts, per-page save/error/saved state. Keyed by pageId, separate from actioningPageId so
-  // Save stays a distinct action from Accept/Re-upload/Delete.
+  // OCR transcription correction state (docs/OCR_Master_Implementation_Plan.md §7-8): local
+  // textarea drafts plus per-page saving/error/saved flags, all keyed by pageId. Kept separate
+  // from actioningPageId so Save stays a distinct action from Accept/Re-upload/Delete.
   const [correctionDrafts, setCorrectionDrafts] = useState<Record<string, string>>({});
   const [savingCorrectionIds, setSavingCorrectionIds] = useState<Record<string, boolean>>({});
   const [correctionErrors, setCorrectionErrors] = useState<Record<string, string | null>>({});
@@ -305,15 +315,18 @@ function WorkspacePageContent() {
   }>({ isOpen: false, pageId: null, isDeleting: false, error: null });
   const deletePageModalRef = useRef<HTMLDivElement | null>(null);
   useFocusTrap(deletePageModal.isOpen, deletePageModalRef);
-  // Keyed by page id: an explicit ref->click() trigger for each page's hidden re-upload file
-  // input, since a <label> wrapping both a visible Button and the input resolves its implicit
-  // control to the first labelable descendant (the button), not the input -- clicking never
-  // opened the file picker. See docs/USABILITY_UI_AUDIT.md follow-up diagnosis.
+  // Per-page refs used to ref->click() each hidden re-upload file input. A <label> wrapping both
+  // the visible Button and the input resolves its implicit control to the first labelable
+  // descendant (the button), so clicking never opened the file picker — hence the explicit ref.
   const reuploadInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
-  // Set once the workspace is owned by a signed-in account (Phase 7). null while temporary.
+  // Account id once the workspace is owned by a signed-in user (Phase 7); null while temporary.
   const [savedUserId, setSavedUserId] = useState<string | null>(null);
   const [isSigningOut, setIsSigningOut] = useState(false);
 
+  /**
+   * Bootstraps the workspace on mount: resolves the owner, the active intake document (creating
+   * one in temporary mode when none exists), and the initially-shown document + pages.
+   */
   async function initializeWorkspace() {
     try {
       // Privacy acceptance and session lookup use next/headers (cookies()) and must run
@@ -408,6 +421,12 @@ function WorkspacePageContent() {
     }
   };
 
+  /**
+   * Re-fetches a document's pages into state.
+   *
+   * @param documentId - The document whose pages to load.
+   * @returns The loaded pages (also stored in state), or `[]` on failure.
+   */
   const refetchPages = async (documentId: string) => {
     const pagesResponse = await fetch(`/api/documents/${documentId}/pages`);
     if (pagesResponse.ok) {
@@ -418,9 +437,14 @@ function WorkspacePageContent() {
     return [];
   };
 
-  // Loads a specific, already-finished document selected from the sidenav (?documentId=) into
-  // the main content area, independent of the user's own active intake document. Reuses the same
-  // owner-aware endpoints as the default flow -- no new persistence path for guests or accounts.
+  /**
+   * Loads a specific finished document (selected via `?documentId=`) into the main content area.
+   *
+   * Independent of the user's own active intake document, and reuses the same owner-aware
+   * endpoints as the default flow (no separate persistence path for guests or accounts).
+   *
+   * @param id - The document id to load.
+   */
   const loadViewedDocument = async (id: string) => {
     setIsLoadingViewedDocument(true);
     try {
@@ -444,6 +468,11 @@ function WorkspacePageContent() {
     }
   };
 
+  /**
+   * Re-fetches a document's status and sections, merging them into the current `document`.
+   *
+   * @param documentId - The document to refresh.
+   */
   const refetchDocument = async (documentId: string) => {
     const response = await fetch(`/api/documents/${documentId}`);
     if (!response.ok) return;
@@ -459,6 +488,12 @@ function WorkspacePageContent() {
     );
   };
 
+  /**
+   * Runs OCR for a page and merges the result (page + OCR) into state.
+   *
+   * @param documentId - The owning document.
+   * @param pageId - The page to OCR.
+   */
   const runOcrForPage = async (documentId: string, pageId: string) => {
     setOcrRunningIds((prev) => ({ ...prev, [pageId]: true }));
     try {
@@ -484,12 +519,24 @@ function WorkspacePageContent() {
     }
   };
 
-  // An in-progress local edit if one exists, otherwise falls back to initialCorrectionValue.
+  /**
+   * Returns a page's current correction text: the in-progress local draft if any, else the
+   * {@link initialCorrectionValue}.
+   *
+   * @param page - The page whose correction value to read.
+   * @returns The draft or initial correction text.
+   */
   const getCorrectionValue = (page: Page): string => {
     if (page.id in correctionDrafts) return correctionDrafts[page.id];
     return initialCorrectionValue(page.ocr);
   };
 
+  /**
+   * Updates a page's local correction draft and clears any stale saved/error indicator.
+   *
+   * @param pageId - The page being edited.
+   * @param value - The new draft text.
+   */
   const handleCorrectionChange = (pageId: string, value: string) => {
     setCorrectionDrafts((prev) => ({ ...prev, [pageId]: value }));
     // Editing again clears a stale "Saved" indicator or error from a prior attempt.
@@ -497,6 +544,11 @@ function WorkspacePageContent() {
     setCorrectionErrors((prev) => (prev[pageId] ? { ...prev, [pageId]: null } : prev));
   };
 
+  /**
+   * Validates and persists a page's transcription correction (writes only `correctedText`).
+   *
+   * @param pageId - The page whose correction to save.
+   */
   const handleSaveCorrection = async (pageId: string) => {
     if (!document) return;
     const page = pages.find((p) => p.id === pageId);
