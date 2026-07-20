@@ -8,6 +8,7 @@
 // workspace/chat detect an unaccepted session.
 
 import Image from "next/image";
+import { DM_Serif_Display } from "next/font/google";
 import { Card } from "@/components/ui/Card";
 import { GetStartedCTA } from "@/components/landing/GetStartedCTA";
 import { PublicHeader } from "@/components/landing/PublicHeader";
@@ -16,6 +17,15 @@ import { WorkspacePreviewCard } from "@/components/landing/WorkspacePreviewCard"
 import { SectioningPreviewCard } from "@/components/landing/SectioningPreviewCard";
 import { StepFeatureRow } from "@/components/landing/StepFeatureRow";
 import { APP_NAME } from "@/lib/constants";
+
+// Display serif for the Features-section value prop only -- deliberately distinct from the rest
+// of the landing page's Inter-based type scale so it reads as a standalone editorial statement,
+// not another heading level. Chosen over Fraunces/Playfair Display/Space Grotesk after a visual
+// side-by-side comparison (see .agent-memory/DECISIONS.md): clearest contrast against the
+// surrounding sans-serif text without the ornamental/optical quirks of Fraunces or the heavier
+// stroke contrast of Playfair Display, both of which read a step more decorative for this
+// product's tone.
+const valueDisplayFont = DM_Serif_Display({ subsets: ["latin"], weight: "400" });
 
 const FEATURES = [
   {
@@ -121,9 +131,11 @@ export default function LandingPage() {
         <section className="landing-section-features">
           <div className="max-w-6xl mx-auto px-(--landing-container-px) pt-0 pb-(--landing-space-section-y)">
           <p
-            className="font-(--font-weight-h3) text-center max-w-2xl mx-auto mb-6"
+            className={`${valueDisplayFont.className} text-center max-w-2xl mx-auto mb-6`}
             style={{
-              fontSize: "var(--landing-font-h3)",
+              fontSize: "var(--landing-font-value-prop)",
+              lineHeight: 1.3,
+              letterSpacing: "-0.005em",
               color: "var(--color-text-heading)",
             }}
           >
