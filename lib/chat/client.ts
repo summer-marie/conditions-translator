@@ -1,9 +1,14 @@
-// Server-side OpenAI chat call that answers a question grounded in the selected documents'
-// accepted text (docs/06_AI_Safety_and_Persona.md).
-//
-// Model is always read from OPENAI_CHAT_MODEL — never hardcoded (docs/11_Model_Routing_and_
-// Fallback.md). Runs only on the server; the API key never reaches the browser. Any provider
-// error is sanitized before it leaves this module so request/response content can never leak.
+/**
+ * Server-side OpenAI chat call that answers a question grounded in the selected
+ * documents' accepted text (`docs/06_AI_Safety_and_Persona.md`).
+ *
+ * The model is always read from `OPENAI_CHAT_MODEL` and never hardcoded
+ * (`docs/11_Model_Routing_and_Fallback.md`). This module runs only on the server, so the
+ * API key never reaches the browser, and every provider error is sanitized before it
+ * leaves the module — request/response content can never leak into logs or client errors.
+ *
+ * @module lib/chat/client
+ */
 
 import OpenAI from "openai";
 import { zodTextFormat } from "openai/helpers/zod";
@@ -11,13 +16,25 @@ import { AppError } from "@/lib/errors";
 import { ChatAnswerSchema, type ChatAnswer } from "@/lib/chat/schema";
 import { CHAT_SYSTEM_PROMPT } from "@/lib/chat/prompt";
 
+/** A single prior turn of the current temporary chat, used only for conversational context. */
 export interface ChatHistoryMessage {
+  /** Who produced the turn. */
   role: "user" | "assistant";
+  /** The turn's text. */
   content: string;
 }
 
+/** Lazily-created singleton client; reused across requests within a warm server instance. */
 let cachedClient: OpenAI | null = null;
 
+/**
+ * Returns the shared OpenAI client, constructing it on first use.
+ *
+ * Timeout and retry counts come from `OPENAI_REQUEST_TIMEOUT_MS` / `OPENAI_MAX_RETRIES`,
+ * defaulting to 60s and 2 retries.
+ *
+ * @returns The memoized {@link OpenAI} client.
+ */
 function getClient(): OpenAI {
   if (!cachedClient) {
     cachedClient = new OpenAI({
@@ -29,13 +46,23 @@ function getClient(): OpenAI {
 }
 
 /**
- * Generates a grounded chat answer.
+ * Generates a grounded chat answer from the selected documents' accepted text.
  *
- * @param documentsBlock  Pre-assembled, numbered document/page source text (the full ACCEPTED
- *                        text of the selected READY documents). Never truncated by the caller.
- * @param history         Prior turns of THIS temporary chat, oldest first, for conversational
- *                        context only.
- * @param latestUserMessage  The new question to answer.
+ * The document block is passed as a dedicated system message so the model treats it as
+ * grounding context and never confuses it with the user's own instructions (prompt-
+ * injection resistance). Provider failures and schema mismatches are converted into
+ * sanitized {@link AppError}s so no request content escapes.
+ *
+ * @param params - Call inputs.
+ * @param params.documentsBlock - Pre-assembled, numbered document/page source text (the
+ *   full ACCEPTED text of the selected READY documents). Never truncated by the caller.
+ * @param params.history - Prior turns of *this* temporary chat, oldest first, for
+ *   conversational context only.
+ * @param params.latestUserMessage - The new question to answer.
+ * @returns The parsed, schema-validated {@link ChatAnswer}.
+ * @throws {AppError} `CHAT_MODEL_NOT_CONFIGURED` (500) when `OPENAI_CHAT_MODEL` is unset.
+ * @throws {AppError} `CHAT_REQUEST_FAILED` (502) when the provider call fails.
+ * @throws {AppError} `CHAT_INVALID_RESPONSE` (502) when the response does not match the schema.
  */
 export async function generateChatAnswer(params: {
   documentsBlock: string;
@@ -47,8 +74,8 @@ export async function generateChatAnswer(params: {
     throw new AppError("Chat model is not configured.", 500, "CHAT_MODEL_NOT_CONFIGURED");
   }
 
-  // The selected documents are provided as a system message so the model treats them as
-  // grounding context, and their content is never confused with the user's own instructions.
+  // Documents go in a system message (not the user turn) so the model treats them as
+  // authoritative grounding rather than as user-supplied instructions.
   const input = [
     { role: "system" as const, content: CHAT_SYSTEM_PROMPT },
     {
@@ -70,7 +97,8 @@ export async function generateChatAnswer(params: {
       text: { format: zodTextFormat(ChatAnswerSchema, "chat_answer") },
     });
   } catch {
-    // Never log the underlying error verbatim — it may echo back request content.
+    // Swallow the provider error deliberately: it can echo back request content, so it
+    // must never be logged or surfaced. Only the sanitized AppError leaves this module.
     throw new AppError("The chat request failed.", 502, "CHAT_REQUEST_FAILED");
   }
 

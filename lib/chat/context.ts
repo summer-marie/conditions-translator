@@ -1,14 +1,20 @@
-// Assembles the grounded AI request context from the selected READY documents
-// (docs/06_AI_Safety_and_Persona.md §5, docs/07_Launch_Readiness_Checklist.md §6,
-// docs/09_Coding_Risk_Register.md R-004).
-//
-// Guarantees enforced here:
-//   - Only the caller's own documents are read (ownership-scoped — never by id alone).
-//   - Only READY, ACTIVE documents are eligible; anything else is rejected server-side even if
-//     the UI allowed it.
-//   - Only ACCEPTED page text enters the context, in page order.
-//   - The combined confirmed-text character limit is enforced by FAILING CLEARLY. Source text is
-//     never silently truncated (R-004).
+/**
+ * Assembles the grounded AI request context from the selected READY documents
+ * (`docs/06_AI_Safety_and_Persona.md` §5, `docs/07_Launch_Readiness_Checklist.md` §6,
+ * `docs/09_Coding_Risk_Register.md` R-004).
+ *
+ * Every safety guarantee for what the model may see is enforced here, server-side, even
+ * if the UI would have allowed otherwise:
+ *
+ * - **Ownership-scoped reads.** Documents are matched by id *and* owner, never by id alone.
+ * - **Eligibility.** Only READY, ACTIVE documents qualify; anything else is treated as
+ *   "not found" so the response never reveals a document's state.
+ * - **Accepted text only.** Only ACCEPTED page text enters the context, in page order.
+ * - **Fail loud, never truncate.** Exceeding the confirmed-text character budget throws
+ *   a clear error; source text is never silently trimmed to fit (R-004).
+ *
+ * @module lib/chat/context
+ */
 
 import { prisma } from "@/lib/database/prisma";
 import { AppError } from "@/lib/errors";
@@ -18,28 +24,56 @@ import {
   CHAT_MAX_DOCUMENTS,
 } from "@/lib/constants";
 
+/** One accepted page within an assembled document. */
 export interface AssembledPage {
-  pageNumber: number; // 1-based position among this document's accepted pages
+  /** 1-based position among this document's accepted pages. */
+  pageNumber: number;
+  /** The page's database id. */
   pageId: string;
+  /** The accepted transcription text for this page. */
   text: string;
 }
 
+/** One selected document with its ordered accepted pages. */
 export interface AssembledDocument {
-  documentNumber: number; // 1-based position in the selection
+  /** 1-based position of this document within the selection. */
+  documentNumber: number;
+  /** The document's database id. */
   documentId: string;
+  /** The document's title, shown to the model as a section header. */
   title: string;
+  /** The document's accepted pages, in page order. */
   pages: AssembledPage[];
 }
 
+/** The fully-assembled grounding context returned to the caller. */
 export interface AssembledContext {
+  /** Structured per-document/page breakdown (used for citation mapping). */
   documents: AssembledDocument[];
+  /** The flat, numbered source-text block passed to the model. */
   documentsBlock: string;
+  /** Total character count across all included page text. */
   totalCharacters: number;
 }
 
 /**
- * Loads and validates the selected documents, then builds the numbered source-text block sent to
- * the model. Throws (never truncates) when the selection is invalid or exceeds a limit.
+ * Loads and validates the selected documents, then builds the numbered source-text block
+ * sent to the model.
+ *
+ * De-duplicates ids while preserving selection order, enforces the document-count and
+ * confirmed-character limits, and — per R-004 — throws rather than truncating when a
+ * limit is exceeded so the user is told to adjust their selection instead of receiving a
+ * silently degraded answer.
+ *
+ * @param owner - The current request's owner; scopes every document read.
+ * @param documentIds - The selected document ids, in the user's chosen order.
+ * @returns The {@link AssembledContext} containing both the structured breakdown and the
+ *   flat `documentsBlock` for the model.
+ * @throws {AppError} `NO_DOCUMENTS_SELECTED` (400) when the selection is empty.
+ * @throws {AppError} `TOO_MANY_DOCUMENTS` (400) when more than {@link CHAT_MAX_DOCUMENTS} are selected.
+ * @throws {AppError} `DOCUMENT_NOT_AVAILABLE` (400) when a selected document is missing,
+ *   unowned, not READY, or deleted.
+ * @throws {AppError} `CONFIRMED_TEXT_LIMIT_EXCEEDED` (400) when combined text exceeds the budget.
  */
 export async function assembleChatContext(
   owner: Owner,
@@ -53,7 +87,7 @@ export async function assembleChatContext(
     );
   }
 
-  // De-duplicate while preserving selection order.
+  // Set preserves first-seen order, so the selection order the user chose survives de-duplication.
   const uniqueIds = [...new Set(documentIds)];
 
   if (uniqueIds.length > CHAT_MAX_DOCUMENTS) {
@@ -70,8 +104,9 @@ export async function assembleChatContext(
   for (let i = 0; i < uniqueIds.length; i++) {
     const documentId = uniqueIds[i];
 
-    // Ownership-scoped read: id + owner, plus the eligibility guards. A non-READY or deleted
-    // document is indistinguishable from "not found" so the response never reveals its state.
+    // Ownership-scoped read: match on id + owner + eligibility guards together. Collapsing
+    // "not owned", "not READY", and "deleted" into the same not-found path prevents the
+    // response from revealing a document's existence or state to a non-owner.
     const document = await prisma.document.findFirst({
       where: {
         id: documentId,
@@ -96,9 +131,9 @@ export async function assembleChatContext(
       );
     }
 
-    // Accepted page text is the user-reviewed transcription: correctedText when the user edited
-    // it, otherwise the raw extraction stands as accepted-without-correction (correctedText is
-    // null). Raw extractedText itself is never sent to the model when a correction exists.
+    // The user-reviewed transcription is the source of truth: prefer correctedText (the
+    // user's edit) and fall back to extractedText only when the page was accepted without
+    // correction. When a correction exists the raw extraction is never sent to the model.
     const pages: AssembledPage[] = document.pages.map((page, index) => ({
       pageNumber: index + 1,
       pageId: page.id,
@@ -117,8 +152,8 @@ export async function assembleChatContext(
     });
   }
 
-  // Fail clearly rather than degrade silently (R-004): the user is told to remove a document or
-  // start a fresh chat; selected source text is never trimmed to fit.
+  // R-004: fail clearly rather than degrade silently. The user is asked to remove a
+  // document or start a fresh chat; selected source text is never trimmed to fit a budget.
   if (totalCharacters > CHAT_MAX_CONFIRMED_CHARACTERS) {
     throw new AppError(
       "The selected documents contain too much text for one chat. Remove a document or start a new chat.",
