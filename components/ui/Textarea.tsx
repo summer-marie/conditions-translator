@@ -1,8 +1,17 @@
+/** Props for {@link Textarea}; extends the native `<textarea>` attributes. */
 interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+  /** Whether the textarea fills its container's width. Defaults to `true`. */
   fullWidth?: boolean;
+  /** When true, applies destructive-tone borders and sets `aria-invalid`. Defaults to `false`. */
   invalid?: boolean;
 }
 
+/**
+ * A themed multi-line text input wrapping the native `<textarea>`.
+ *
+ * @param props - {@link TextareaProps}; all native textarea attributes are forwarded.
+ * @returns The rendered textarea element.
+ */
 export function Textarea({
   fullWidth = true,
   invalid = false,
