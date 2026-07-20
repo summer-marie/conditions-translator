@@ -1,9 +1,13 @@
-// Temporary AI chat UI (docs/06_AI_Safety_and_Persona.md, docs/07_Launch_Readiness_Checklist.md
-// §5–§6).
-//
-// Minimal flow to validate Phase 6: pick up to 3 READY documents, start an ephemeral chat, ask
-// grounded questions, see supporting document/page sources, and hit limit warnings safely. There
-// are deliberately no "save chat" / history affordances — chat is temporary only.
+/**
+ * Temporary AI chat UI (`docs/06_AI_Safety_and_Persona.md`,
+ * `docs/07_Launch_Readiness_Checklist.md` §5–§6).
+ *
+ * The Phase 6 flow: pick up to 3 READY documents, start an ephemeral chat, ask grounded
+ * questions, see supporting document/page sources, and hit limit warnings safely. There are
+ * deliberately no "save chat" / history affordances — chat is temporary only.
+ *
+ * @module app/app/chat/page
+ */
 
 "use client";
 
@@ -17,6 +21,7 @@ import { Card } from "@/components/ui/Card";
 import { Alert } from "@/components/ui/Alert";
 import { DocumentInspector } from "@/components/chat/DocumentInspector";
 
+/** A document's lifecycle status, as returned by the documents API. */
 type DocumentStatus =
   | "IN_PROGRESS"
   | "COMPLETED"
@@ -24,12 +29,14 @@ type DocumentStatus =
   | "READY"
   | "PROCESSING_FAILED";
 
+/** A READY document eligible for selection into a chat. */
 interface ReadyDocument {
   id: string;
   title: string;
   status: DocumentStatus;
 }
 
+/** A resolved citation attached to an assistant message. */
 interface ChatSource {
   documentId: string;
   documentTitle: string;
@@ -37,6 +44,7 @@ interface ChatSource {
   pageNumber: number | null;
 }
 
+/** A chat message shaped for rendering. */
 interface ChatMessage {
   id: string;
   role: "USER" | "ASSISTANT";
@@ -44,6 +52,7 @@ interface ChatMessage {
   sources: ChatSource[];
 }
 
+/** Message-budget counters and warning/blocking flags for the active chat. */
 interface ChatLimits {
   userMessageCount: number;
   totalMessageCount: number;
@@ -53,13 +62,28 @@ interface ChatLimits {
   approachingLimit: boolean;
 }
 
+/** UI cap on documents selectable into one chat (the server enforces the same limit). */
 const MAX_DOCUMENTS = 3;
 
+/**
+ * Renders the chat page: document selection, then the grounded chat with its inspector panel.
+ *
+ * State & side effects:
+ * - Loads the current owner (via `/api/session/status`) and their READY documents on mount.
+ * - Tracks the document selection, then the active chat session (id, documents, messages,
+ *   limits) once started.
+ * - Optimistically renders the user's message on send, rolling it back on failure.
+ * - Derives the set of cited page ids for the desktop {@link DocumentInspector} and auto-scrolls
+ *   to the newest message.
+ *
+ * @returns The rendered selection screen, or the chat screen once a session is started.
+ */
 export default function ChatPage() {
   const [readyDocuments, setReadyDocuments] = useState<ReadyDocument[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isLoadingDocuments, setIsLoadingDocuments] = useState(true);
-  // Set once the workspace is owned by a signed-in account (Phase 7). null while temporary.
+  // Set to the account id once the workspace is owned by a signed-in user (Phase 7); null while
+  // the workspace is still temporary.
   const [savedUserId, setSavedUserId] = useState<string | null>(null);
 
   const [chatSessionId, setChatSessionId] = useState<string | null>(null);
@@ -73,8 +97,8 @@ export default function ChatPage() {
   const [isSending, setIsSending] = useState(false);
   const [input, setInput] = useState("");
   const [error, setError] = useState<string | null>(null);
-  // Desktop-only Document Inspector: which page a clicked citation should scroll to/highlight,
-  // and whether the panel is expanded (component-local to this screen, not persisted).
+  // Desktop-only Document Inspector state: which page a clicked citation should scroll to and
+  // highlight, and whether the panel is expanded (local to this screen, not persisted).
   const [focusedPageId, setFocusedPageId] = useState<string | null>(null);
   const [inspectorExpanded, setInspectorExpanded] = useState(true);
 
@@ -96,7 +120,8 @@ export default function ChatPage() {
         const statusRes = await fetch("/api/session/status");
         const status = await statusRes.json();
         setSavedUserId(status.userId ?? null);
-        // A temporary session OR a signed-in account (Phase 7) can own READY documents.
+        // Either a temporary session or a signed-in account (Phase 7) can own READY documents;
+        // bail out only when neither is present.
         if (!status.sessionId && !status.userId) {
           setIsLoadingDocuments(false);
           return;
@@ -122,18 +147,26 @@ export default function ChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  /**
+   * Toggles a document in/out of the selection, capping additions at {@link MAX_DOCUMENTS}.
+   *
+   * @param id - The document id to toggle.
+   */
   function toggleDocument(id: string) {
     setSelectedIds((prev) => {
       if (prev.includes(id)) {
         return prev.filter((docId) => docId !== id);
       }
       if (prev.length >= MAX_DOCUMENTS) {
-        return prev; // Enforce the 3-document max in the UI (server also enforces it).
+        return prev; // At the UI cap; ignore further additions (the server enforces it too).
       }
       return [...prev, id];
     });
   }
 
+  /**
+   * Starts a chat grounded in the selected documents and loads the initial session state.
+   */
   async function handleStartChat() {
     if (selectedIds.length === 0) return;
     setIsStarting(true);
@@ -151,6 +184,9 @@ export default function ChatPage() {
     }
   }
 
+  /**
+   * Sends the current input as a question, optimistically rendering it and rolling back on error.
+   */
   async function handleSend() {
     const trimmed = input.trim();
     if (!trimmed || !chatSessionId || isSending) return;
@@ -158,7 +194,7 @@ export default function ChatPage() {
     setIsSending(true);
     setError(null);
 
-    // Optimistically show the user's question; the server persists it and returns the answer.
+    // Show the user's question immediately; the server persists it and returns the answer.
     const optimisticUserMessage: ChatMessage = {
       id: `local-${Date.now()}`,
       role: "USER",
@@ -173,7 +209,7 @@ export default function ChatPage() {
       setMessages((prev) => [...prev, result.message]);
       setLimits(result.limits);
     } catch (err) {
-      // Roll back the optimistic message so the count stays truthful.
+      // Roll back the optimistic message (and restore the input) so the count stays truthful.
       setMessages((prev) => prev.filter((m) => m.id !== optimisticUserMessage.id));
       setInput(trimmed);
       setError(
@@ -184,7 +220,7 @@ export default function ChatPage() {
     }
   }
 
-  // ---- Selection screen -----------------------------------------------------
+  // Selection screen — shown until a chat session has been started.
   if (!chatSessionId) {
     return (
       <div className="max-w-2xl mx-auto p-4 md:p-6">
@@ -331,7 +367,7 @@ export default function ChatPage() {
     );
   }
 
-  // ---- Chat screen ----------------------------------------------------------
+  // Chat screen — the message log, limit banners, composer, and desktop inspector panel.
   return (
     <div className="flex flex-col md:flex-row md:justify-center md:gap-6 h-[calc(100dvh-7.5rem)] md:h-dvh p-4 md:p-6">
     <div className="flex flex-col flex-1 min-w-0 max-w-2xl mx-auto md:mx-0 md:h-full">
