@@ -1119,10 +1119,9 @@ function WorkspacePageContent() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left column - Document info and pages */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Upload section: adding pages to the active intake document, or -- once that
-                document is finished (or none exists yet) -- starting a new one. Always visible
-                so the user can keep working even while browsing a different, finished document
-                below (see intakeDocument's declaration above). */}
+            {/* Upload section: adds pages to the active intake document, or starts a new one
+                once that document is finished (or none exists). Always visible so the user can
+                keep working even while browsing a different finished document below. */}
             {showUploadBox && (
               <Card variant="panel">
                 <h2
@@ -1225,9 +1224,9 @@ function WorkspacePageContent() {
               </Card>
             )}
 
-            {/* Pages list -- once the document is finished, this whole review area is replaced
-                by the organized Sections view below, since page-by-page review is no longer the
-                point of the page for a document that's already been organized. */}
+            {/* Pages list (intake only). Once the document is finished, this review area is
+                replaced by the organized Sections view below — page-by-page review is no longer
+                the point for an already-organized document. */}
             {document.status === "IN_PROGRESS" && (
             <Card variant="panel">
               <h2
@@ -1464,9 +1463,9 @@ function WorkspacePageContent() {
             </Card>
             )}
 
-            {/* Organized document view: replaces the Pages review area once the document is
-                finished, matching how the document reads after Finish Document -- browsing/
-                reading, not page-by-page review. */}
+            {/* Organized document view (finished documents). Replaces the Pages review area,
+                matching how a document reads after Finish Document: browsing/reading rather than
+                page-by-page review. */}
             {document.status !== "IN_PROGRESS" && (
               <Card variant="panel">
                 <div className="flex items-center justify-between mb-4" style={{ marginBottom: 'var(--spacing-4)' }}>
@@ -1635,8 +1634,8 @@ function WorkspacePageContent() {
 
           {/* Right column - Actions */}
           <div className="space-y-6">
-            {/* Naming nudge: shown once pages exist but the document still has its default
-                title, so the user is prompted to name it before finishing. */}
+            {/* Naming nudge: prompts the user to name the document before finishing, shown once
+                pages exist but the title is still the default. */}
             {pages.length > 0 &&
               document.status === "IN_PROGRESS" &&
               isDefaultDocumentTitle(document.title) && (
