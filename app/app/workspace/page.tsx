@@ -849,29 +849,30 @@ function WorkspacePageContent() {
     }
   };
 
+  // Bootstrap the workspace once on mount.
   useEffect(() => {
     initializeWorkspace();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- initializeWorkspace is stable per mount
   }, []);
 
-  // Reacts to ?documentId= changing (sidenav navigation between finished documents, or back to
-  // the plain /app/workspace URL) without requiring a full page reload. Runs after the initial
-  // intake resolution above so a bad/foreign id can fall back to the intake document instead of
-  // leaving the page blank.
+  // React to ?documentId= changing (sidenav navigation between finished documents, or back to
+  // the plain /app/workspace URL) without a full page reload. Runs after the initial intake
+  // resolution so a bad/foreign id can fall back to the intake document rather than blank out.
   useEffect(() => {
     if (isLoading) return;
     if (viewedDocumentId) {
       loadViewedDocument(viewedDocumentId);
     } else if (intakeDocument && document?.id !== intakeDocument.id) {
-      // Only refetches when actually switching back from a different viewed document -- the
-      // initial load already put the intake document in place, so this avoids a redundant fetch.
-      // Fetches fresh rather than trusting the intakeDocument snapshot, which can go stale (e.g.
-      // it finished while the user was browsing a different document via the sidenav).
+      // Only refetch when actually switching back from a different viewed document — the initial
+      // load already placed the intake document. Fetch fresh rather than trusting the
+      // intakeDocument snapshot, which can go stale (e.g. it finished while the user browsed a
+      // different document via the sidenav).
       loadViewedDocument(intakeDocument.id);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- loadViewedDocument/refetchPages are stable per render cycle; re-running on their identity would loop
   }, [viewedDocumentId, isLoading]);
 
+  // Escape closes the expanded page-image overlay.
   useEffect(() => {
     if (!expandedImagePage) return;
     function handleKeyDown(e: KeyboardEvent) {
@@ -881,6 +882,7 @@ function WorkspacePageContent() {
     return () => window.document.removeEventListener("keydown", handleKeyDown);
   }, [expandedImagePage]);
 
+  // Escape closes the delete-page confirmation modal.
   useEffect(() => {
     if (!deletePageModal.isOpen) return;
     function handleKeyDown(e: KeyboardEvent) {
@@ -1943,12 +1945,26 @@ function WorkspacePageContent() {
   );
 }
 
-// Compact transcript preview (for an OCR_COMPLETE page) that opens a full-size <dialog> for
-// editing (docs/03_OCR_Specifications.md §5, docs/OCR_Master_Implementation_Plan.md §7-8). Save
-// is a distinct action from Accept: saving only writes OcrResult.correctedText and never changes
-// page/document status or the image. Kept as a single component (preview trigger + dialog)
-// rather than splitting further -- both halves share the same page/value/error/saved state and
-// there's only ever one caller.
+/**
+ * A compact transcript preview for an OCR_COMPLETE page that opens a full-size editing dialog.
+ *
+ * (`docs/03_OCR_Specifications.md` §5, `docs/OCR_Master_Implementation_Plan.md` §7–8.) Save is
+ * a distinct action from Accept: it writes only `OcrResult.correctedText` and never changes
+ * page/document status or the image. Kept as a single component (preview trigger + dialog)
+ * because both halves share the same page/value/error/saved state and there's only one caller.
+ *
+ * @param props - Component props.
+ * @param props.page - The page whose transcription is being edited.
+ * @param props.value - The current correction text (controlled).
+ * @param props.onChange - Called with the new text as the user types.
+ * @param props.onSave - Called to persist the correction.
+ * @param props.isSaving - Whether a save is in flight.
+ * @param props.disabled - True while a different action for this page is in flight, so Save
+ *   can't race with Accept/Re-upload/Delete or a running OCR call.
+ * @param props.error - A save error to display, if any.
+ * @param props.saved - Whether the last save succeeded (drives the "Saved" indicator).
+ * @returns The preview trigger and its editing dialog.
+ */
 function PageCorrectionField({
   page,
   value,
@@ -1964,8 +1980,6 @@ function PageCorrectionField({
   onChange: (value: string) => void;
   onSave: () => void;
   isSaving: boolean;
-  // True while a different action (Accept/Re-upload/Delete, or a running OCR call) is in
-  // flight for this page, so Save can't race with it.
   disabled: boolean;
   error: string | null;
   saved: boolean;
@@ -1983,20 +1997,21 @@ function PageCorrectionField({
   const dialogRef = useRef<HTMLDialogElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
+  /** Opens the editing dialog and locks page scroll behind it. */
   function openModal() {
     dialogRef.current?.showModal();
     window.document.documentElement.classList.add("overflow-hidden");
   }
 
+  /** Closes the dialog, unlocks scroll, and returns focus to the trigger. */
   function closeModal() {
     dialogRef.current?.close();
     window.document.documentElement.classList.remove("overflow-hidden");
     triggerRef.current?.focus();
   }
 
-  // The native "cancel" event fires on Escape (and only then, for a <dialog> opened via
-  // showModal()) -- prevented so closeModal can also unlock scroll and return focus, instead of
-  // just letting the dialog's own default close happen.
+  // Intercept the dialog's native "cancel" event (fired on Escape for a showModal() dialog) so
+  // closeModal can also unlock scroll and restore focus, instead of the dialog just closing itself.
   useEffect(() => {
     const dialogEl = dialogRef.current;
     if (!dialogEl) return;
