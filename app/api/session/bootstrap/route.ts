@@ -1,14 +1,23 @@
-// GET /api/session/bootstrap
-//
-// Creates a temporary session and sets its cookie, then redirects to the privacy notice.
-// This is the only place a new anonymous session gets created: app/app/layout.tsx (a Server
-// Component) cannot set cookies itself, so it redirects here instead — Route Handlers are
-// allowed to set cookies. Always redirects to /app/start (the PRD's canonical entry point),
-// not the originally-requested URL.
+/**
+ * Temporary-session bootstrap API route.
+ *
+ * @module app/api/session/bootstrap/route
+ */
 
 import { NextResponse } from "next/server";
 import { getOrCreateTemporarySession } from "@/lib/session/temporary";
 
+/**
+ * GET /api/session/bootstrap — creates an anonymous session, then redirects to onboarding.
+ *
+ * This is the only place a new anonymous session is created: `app/app/layout.tsx` is a Server
+ * Component and cannot set cookies, so it redirects here instead (Route Handlers can). The
+ * response always redirects to `/app/start` (the PRD's canonical entry point), never the
+ * originally-requested URL.
+ *
+ * @param request - The incoming request (used as the base URL for the redirect).
+ * @returns A redirect {@link NextResponse} to `/app/start` with the session cookie set.
+ */
 export async function GET(request: Request) {
   await getOrCreateTemporarySession();
   return NextResponse.redirect(new URL("/app/start", request.url));

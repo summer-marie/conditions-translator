@@ -1,5 +1,12 @@
-// API route for page listing and upload, with 10-page limit enforcement and real
-// image validation + private Blob storage (docs/03_OCR_Specifications.md, Phase 4).
+/**
+ * Pages collection API route: list and upload a document's pages.
+ *
+ * Enforces the per-document page limit and performs real image validation (magic bytes +
+ * size) with private Blob storage (`docs/03_OCR_Specifications.md`, Phase 4). Owner-aware
+ * throughout.
+ *
+ * @module app/api/documents/[documentId]/pages/route
+ */
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/database/prisma";
@@ -12,8 +19,15 @@ import { getCurrentOwner } from "@/lib/auth/session";
 import { getOwnedDocument } from "@/lib/permissions/ownership";
 
 /**
- * GET /api/documents/[documentId]/pages
- * Lists all pages for a document. Owner-aware: works for both saved and temporary Documents.
+ * GET /api/documents/[documentId]/pages — lists a document's pages in order.
+ *
+ * Owner-aware, so it works for both saved and temporary Documents. Each page includes its
+ * OCR result when present.
+ *
+ * @param request - The incoming request (unused).
+ * @param context - Route context; `params` resolves to `{ documentId }`.
+ * @returns A JSON {@link NextResponse} with `{ pages }`; 401 unauthenticated, 404 not found,
+ *   500 on unexpected failure.
  */
 export async function GET(
   request: Request,
@@ -47,7 +61,7 @@ export async function GET(
       );
     }
 
-    // Never log the raw error object verbatim — it may echo request/document content.
+    // Log only the error name — never the raw error, which can echo request/document content.
     console.error("Error listing pages:", error instanceof Error ? error.name : "unknown error");
     return NextResponse.json(
       { error: "Internal server error" },
@@ -57,11 +71,19 @@ export async function GET(
 }
 
 /**
- * POST /api/documents/[documentId]/pages
- * Uploads a page to a document with 10-page limit enforcement.
- * Validates the image (magic bytes + size) and stores it in the private Blob store.
- * Does not run OCR — the client triggers OCR separately via
- * POST /api/documents/[documentId]/pages/[pageId]/ocr.
+ * POST /api/documents/[documentId]/pages — uploads a new page image to a document.
+ *
+ * Enforces the {@link DOCUMENT_MAX_PAGES} limit and validates the image (magic bytes + size)
+ * before storing it in the private Blob store. The Page row is created first so its id can
+ * key a stable Blob pathname; if storage fails, the row is rolled back. OCR is NOT run here —
+ * the client triggers it separately via `POST .../pages/[pageId]/ocr`.
+ *
+ * Request body: multipart form data with a `file` field.
+ *
+ * @param request - The incoming request; its form data supplies the `file`.
+ * @param context - Route context; `params` resolves to `{ documentId }`.
+ * @returns A JSON {@link NextResponse} with `{ page }` (201); 400 no file / bad status, 401
+ *   unauthenticated, 404 not found, 422 page-limit reached, 500 on unexpected failure.
  */
 export async function POST(
   request: Request,
@@ -114,8 +136,8 @@ export async function POST(
 
     const { mimeType } = validateImageUpload(buffer, file.type);
 
-    // Create the Page row first so its id can key a stable Blob pathname (re-upload later
-    // overwrites the same object rather than accumulating orphans).
+    // Create the Page row first so its id keys a stable Blob pathname; a later re-upload then
+    // overwrites the same object instead of accumulating orphaned blobs.
     const page = await prisma.page.create({
       data: {
         documentId,
@@ -137,7 +159,8 @@ export async function POST(
 
     return NextResponse.json({ page: updatedPage }, { status: 201 });
   } catch (error) {
-    // Roll back the Page row if the image never made it to storage.
+    // Roll back the just-created Page row if the image never made it to storage, so no
+    // blob-less page is left behind.
     if (createdPageId) {
       await prisma.page.delete({ where: { id: createdPageId } }).catch(() => {});
     }
@@ -149,9 +172,9 @@ export async function POST(
       );
     }
 
-    // BlobError messages are storage/config diagnostics (e.g. auth/environment/content-type
-    // problems) and never contain page or document content, so they're safe to log in full —
-    // unlike other unexpected errors here, which could echo request/document content.
+    // BlobError messages are storage/config diagnostics (auth/environment/content-type) that
+    // never contain page or document content, so they're safe to log in full. Any other
+    // unexpected error could echo request/document content, so only its name is logged.
     console.error(
       "Error uploading page",
       error instanceof BlobError

@@ -1,11 +1,14 @@
-// Public marketing landing page (site root).
-//
-// Per docs/01_MVP_PRD.md §4 the guest journey is Guest -> Create Document -> ...; this page
-// used to just redirect straight to /app/start. Product decision (2026-07-16): the root now
-// serves real public content, and the primary CTA opens the existing privacy-notice gate as an
-// overlay (see components/landing/GetStartedCTA.tsx) rather than navigating to a separate page
-// first. app/app/start/page.tsx remains untouched as the fallback route reached when
-// workspace/chat detect an unaccepted session.
+/**
+ * Public marketing landing page (site root).
+ *
+ * Per `docs/01_MVP_PRD.md` §4 the guest journey is Guest → Create Document → …. The root
+ * previously redirected straight to `/app/start`; a product decision (2026-07-16) made it
+ * serve real public content, with the primary CTA opening the privacy-notice gate as an
+ * overlay ({@link GetStartedCTA}) rather than navigating away first. `app/app/start/page.tsx`
+ * remains the fallback route reached when workspace/chat detect an unaccepted session.
+ *
+ * @module app/page
+ */
 
 import Image from "next/image";
 import { Special_Elite } from "next/font/google";
@@ -18,12 +21,14 @@ import { SectioningPreviewCard } from "@/components/landing/SectioningPreviewCar
 import { StepFeatureRow } from "@/components/landing/StepFeatureRow";
 import { APP_NAME } from "@/lib/constants";
 
-// Typewriter display font for the Features-section value prop only -- deliberately distinct from
-// the rest of the landing page's Inter-based type scale so it reads as a standalone, human
-// statement rather than another heading level. User-directed choice (see .agent-memory/
-// DECISIONS.md) after a side-by-side comparison of serif/grotesk alternatives.
+/**
+ * Typewriter display font used only for the Features-section value prop. Deliberately distinct
+ * from the landing page's Inter-based type scale so it reads as a standalone human statement,
+ * not another heading level (user-directed choice after comparing serif/grotesk alternatives).
+ */
 const valueDisplayFont = Special_Elite({ subsets: ["latin"], weight: "400" });
 
+/** The three headline feature cards shown in the "What it does" section. */
 const FEATURES = [
   {
     title: "Upload and OCR",
@@ -44,9 +49,10 @@ const FEATURES = [
   },
 ];
 
-// "Product Workspace" alternating feature rows (Option B / navy wireframe). Copy ported from
-// design-specs/wireframes/approved/desktop/browser-landingpage-navy.png -- generic workflow
-// description, no fabricated stats or claims.
+/**
+ * Copy for the "Product Workspace" alternating feature rows (navy wireframe). Generic workflow
+ * description ported from the approved wireframe — deliberately no fabricated stats or claims.
+ */
 const WORKSPACE_STEPS = [
   {
     step: "Step 01",
@@ -60,6 +66,11 @@ const WORKSPACE_STEPS = [
   },
 ];
 
+/**
+ * Renders the public landing page: header, hero, features, "how it works", and footer CTA.
+ *
+ * @returns The rendered landing page.
+ */
 export default function LandingPage() {
   return (
     <div className="bg-(--color-background-page) min-h-screen">
@@ -73,9 +84,8 @@ export default function LandingPage() {
       <PublicHeader />
 
       <main id="main-content">
-        {/* Hero -- full-bleed ambient background, see app/globals.css's .landing-section-hero
-          for the token-derived gradient stops (light mode only for now). Blends into the
-          Features section below via the shared --landing-tone-mid tone. */}
+        {/* Hero section. Full-bleed ambient background defined in app/globals.css
+          (.landing-section-hero); blends into Features below via the shared --landing-tone-mid. */}
         <section className="landing-section-hero">
           <div className="max-w-6xl mx-auto px-(--landing-container-px) py-(--landing-space-section-y)">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-(--landing-space-gap-lg) items-center">
@@ -113,8 +123,8 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {/* Hidden below ~640px per landing-spec.md's "hero illustration hidden/scaled on
-              mobile" rule -- the 3-thumbnail grid doesn't compress well below that width. */}
+            {/* Hidden below ~640px per landing-spec.md's "hero illustration hidden on mobile"
+              rule — the 3-thumbnail grid doesn't compress well below that width. */}
             <div className="hidden sm:block">
               <WorkspacePreviewCard />
             </div>
@@ -122,9 +132,8 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Features -- full-bleed ambient background, see app/globals.css's
-          .landing-section-features. Blends from the Hero section above and into How It Works
-          below via the shared --landing-tone-mid tone. */}
+        {/* Features section. Full-bleed ambient background (.landing-section-features); blends
+          between Hero and How It Works via the shared --landing-tone-mid. */}
         <section className="landing-section-features">
           <div className="max-w-6xl mx-auto px-(--landing-container-px) pt-0 pb-(--landing-space-section-y)">
           <p
@@ -182,10 +191,9 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* How It Works — "Product Workspace" alternating rows, per the approved navy wireframe.
-          Full-bleed ambient background, see app/globals.css's .landing-section-workspace. Blends
-          from Features above and into the Bottom CTA below via the shared --landing-tone-mid
-          tone. */}
+        {/* How It Works — "Product Workspace" alternating rows (approved navy wireframe).
+          Full-bleed ambient background (.landing-section-workspace); blends between Features and
+          the Bottom CTA via the shared --landing-tone-mid. */}
         <section id="how-it-works" className="scroll-mt-16 landing-section-workspace">
           <div className="max-w-6xl mx-auto px-(--landing-container-px) py-(--landing-space-section-y)">
             <div className="text-center mb-10">
@@ -216,14 +224,13 @@ export default function LandingPage() {
                 body={WORKSPACE_STEPS[0].body}
                 cardPosition="start"
                 card={
-                  // Fixed navy card (not a theme token) so the screenshot pops in both light and
-                  // dark mode -- --color-brand-primary itself is theme-swapped (dark mode's value
-                  // is near-white, "frozen" per the approved dark palette), so a token wouldn't
-                  // give a consistent navy here. Set via `style` (not a bg-* class) since it must
-                  // win over Card's own `bg-(--color-background-card)` utility class -- per this
-                  // project's own documented Tailwind trap, two classes targeting the same
-                  // property race on compiled declaration order, not source position, so a
-                  // className override isn't reliable here; inline style always wins.
+                  // Fixed navy (#0F1B33), not a theme token, so the screenshot pops in both
+                  // light and dark mode — --color-brand-primary is theme-swapped (near-white in
+                  // dark mode), so a token wouldn't stay navy here. Applied via inline `style`
+                  // rather than a bg-* class because it must beat Card's own
+                  // bg-(--color-background-card): per this project's documented Tailwind trap,
+                  // two classes on the same property race on compiled order, so inline style is
+                  // the only reliable override.
                   <Card padding="md" style={{ backgroundColor: "#0F1B33" }}>
                     <p
                       className="font-(--font-weight-h3) mb-3 uppercase tracking-wide"
@@ -268,9 +275,8 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Bottom CTA -- full-bleed ambient background, see app/globals.css's
-          .landing-section-cta. Blends from How It Works above via the shared
-          --landing-tone-mid tone. */}
+        {/* Bottom CTA section. Full-bleed ambient background (.landing-section-cta); blends up
+          from How It Works via the shared --landing-tone-mid. */}
         <section className="landing-section-cta">
           <div className="max-w-6xl mx-auto px-(--landing-container-px) py-(--landing-space-section-y) text-center">
             <h2
@@ -297,6 +303,7 @@ export default function LandingPage() {
   );
 }
 
+/** Decorative upload glyph for the "Upload and OCR" feature card. */
 function UploadIcon() {
   return (
     <svg
@@ -316,6 +323,7 @@ function UploadIcon() {
   );
 }
 
+/** Decorative document glyph for the "AI Analysis" feature card. */
 function AnalysisIcon() {
   return (
     <svg
@@ -332,6 +340,7 @@ function AnalysisIcon() {
   );
 }
 
+/** Decorative speech-bubble glyph for the "Ask Questions" feature card. */
 function ChatIcon() {
   return (
     <svg

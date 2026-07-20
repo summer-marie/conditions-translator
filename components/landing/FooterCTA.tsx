@@ -1,39 +1,54 @@
 "use client";
 
-// Single combined footer + CTA bar for public marketing pages (landing, About, Terms).
-// Everything (tagline, About/Terms/FAQ links, copyright, and the "get started" CTA) lives in
-// ONE bar -- not a separate static footer followed by a separate CTA bar, which used to read as
-// two stacked footers.
-//
-// Desktop/tablet (md: and up): the bar is always visible, fixed to the bottom of the viewport.
-// Mobile: hidden until the user scrolls near the bottom of the page, then slides in -- detected
-// via IntersectionObserver on a sentinel rendered where this component is placed.
-//
-// Render this once, near the end of a page's JSX (after <main>).
+/**
+ * Combined footer + CTA bar for the public marketing pages (landing, About, Terms).
+ *
+ * Everything — tagline, About/Terms/FAQ links, copyright, and the "get started" CTA — lives
+ * in ONE bar rather than a static footer stacked above a separate CTA bar (which read as two
+ * footers). On desktop/tablet (md+) the bar is always fixed to the bottom of the viewport; on
+ * mobile it's hidden until the user scrolls near the page bottom, then slides in, detected via
+ * an IntersectionObserver on a sentinel rendered at this component's position. Render it once,
+ * near the end of a page's JSX (after `<main>`).
+ *
+ * @module components/landing/FooterCTA
+ */
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { GetStartedCTA } from "@/components/landing/GetStartedCTA";
 import { APP_NAME } from "@/lib/constants";
 
+/** Secondary footer navigation links. */
 const FOOTER_LINKS = [
   { href: "/about", label: "About" },
   { href: "/terms", label: "Terms" },
   { href: "/faq", label: "FAQ" },
 ];
 
-// Reserved height budget for the spacer below. Kept as fixed values (not measured at runtime) so
-// the reserved space exists before first paint -- avoids a content jump once the bar mounts.
-// Mobile reserves more space since the bar's content wraps to two rows there.
+// Fixed spacer heights (not measured at runtime) so the reserved space exists before first
+// paint and the bar mounting never jumps page content. Mobile reserves more because the bar's
+// content wraps to two rows there.
 const CTA_BAR_HEIGHT_MOBILE = "7.5rem";
 const CTA_BAR_HEIGHT_DESKTOP = "4.5rem";
 
+/**
+ * Renders the sticky footer/CTA bar.
+ *
+ * On mobile, tracks a `nearBottom` flag via an IntersectionObserver on a sentinel so the bar
+ * only slides in once the user scrolls near the page bottom; on md+ it is always visible.
+ *
+ * @param props - Component props.
+ * @param props.message - Copy shown beside the button on wider screens; hidden on narrow widths.
+ * @param props.ctaLabel - Label for the "get started" button.
+ * @returns The rendered spacer(s) and fixed footer/CTA bar.
+ */
 export function FooterCTA({
   message = "Ready to understand your documents?",
   ctaLabel = "Add your first document",
 }: {
   /** Copy shown next to the button on wider screens. Hidden on narrow mobile widths. */
   message?: string;
+  /** Label for the "get started" button. */
   ctaLabel?: string;
 }) {
   const [nearBottom, setNearBottom] = useState(false);
@@ -42,9 +57,9 @@ export function FooterCTA({
   useEffect(() => {
     const sentinel = sentinelRef.current;
     if (!sentinel) return;
-    // rootMargin's positive bottom value means the sentinel counts as "intersecting" once it's
-    // within 200px of entering the viewport from below -- i.e. "scrolled near the bottom",
-    // without a manual scroll-position/document-height calculation.
+    // The 200px bottom rootMargin makes the sentinel count as "intersecting" once it's within
+    // 200px of entering the viewport from below — i.e. "scrolled near the bottom" — without any
+    // manual scroll-position/document-height math.
     const observer = new IntersectionObserver(
       ([entry]) => setNearBottom(entry.isIntersecting),
       { rootMargin: "0px 0px 200px 0px" }
@@ -56,7 +71,7 @@ export function FooterCTA({
   return (
     <>
       <div ref={sentinelRef} aria-hidden="true" />
-      {/* Reserves space in normal flow so the fixed bar below never covers page content. */}
+      {/* In-flow spacers reserving the bar's height so the fixed bar never covers page content. */}
       <div
         aria-hidden="true"
         style={{

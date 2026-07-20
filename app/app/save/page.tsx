@@ -1,10 +1,14 @@
-// Save Workspace: account creation / sign-in entry point (Phase 7,
-// docs/05_Account_Creation_and_Temporary_Access.md).
-//
-// Reached from the temporary workspace or chat via a "Save workspace" affordance. Creating an
-// account or signing in transfers all temporary Documents (and the active chat) to the account.
-// Canceling is pure navigation — it changes nothing server-side, so the temporary workspace and
-// active chat are preserved and expiration continues normally.
+/**
+ * Save Workspace: account creation / sign-in entry point (Phase 7,
+ * `docs/05_Account_Creation_and_Temporary_Access.md`).
+ *
+ * Reached from the temporary workspace or chat via a "Save workspace" affordance. Creating an
+ * account or signing in transfers all temporary Documents (and the active chat) to the account.
+ * Canceling is pure navigation — nothing changes server-side, so the temporary workspace and
+ * active chat are preserved and expiration continues normally.
+ *
+ * @module app/app/save/page
+ */
 
 "use client";
 
@@ -18,24 +22,40 @@ import { PasswordInput } from "@/components/ui/PasswordInput";
 import { Alert } from "@/components/ui/Alert";
 import { Card } from "@/components/ui/Card";
 
+/** Which form the page is showing: create a new account, or sign in to an existing one. */
 type Mode = "create" | "signin";
 
+/**
+ * Save-workspace page route (`/app/save`).
+ *
+ * Thin Suspense wrapper around {@link SavePageContent} (required because it reads
+ * `useSearchParams()`).
+ *
+ * @returns The save page.
+ */
 export default function SavePage() {
   return (
-    // useSearchParams() requires a Suspense boundary in the App Router.
     <Suspense fallback={null}>
       <SavePageContent />
     </Suspense>
   );
 }
 
+/**
+ * Stateful body of the save page: the mode toggle, both forms, and the saved confirmation.
+ *
+ * Manages the create-account and sign-in field state, submission/error state, and the
+ * post-save document count. On success it calls {@link signUpAndSave} / {@link signInAndSave}
+ * (which perform the ownership transfer) and swaps to a confirmation view.
+ *
+ * @returns The rendered save form, or the saved-confirmation view once a save succeeds.
+ */
 function SavePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  // Supports /app/save?mode=signin so a "Log in" entry point (distinct from "Save workspace")
-  // can land directly on the sign-in tab. TODO: this mode param + the separate "Log in" button
-  // it's paired with (workspace header) is a stopgap — the save/sign-in UI could use a proper
-  // pass later (see .agent-memory/OPEN_QUESTIONS.md).
+  // Support /app/save?mode=signin so a "Log in" entry point (distinct from "Save workspace")
+  // lands directly on the sign-in tab. The mode param and its paired "Log in" button are a
+  // stopgap — the save/sign-in UI could use a proper pass later.
   const initialMode: Mode = searchParams.get("mode") === "signin" ? "signin" : "create";
   const [mode, setMode] = useState<Mode>(initialMode);
 
@@ -54,11 +74,16 @@ function SavePageContent() {
   const [error, setError] = useState<string | null>(null);
   const [savedCount, setSavedCount] = useState<number | null>(null);
 
-  // A username-only account (no email, no recovery email) has no recovery path — require the
-  // user to acknowledge that before we let them create it.
+  // A username-only account (no email and no recovery email) has no recovery path — the user
+  // must tick the acknowledgment before it can be created.
   const needsRecoveryAck =
     username.trim().length > 0 && email.trim().length === 0 && recoveryEmail.trim().length === 0;
 
+  /**
+   * Handles create-account submission: transfers the workspace and shows the saved count.
+   *
+   * @param e - The form submit event.
+   */
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     setIsSubmitting(true);
@@ -79,6 +104,11 @@ function SavePageContent() {
     }
   }
 
+  /**
+   * Handles sign-in submission: transfers the workspace and shows the saved count.
+   *
+   * @param e - The form submit event.
+   */
   async function handleSignIn(e: React.FormEvent) {
     e.preventDefault();
     setIsSubmitting(true);
@@ -93,7 +123,7 @@ function SavePageContent() {
     }
   }
 
-  // ---- Saved confirmation ---------------------------------------------------
+  // Saved confirmation view — shown once a create/sign-in succeeds and the transfer count is known.
   if (savedCount !== null) {
     return (
       <div className="max-w-md mx-auto p-4 sm:p-6">
@@ -126,7 +156,7 @@ function SavePageContent() {
     );
   }
 
-  // ---- Account form ---------------------------------------------------------
+  // Account form view — the create-account / sign-in tabs and their forms.
   return (
     <div className="max-w-md mx-auto p-4 sm:p-6">
       <Card padding="lg">

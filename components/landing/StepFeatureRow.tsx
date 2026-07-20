@@ -1,20 +1,35 @@
-// Alternating card/copy row used by the landing page's "Product Workspace" section. Mobile
-// always stacks the card above the copy (source order below), regardless of `cardPosition` --
-// per design-specs/wireframes/reference/browser-landing-page/browser-landingpage-spec-preview.md
-// ("Feature rows stack card-above-text, in source order (no left/right alternation)").
+/**
+ * Alternating card/copy row for the landing page's "Product Workspace" section.
+ *
+ * On mobile the card always stacks above the copy (source order), regardless of
+ * `cardPosition`; `cardPosition` only controls left/right placement at desktop (lg) widths,
+ * per the approved landing wireframe spec ("stack card-above-text, no left/right alternation").
+ *
+ * @module components/landing/StepFeatureRow
+ */
 
 import type { ReactNode } from "react";
 
+/** Props for {@link StepFeatureRow}. */
 interface StepFeatureRowProps {
+  /** Small eyebrow label above the heading (e.g. "Step 1"). */
   step: string;
+  /** Row heading. */
   heading: string;
+  /** Row body copy. */
   body: string;
+  /** The illustrative preview card to render beside the copy. */
   card: ReactNode;
-  /** Which side the card sits on at desktop (lg) widths. Mobile ignores this and always shows
-   * the card first. */
+  /** Which side the card sits on at desktop (lg) widths; mobile always shows the card first. */
   cardPosition: "start" | "end";
 }
 
+/**
+ * Renders one feature row pairing a preview card with heading/body copy.
+ *
+ * @param props - {@link StepFeatureRowProps}.
+ * @returns The rendered feature row.
+ */
 export function StepFeatureRow({ step, heading, body, card, cardPosition }: StepFeatureRowProps) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-(--landing-space-gap-md) items-center">

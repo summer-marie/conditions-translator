@@ -1,26 +1,42 @@
 "use client";
 
-// Shared header for public marketing pages (landing, About, Terms, FAQ). Extracted from the
-// landing page's original inline header so these pages don't duplicate it -- they're outside the
-// authenticated app shell (app/app/layout.tsx + AppNav), which has its own separate header/nav
-// chrome and its own theme state.
-//
-// Owns theme state for both LandingLogo and PublicThemeToggle (its children) so a toggle click
-// updates both instantly -- same data-theme attribute + "theme" localStorage key AppNav's own
-// theme toggle uses, so switching here or in the authenticated app stays in sync either way.
+/**
+ * Shared header for the public marketing pages (landing, About, Terms, FAQ).
+ *
+ * Extracted from the landing page's original inline header so those pages don't duplicate it.
+ * They sit outside the authenticated app shell (`app/app/layout.tsx` + `AppNav`), which has
+ * its own header/nav chrome and theme state. This header owns the theme state for its
+ * children ({@link LandingLogo} and {@link PublicThemeToggle}) so a toggle click updates both
+ * instantly, using the same `data-theme` attribute and `"theme"` localStorage key as
+ * `AppNav`'s toggle — so the choice stays in sync across the public pages and the app.
+ *
+ * @module components/landing/PublicHeader
+ */
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { LandingLogo } from "@/components/landing/LandingLogo";
 import { PublicThemeToggle } from "@/components/landing/PublicThemeToggle";
 
+/** The two supported color themes. */
 type Theme = "light" | "dark";
 
+/** localStorage key persisting the chosen theme (shared with `AppNav`). */
 const THEME_STORAGE_KEY = "theme";
 
+/**
+ * Renders the public marketing header with logo, theme toggle, and log-in link.
+ *
+ * Manages the theme locally: starts "light" to match the server render, syncs the real value
+ * from the `data-theme` attribute after mount, and on toggle updates state, the attribute,
+ * and localStorage. See `app/layout.tsx`'s blocking theme script for why the initial value
+ * must match the server.
+ *
+ * @returns The rendered header element.
+ */
 export function PublicHeader() {
-  // Always starts "light" to exactly match the server render (server has no access to
-  // localStorage/matchMedia) -- see app/layout.tsx's blocking theme script for the full mechanism.
+  // Must start "light" to match the server render (the server can't read localStorage/
+  // matchMedia); see app/layout.tsx's blocking theme script for the full mechanism.
   const [theme, setTheme] = useState<Theme>("light");
 
   useEffect(() => {
@@ -31,6 +47,7 @@ export function PublicHeader() {
     }
   }, []);
 
+  /** Toggles the theme, updates the <html data-theme> attribute, and persists it (best-effort). */
   function toggleTheme() {
     const next: Theme = theme === "dark" ? "light" : "dark";
     setTheme(next);
@@ -38,20 +55,17 @@ export function PublicHeader() {
     try {
       window.localStorage.setItem(THEME_STORAGE_KEY, next);
     } catch {
-      // localStorage unavailable (e.g. private browsing) -- theme still applies this session
+      // localStorage unavailable (e.g. private browsing) — the theme still applies this session.
     }
   }
 
   return (
-    // Fixed mid-charcoal (not a theme token) so the navbar stands out the same way regardless of
-    // light or dark mode. Two earlier attempts didn't work: slate-400 (#94A3B8) read as too blue,
-    // and the app's own dark-mode charcoal (#27272A) was too close to the dark-mode page
-    // background (#18181B) to stand out, and made the white-outline logo hard to see. #52525B
-    // (Tailwind zinc-600) sits clearly lighter than both. Since the background is fixed dark
-    // regardless of theme, the logo and text/icon colors below are also fixed to their "on dark
-    // chrome" values (--color-surface-nav-foreground, the same token AppNav.tsx uses for its
-    // always-dark sidebar) instead of the theme-swapped colors that assumed a light-mode
-    // background.
+    // Fixed mid-charcoal (#52525B / zinc-600), not a theme token, so the navbar stands out the
+    // same in light and dark mode. Earlier tries failed: slate-400 read too blue, and the app's
+    // dark charcoal (#27272A) was too close to the dark page background (#18181B) and hid the
+    // white-outline logo. Because the background is fixed dark, the logo and text/icon colors
+    // below are also fixed to their "on dark chrome" values (--color-surface-nav-foreground,
+    // the token AppNav uses for its always-dark sidebar) rather than the theme-swapped colors.
     <header
       className="border-b border-(--color-border-divider) landing-header-glow"
       style={{ backgroundColor: "#52525B" }}

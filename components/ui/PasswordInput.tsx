@@ -3,10 +3,25 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/Input";
 
+/**
+ * Props for {@link PasswordInput}: native input attributes minus `type` (fixed to
+ * password/text by the visibility toggle), plus `fullWidth`.
+ */
 type PasswordInputProps = Omit<React.InputHTMLAttributes<HTMLInputElement>, "type"> & {
+  /** Whether the input fills its container's width (forwarded to {@link Input}). */
   fullWidth?: boolean;
 };
 
+/**
+ * A password field with a show/hide visibility toggle.
+ *
+ * Manages a single `visible` boolean that swaps the underlying input between
+ * `type="password"` and `type="text"`; the toggle button exposes `aria-pressed` and a
+ * descriptive `aria-label` for assistive tech. No side effects beyond local state.
+ *
+ * @param props - {@link PasswordInputProps}; native input attributes are forwarded to {@link Input}.
+ * @returns The rendered password field with its toggle button.
+ */
 export function PasswordInput({ className = "", ...props }: PasswordInputProps) {
   const [visible, setVisible] = useState(false);
 

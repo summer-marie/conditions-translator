@@ -1,7 +1,12 @@
-// Desktop-only chat companion panel (design-specs/functionality/chat-spec.md, "Document
-// Inspector Panel"). Lists each selected document's ACCEPTED pages so citation page numbers
-// line up exactly with lib/chat/context.ts's numbering (1-based index among ACCEPTED pages
-// with OCR text only -- not the raw intake `order` field, which also counts rejected pages).
+/**
+ * Desktop-only chat companion panel (`chat-spec.md`, "Document Inspector Panel").
+ *
+ * Lists each selected document's ACCEPTED pages so the page numbers shown line up exactly
+ * with `lib/chat/context.ts`'s citation numbering: a 1-based index among ACCEPTED pages that
+ * have OCR text — NOT the raw intake `order`, which also counts rejected pages.
+ *
+ * @module components/chat/DocumentInspector
+ */
 
 "use client";
 
@@ -9,43 +14,75 @@ import { useEffect, useRef, useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 
+/** A document selected into the chat, as passed to the inspector. */
 interface InspectorDocument {
   documentId: string;
   title: string;
 }
 
+/** An accepted page prepared for display in the inspector. */
 interface InspectorPage {
+  /** Page id (matches chat citation `pageId`s). */
   id: string;
+  /** 1-based number among the document's accepted pages. */
   pageNumber: number;
+  /** Short single-line text preview. */
   preview: string;
 }
 
+/** A page as returned by the pages API, before filtering to accepted-with-OCR. */
 interface RawPage {
   id: string;
   status: string;
   ocr: { extractedText: string; correctedText: string | null } | null;
 }
 
-// Same accepted-text source as lib/chat/context.ts and lib/sections/generate.ts: the user's
-// correction when present, otherwise the raw extraction stands as accepted-without-correction.
-// Exported so this selection can be regression-tested without a component-rendering harness
-// (this repo's vitest config runs in the "node" environment, with no jsdom/React Testing Library).
+/**
+ * Resolves a page's accepted text: the user's correction when present, else the raw extraction.
+ *
+ * Kept identical to `lib/chat/context.ts` and `lib/sections/generate.ts` so the inspector's
+ * previews match what the model was actually grounded on. Exported so this selection can be
+ * regression-tested directly — the repo's vitest config runs in the "node" environment with
+ * no jsdom/React Testing Library, so a component-rendering harness isn't available.
+ *
+ * @param ocr - The page's OCR result (`extractedText` and optional `correctedText`).
+ * @returns The accepted text for the page.
+ */
 export function acceptedPageText(ocr: { extractedText: string; correctedText: string | null }): string {
   return ocr.correctedText ?? ocr.extractedText;
 }
 
+/** Props for {@link DocumentInspector}. */
 interface DocumentInspectorProps {
+  /** The documents currently selected into the chat. */
   documents: InspectorDocument[];
+  /** Ids of pages the latest answer cited (highlighted in the list). */
   citedPageIds: Set<string>;
+  /** Id of the page to scroll into view/emphasize, or `null`. */
   focusedPageId: string | null;
-  // Owned by the parent (not this component) so the citation-click handler that sets
-  // focusedPageId can also force the panel open in the same event, rather than reacting to
-  // the prop change in an effect.
+  /**
+   * Whether the panel is expanded. Owned by the parent so a citation-click handler can set
+   * `focusedPageId` and open the panel in the same event, rather than reacting to the prop
+   * change in an effect.
+   */
   expanded: boolean;
+  /** Toggles {@link DocumentInspectorProps.expanded}. */
   onToggleExpanded: () => void;
+  /** Extra classes appended to the panel container. */
   className?: string;
 }
 
+/**
+ * Renders the collapsible document-inspector panel beside the chat.
+ *
+ * State & side effects:
+ * - Fetches each document's pages from `/api/documents/:id/pages` and derives the accepted,
+ *   OCR'd pages (re-run whenever `documents` changes); tracks per-document load failures.
+ * - Scrolls the `focusedPageId` row into view when it changes while expanded.
+ *
+ * @param props - {@link DocumentInspectorProps}.
+ * @returns The rendered inspector card.
+ */
 export function DocumentInspector({
   documents,
   citedPageIds,
@@ -69,8 +106,8 @@ export function DocumentInspector({
             const res = await fetch(`/api/documents/${doc.documentId}/pages`);
             if (!res.ok) throw new Error("failed to load pages");
             const data: { pages: RawPage[] } = await res.json();
-            // Same filter + ordering as lib/chat/context.ts's grounding assembly, so the
-            // page numbers shown here match the chat citations exactly.
+            // Mirror the filter + ordering of the grounding assembly in lib/chat/context.ts
+            // so these page numbers match the chat citations exactly.
             const accepted = data.pages.filter(
               (page) => page.status === "ACCEPTED" && page.ocr !== null
             );
@@ -241,6 +278,7 @@ export function DocumentInspector({
   );
 }
 
+/** Decorative up-chevron glyph shown on the toggle while the panel is expanded. */
 function ChevronUpIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
@@ -249,6 +287,7 @@ function ChevronUpIcon() {
   );
 }
 
+/** Decorative down-chevron glyph shown on the toggle while the panel is collapsed. */
 function ChevronDownIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">

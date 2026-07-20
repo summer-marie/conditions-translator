@@ -1,7 +1,13 @@
-// Server Actions for document operations.
-//
-// These actions enforce ownership and document lifecycle rules.
-// All document operations go through these functions to ensure consistency.
+/**
+ * Server Actions for document and page operations.
+ *
+ * Every action resolves the current {@link Owner} and enforces the document lifecycle state
+ * machine before mutating anything, so ownership and status rules are applied consistently
+ * across intake, correction, acceptance, finishing, and deletion. Client components call
+ * these directly instead of hitting an API route.
+ *
+ * @module lib/actions/document
+ */
 
 "use server";
 
@@ -30,9 +36,19 @@ import { uploadPageImage, deletePageImage } from "@/lib/storage/blob";
 import { hasBlockingQualityIssue } from "@/lib/ocr/schema";
 import { generateSectionsForDocument } from "@/lib/sections/generate";
 
-// Resolves the current owner (a signed-in user takes precedence over a temporary session, same
-// as every owner-aware API route — docs/05_Account_Creation_and_Temporary_Access.md) and asserts
-// the Document exists, belongs to that owner, and is still IN_PROGRESS.
+/**
+ * Resolves the current owner and asserts an IN_PROGRESS Document it owns.
+ *
+ * A signed-in user takes precedence over a temporary session, matching every owner-aware
+ * API route (`docs/05_Account_Creation_and_Temporary_Access.md`). Used by every page-editing
+ * action, since pages can only change while intake is open.
+ *
+ * @param documentId - The Document being edited.
+ * @returns The resolved `owner` and the loaded `document`.
+ * @throws {AppError} `NO_ACTIVE_SESSION` (401) when there is no owner.
+ * @throws {AppError} `DOCUMENT_NOT_FOUND` (404) when not owned or not found.
+ * @throws {AppError} `INVALID_DOCUMENT_STATUS` (400) when the Document is not IN_PROGRESS.
+ */
 async function requireInProgressOwnedDocument(documentId: string) {
   const owner = await getCurrentOwner();
   if (!owner) {
@@ -56,14 +72,20 @@ async function requireInProgressOwnedDocument(documentId: string) {
 }
 
 /**
- * Creates a new IN_PROGRESS document for the current user.
- * If the user is authenticated, uses their userId.
- * If not authenticated, uses the temporary session ID.
+ * Creates a new IN_PROGRESS Document owned by the current temporary session.
+ *
+ * Requires the privacy notice to have been accepted first. The new Document is given a
+ * temporary-session expiry derived from {@link TEMP_SESSION_TTL_HOURS}.
+ *
+ * @param title - Initial title; defaults to {@link DEFAULT_DOCUMENT_TITLE}.
+ * @returns The created Document.
+ * @throws {AppError} `PRIVACY_NOT_ACCEPTED` (403) when the notice hasn't been accepted.
+ * @throws {AppError} `NO_ACTIVE_SESSION` (401) when there is no temporary session.
  */
 export async function createTemporaryDocument(
   title: string = DEFAULT_DOCUMENT_TITLE
 ) {
-  // Check if privacy notice has been accepted
+  // Gate document creation on privacy acceptance — nothing is stored before consent.
   const privacyAccepted = await isPrivacyAccepted();
   if (!privacyAccepted) {
     throw new AppError(
@@ -73,7 +95,6 @@ export async function createTemporaryDocument(
     );
   }
 
-  // Get owner information
   const session = await getTemporarySession();
   if (!session) {
     throw new AppError(
@@ -88,18 +109,24 @@ export async function createTemporaryDocument(
     Date.now() + TEMP_SESSION_TTL_HOURS * 60 * 60 * 1000
   );
 
-  // Create the document
   const document = await createOwnedDocument(owner, { title, expiresAt });
 
   return document;
 }
 
 /**
- * Finishes a document: closes intake and starts section generation.
- * Only the owner can finish their document.
- * Requires at least one ACCEPTED page. Transitions IN_PROGRESS -> COMPLETED -> PROCESSING,
- * then -> READY on generation success or PROCESSING_FAILED on failure (never thrown for a
- * generation failure — that is a normal, retryable outcome the caller renders in the UI).
+ * Finishes a Document: closes intake and runs section generation.
+ *
+ * Requires at least one ACCEPTED page. Transitions IN_PROGRESS → COMPLETED → PROCESSING,
+ * then → READY on generation success or → PROCESSING_FAILED on failure. A generation
+ * failure is a normal, retryable outcome (rendered in the UI), so it is never thrown.
+ *
+ * @param documentId - The Document to finish.
+ * @returns The updated Document in its resulting state.
+ * @throws {AppError} `NO_ACTIVE_SESSION` (401) when there is no owner.
+ * @throws {AppError} `DOCUMENT_NOT_FOUND` (404) when not owned or not found.
+ * @throws {AppError} `INVALID_DOCUMENT_STATUS` (400) when the Document is not IN_PROGRESS.
+ * @throws {AppError} `NO_ACCEPTED_PAGES` (400) when no page has been accepted.
  */
 export async function finishDocument(documentId: string) {
   const owner = await getCurrentOwner();
@@ -140,6 +167,7 @@ export async function finishDocument(documentId: string) {
     );
   }
 
+  // Owner-scoped update so the status change can never touch another owner's Document.
   const whereClause = owner.kind === "user"
     ? { id: documentId, userId: owner.userId }
     : { id: documentId, temporarySessionId: owner.temporarySessionId };
@@ -157,9 +185,16 @@ export async function finishDocument(documentId: string) {
 }
 
 /**
- * Retries section generation for a document stuck in PROCESSING_FAILED.
- * Only the owner can retry their document. Re-enters PROCESSING, then -> READY on success
- * or back to PROCESSING_FAILED on another failure.
+ * Retries section generation for a Document stuck in PROCESSING_FAILED.
+ *
+ * Re-enters PROCESSING, then → READY on success or back to PROCESSING_FAILED on another
+ * failure (again never thrown for a generation failure).
+ *
+ * @param documentId - The failed Document to retry.
+ * @returns The updated Document in its resulting state.
+ * @throws {AppError} `NO_ACTIVE_SESSION` (401) when there is no owner.
+ * @throws {AppError} `DOCUMENT_NOT_FOUND` (404) when not owned or not found.
+ * @throws {AppError} `INVALID_DOCUMENT_STATUS` (400) when the Document is not PROCESSING_FAILED.
  */
 export async function retryDocumentProcessing(documentId: string) {
   const owner = await getCurrentOwner();
@@ -196,14 +231,18 @@ export async function retryDocumentProcessing(documentId: string) {
 }
 
 /**
- * Updates a document's title.
- * Only the owner can update their document.
+ * Updates a Document's title.
+ *
+ * @param documentId - The Document to rename.
+ * @param title - The new title.
+ * @returns The updated Document.
+ * @throws {AppError} `NO_ACTIVE_SESSION` (401) when there is no owner.
+ * @throws {AppError} `DOCUMENT_NOT_FOUND` (404) when not owned or not found.
  */
 export async function updateDocumentTitle(
   documentId: string,
   title: string
 ) {
-  // Get owner information
   const owner = await getCurrentOwner();
   if (!owner) {
     throw new AppError(
@@ -213,7 +252,6 @@ export async function updateDocumentTitle(
     );
   }
 
-  // Verify ownership and get document
   const document = await getOwnedDocument(owner, documentId);
   if (!document) {
     throw new AppError(
@@ -223,12 +261,11 @@ export async function updateDocumentTitle(
     );
   }
 
-  // Build update data based on owner type
+  // Owner-scoped update so a title change can never touch another owner's Document.
   const whereClause = owner.kind === "user"
     ? { id: documentId, userId: owner.userId }
     : { id: documentId, temporarySessionId: owner.temporarySessionId };
 
-  // Update title
   const updatedDocument = await prisma.document.update({
     where: whereClause,
     data: {
@@ -236,16 +273,26 @@ export async function updateDocumentTitle(
     },
   });
 
-  // Revalidate workspace path
   revalidatePath("/app/workspace");
 
   return updatedDocument;
 }
 
 /**
- * Accepts a page: its current OcrResult.extractedText becomes the immutable, authoritative
- * source text for that page (docs/03_OCR_Specifications.md §5). Blocked when OCR hasn't
- * completed successfully, or when the model flagged a clearly bad-quality scan.
+ * Accepts a page, making its transcription the authoritative source text.
+ *
+ * From acceptance on, the page's accepted text (`correctedText` if edited, else
+ * `extractedText`) is the immutable source of truth for that page
+ * (`docs/03_OCR_Specifications.md` §5). Acceptance is blocked until OCR has completed
+ * successfully, and rejected outright when the model flagged a clearly unreadable scan
+ * (see {@link hasBlockingQualityIssue}).
+ *
+ * @param documentId - The owning Document (must be IN_PROGRESS).
+ * @param pageId - The page to accept.
+ * @returns The updated page.
+ * @throws {AppError} `PAGE_NOT_FOUND` (404) when the page isn't in this Document.
+ * @throws {AppError} `PAGE_NOT_READY` (400) when OCR hasn't completed.
+ * @throws {AppError} `PAGE_QUALITY_BLOCKED` (422) when the scan is too low-quality to accept.
  */
 export async function acceptPage(documentId: string, pageId: string) {
   await requireInProgressOwnedDocument(documentId);
@@ -290,21 +337,30 @@ export async function acceptPage(documentId: string, pageId: string) {
 }
 
 /**
- * Saves a user correction to a page's proposed OCR transcription. Updates only
- * OcrResult.correctedText — OcrResult.extractedText (raw OCR output) is never modified, and
- * neither the page's image nor its blobPath is touched (docs/OCR_Master_Implementation_Plan.md
- * §7-8, docs/Decision_Log.md ADR-001). Does not change page or document status and does not
- * accept the page; only allowed while the page's OCR has completed and it has not yet been
- * accepted (an ACCEPTED page's status is never OCR_COMPLETE, so it is rejected here too).
+ * Saves a user correction to a page's proposed OCR transcription.
  *
- * The initial reads below give clear, specific error messages, but they don't hold a lock — a
- * concurrent acceptPage/reuploadPage/finishDocument could change the document or page state
- * between that validation and this write (e.g. a page accepted a moment ago, which never touches
- * OcrResult). The final write is therefore a conditional updateMany, mirroring the
- * updateMany-then-check-count pattern in lib/documents/deletion.ts: its `where` re-proves every
- * eligibility requirement (ownership, document IN_PROGRESS, page belongs to this document and is
- * still OCR_COMPLETE) atomically, so the write silently no-ops instead of corrupting an
- * already-accepted or otherwise-changed page.
+ * Writes only `OcrResult.correctedText`; the raw `extractedText`, the page image, and its
+ * `blobPath` are never touched (`docs/OCR_Master_Implementation_Plan.md` §7–8,
+ * `docs/Decision_Log.md` ADR-001). It neither changes page/document status nor accepts the
+ * page, and is only permitted while OCR has completed and the page is not yet accepted (an
+ * ACCEPTED page is never OCR_COMPLETE, so it is rejected here too).
+ *
+ * The upfront reads exist only to return specific error messages; they hold no lock, so a
+ * concurrent accept/reupload/finish could change state between validation and this write.
+ * The actual write is therefore a conditional `updateMany` (the same
+ * updateMany-then-check-count pattern as `lib/documents/deletion.ts`) whose `where`
+ * re-proves every eligibility rule atomically. If state changed, it matches nothing and the
+ * `count === 0` branch reports a conflict instead of corrupting an already-changed page.
+ *
+ * @param documentId - The owning Document (must be IN_PROGRESS).
+ * @param pageId - The page whose transcription is being corrected.
+ * @param text - The corrected transcription text.
+ * @returns The updated OcrResult.
+ * @throws {AppError} `PAGE_NOT_FOUND` (404) when the page isn't in this Document.
+ * @throws {AppError} `PAGE_NOT_READY` (400) when OCR hasn't completed.
+ * @throws {AppError} `CORRECTION_EMPTY` (400) when the trimmed text is empty.
+ * @throws {AppError} `CORRECTION_TOO_LONG` (400) when it exceeds {@link OCR_MAX_CORRECTION_CHARACTERS}.
+ * @throws {AppError} `PAGE_STATE_CHANGED` (409) when the page changed state concurrently.
  */
 export async function correctPageOcr(documentId: string, pageId: string, text: string) {
   const { owner } = await requireInProgressOwnedDocument(documentId);
@@ -372,8 +428,20 @@ export async function correctPageOcr(documentId: string, pageId: string, text: s
 }
 
 /**
- * Replaces a page's image: clears its prior OCR result and resets it to PENDING so the
- * caller can trigger OCR again. Not allowed once the page has been accepted.
+ * Replaces a page's image and resets it for re-OCR.
+ *
+ * Validates and stores the new image, deletes the old Blob (when its path changed), clears
+ * the prior OcrResult, and resets the page to PENDING so the caller can trigger OCR again.
+ * Not allowed once the page has been accepted.
+ *
+ * @param documentId - The owning Document (must be IN_PROGRESS).
+ * @param pageId - The page whose image is being replaced.
+ * @param formData - Multipart form data containing the new `file`.
+ * @returns The updated page (status PENDING).
+ * @throws {AppError} `PAGE_NOT_FOUND` (404) when the page isn't in this Document.
+ * @throws {AppError} `PAGE_ALREADY_ACCEPTED` (400) when the page is already accepted.
+ * @throws {AppError} `NO_FILE` (400) when no file was provided.
+ * @throws {AppError} Propagated from {@link validateImageUpload} for an invalid image.
  */
 export async function reuploadPage(documentId: string, pageId: string, formData: FormData) {
   await requireInProgressOwnedDocument(documentId);
@@ -423,8 +491,16 @@ export async function reuploadPage(documentId: string, pageId: string, formData:
 }
 
 /**
- * Deletes a page (and its stored image + OCR result) and compacts the remaining pages' order
- * so it stays contiguous starting at 0 — later uploads rely on that invariant.
+ * Deletes a page and compacts the remaining pages' order.
+ *
+ * Removes the page's stored image and (via cascade) its OCR result, then renumbers the
+ * remaining pages so `order` stays contiguous from 0 — later uploads rely on that
+ * invariant to compute the next page's position.
+ *
+ * @param documentId - The owning Document (must be IN_PROGRESS).
+ * @param pageId - The page to delete.
+ * @returns `{ deleted: true }` on success.
+ * @throws {AppError} `PAGE_NOT_FOUND` (404) when the page isn't in this Document.
  */
 export async function deletePage(documentId: string, pageId: string) {
   await requireInProgressOwnedDocument(documentId);

@@ -1,10 +1,14 @@
-// Workspace UI shell for temporary document intake.
-//
-// Shows: document title (editable inline), page list with OCR preview/accept/re-upload/delete,
-// upload button, Finish Document button.
-// Upload button is disabled once page_count = 10.
-// Finish Document button is disabled when page_count = 0.
-// No AI controls are visible while status = IN_PROGRESS.
+/**
+ * Workspace UI for temporary document intake.
+ *
+ * Shows the document title (editable inline), the page list with OCR preview / accept /
+ * re-upload / delete / correct, the upload control, and the Finish Document button. Upload is
+ * disabled at the 10-page limit; Finish is disabled with zero pages; and no AI controls appear
+ * while the document is still IN_PROGRESS. It also renders the read-only view of an
+ * already-finished document (Sections/Pages tabs) selected from the sidenav.
+ *
+ * @module app/app/workspace/page
+ */
 
 "use client";
 
@@ -35,6 +39,7 @@ import { Card } from "@/components/ui/Card";
 import { Alert } from "@/components/ui/Alert";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 
+/** Per-page image-quality signals reported by OCR (mirrors `lib/ocr/schema.ts`). */
 interface OcrQuality {
   blurry: boolean;
   cutOff: boolean;
@@ -44,6 +49,7 @@ interface OcrQuality {
   retakeGuidance?: string | null;
 }
 
+/** A page's OCR result: raw extraction, optional user correction, confidence, and quality. */
 interface OcrResult {
   extractedText: string;
   correctedText: string | null;
@@ -51,8 +57,10 @@ interface OcrResult {
   warnings: OcrQuality | null;
 }
 
+/** A page's lifecycle status during intake. */
 type PageStatus = "PENDING" | "OCR_COMPLETE" | "OCR_FAILED" | "ACCEPTED";
 
+/** A page within the document being viewed/edited. */
 interface Page {
   id: string;
   order: number;
@@ -63,6 +71,7 @@ interface Page {
   createdAt: string;
 }
 
+/** A document's lifecycle status. */
 type DocumentStatus =
   | "IN_PROGRESS"
   | "COMPLETED"
@@ -70,6 +79,7 @@ type DocumentStatus =
   | "READY"
   | "PROCESSING_FAILED";
 
+/** One generated section of a finished document. */
 interface GeneratedSection {
   id: string;
   heading: string;
@@ -78,6 +88,7 @@ interface GeneratedSection {
   sources: { pageId: string }[];
 }
 
+/** The document currently rendered in the workspace. */
 interface Document {
   id: string;
   title: string;
@@ -86,24 +97,34 @@ interface Document {
   sections: GeneratedSection[];
 }
 
-// Shared attributes for both page-image file inputs (initial upload and re-upload): prefers
-// opening the rear camera on supported mobile browsers via the standard capture-attribute hint,
-// while desktop browsers ignore both attributes and open the normal file picker. This is a
-// browser/OS hint, not a guarantee -- some mobile browsers show a camera/gallery choice instead of
-// jumping straight to the camera, and none of this is enforced; actual format/size validation
-// happens server-side in lib/validation/image.ts regardless of what was selected. Exported (like
-// the helpers below) so it can be asserted on without a component-rendering harness.
+/**
+ * Shared attributes for both page-image file inputs (initial upload and re-upload).
+ *
+ * Hints supporting mobile browsers to open the rear camera via the standard `capture`
+ * attribute; desktop browsers ignore both attributes and open the normal file picker. This is
+ * only a hint — some mobile browsers show a camera/gallery choice, and nothing here is
+ * enforced. Actual format/size validation happens server-side in `lib/validation/image.ts`
+ * regardless of what was selected. Exported (like the helpers below) so it can be asserted on
+ * without a component-rendering harness.
+ */
 export const PAGE_IMAGE_FILE_INPUT_PROPS = {
   accept: "image/*",
   capture: "environment" as const,
 };
 
-// Builds the workspace URL for switching the finished-document view between its "Sections" tab
-// (default -- omits the param, matching today's plain sidenav document link) and its "Pages" tab
-// (read-only page set, reached via the sidenav overflow menu's "Review pages" action -- see
-// components/layout/AppNav.tsx). Takes the current search string so ?documentId= (and anything
-// else already present) survives the tab switch untouched. Exported so this can be
-// regression-tested without a component-rendering harness (see initialCorrectionValue below).
+/**
+ * Builds the workspace URL for switching the finished-document view between its tabs.
+ *
+ * The "Sections" tab is the default and omits the param (matching the plain sidenav document
+ * link); the "Pages" tab (read-only page set, reached via the sidenav overflow menu's "Review
+ * pages") sets `?panel=pages`. The current search string is preserved so `?documentId=` (and
+ * anything else present) survives the switch. Exported for regression testing without a
+ * component-rendering harness.
+ *
+ * @param currentSearch - The current URL search string (e.g. `location.search`).
+ * @param panel - Which tab to build the URL for.
+ * @returns The workspace URL for that tab.
+ */
 export function buildWorkspacePanelUrl(currentSearch: string, panel: "sections" | "pages"): string {
   const params = new URLSearchParams(currentSearch);
   if (panel === "pages") {
@@ -115,20 +136,31 @@ export function buildWorkspacePanelUrl(currentSearch: string, panel: "sections" 
   return `/app/workspace${qs ? `?${qs}` : ""}`;
 }
 
-// Initial value for a page's correction textarea: the current accepted-text source
-// (correctedText ?? extractedText), matching the same selection used by section generation,
-// chat context, and the document inspector. Exported so this and validateCorrectionText below
-// can be regression-tested without a component-rendering harness (this repo's vitest config runs
-// in the "node" environment, with no jsdom/React Testing Library — see
-// tests/components/chat/DocumentInspector.test.ts for the same approach).
+/**
+ * Returns the initial value for a page's correction textarea.
+ *
+ * Uses the current accepted-text source (`correctedText ?? extractedText`), matching the
+ * selection used by section generation, chat context, and the document inspector. Exported for
+ * regression testing without a component-rendering harness.
+ *
+ * @param ocr - The page's OCR result, if any.
+ * @returns The pre-filled correction text (empty string when there is no OCR).
+ */
 export function initialCorrectionValue(ocr: OcrResult | null | undefined): string {
   return ocr?.correctedText ?? ocr?.extractedText ?? "";
 }
 
-// Client-side mirror of correctPageOcr's validation (lib/actions/document.ts): trims outer
-// whitespace only (internal spaces/line breaks are preserved), rejects empty/whitespace-only
-// text, and enforces the same OCR_MAX_CORRECTION_CHARACTERS limit. Used both to gate the Save
-// button and to short-circuit an obviously-invalid save before calling the server.
+/**
+ * Client-side mirror of `correctPageOcr`'s server validation (`lib/actions/document.ts`).
+ *
+ * Trims outer whitespace only (internal spaces/line breaks are preserved), rejects
+ * empty/whitespace-only text, and enforces the same {@link OCR_MAX_CORRECTION_CHARACTERS}
+ * limit. Used both to gate the Save button and to short-circuit an obviously-invalid save
+ * before hitting the server. Exported for regression testing without a rendering harness.
+ *
+ * @param value - The raw textarea value.
+ * @returns The `trimmed` value and an `error` message (or `null` when valid).
+ */
 export function validateCorrectionText(value: string): { trimmed: string; error: string | null } {
   const trimmed = value.trim();
 
@@ -146,6 +178,12 @@ export function validateCorrectionText(value: string): { trimmed: string; error:
   return { trimmed, error: null };
 }
 
+/**
+ * Maps a {@link DocumentStatus} to its user-facing label.
+ *
+ * @param status - The document status.
+ * @returns The display label (e.g. `"Needs Retry"` for `PROCESSING_FAILED`).
+ */
 function documentStatusLabel(status: DocumentStatus): string {
   switch (status) {
     case "IN_PROGRESS":
@@ -162,18 +200,35 @@ function documentStatusLabel(status: DocumentStatus): string {
   }
 }
 
-// Mirrors lib/ocr/schema.ts's hasBlockingQualityIssue: only a genuinely unreadable or near-empty
-// extraction blocks Accept. Framing flags (blurry/cutOff/sideways/incomplete) are shown as
-// advisory badges below but don't block by themselves — real phone photos are rarely perfectly
-// framed, and the text can still be fully usable.
+/**
+ * Minimum extracted-text length treated as usable. Mirrors the server's
+ * `MIN_USABLE_EXTRACTED_TEXT_LENGTH`; below this a page is effectively empty.
+ */
 const MIN_USABLE_TEXT_LENGTH = 10;
 
+/**
+ * Client mirror of `lib/ocr/schema.ts`'s `hasBlockingQualityIssue`.
+ *
+ * Only a genuinely unreadable or near-empty extraction blocks Accept. The framing flags
+ * (blurry/cutOff/sideways/incomplete) are shown as advisory badges but don't block on their
+ * own — real phone photos are rarely perfectly framed and the text can still be fully usable.
+ *
+ * @param warnings - The page's quality assessment, if any.
+ * @param extractedText - The page's extracted text, if any.
+ * @returns `true` when acceptance should be blocked.
+ */
 function hasBlockingQuality(warnings: OcrQuality | null, extractedText: string | null): boolean {
   if (!warnings) return false;
   if (warnings.unreadable) return true;
   return (extractedText ?? "").trim().length < MIN_USABLE_TEXT_LENGTH;
 }
 
+/**
+ * Maps a page to its user-facing status label (accounting for blocking quality).
+ *
+ * @param page - The page to label.
+ * @returns The display label (e.g. `"Ready to accept"`, `"Needs retake"`).
+ */
 function statusLabel(page: Page): string {
   switch (page.status) {
     case "PENDING":
@@ -191,30 +246,46 @@ function statusLabel(page: Page): string {
   }
 }
 
+/**
+ * Workspace page route (`/app/workspace`).
+ *
+ * Thin Suspense wrapper around {@link WorkspacePageContent} (required because it reads
+ * `useSearchParams()`, same pattern as the save page).
+ *
+ * @returns The workspace page.
+ */
 export default function WorkspacePage() {
   return (
-    // useSearchParams() requires a Suspense boundary in the App Router (same pattern as
-    // app/app/save/page.tsx).
     <Suspense fallback={null}>
       <WorkspacePageContent />
     </Suspense>
   );
 }
 
+/**
+ * Stateful body of the workspace (inside {@link WorkspacePage}'s Suspense boundary).
+ *
+ * Drives the whole intake experience: resolving which document to show (the user's active
+ * intake document by default, or a finished document selected via `?documentId=`), the page
+ * list and all per-page actions (OCR, accept, correct, re-upload, delete), inline title
+ * editing, Finish/Retry, and the read-only Sections/Pages view of a finished document.
+ *
+ * @returns The rendered workspace.
+ */
 function WorkspacePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  // Presence of ?documentId= means the user picked a finished document from the sidenav; absence
-  // means "show my active intake document" (today's default behavior, unchanged).
+  // A ?documentId= param means the user picked a finished document from the sidenav; its absence
+  // means "show my active intake document" (the default).
   const viewedDocumentId = searchParams.get("documentId");
 
-  // The document currently rendered in the main content area -- either the active intake
-  // document (default) or a different, already-finished document selected via the sidenav.
+  // The document currently rendered in the main content area — either the active intake document
+  // (default) or a different, already-finished document opened from the sidenav.
   const [document, setDocument] = useState<Document | null>(null);
   const [pages, setPages] = useState<Page[]>([]);
   // The user's own active IN_PROGRESS document (or null if none exists yet). Kept separate from
-  // `document` above so the Upload Pages box always targets the user's real intake document, even
-  // while `document` is showing a different, finished document browsed from the sidenav.
+  // `document` so the Upload Pages box always targets the real intake document even while
+  // `document` is showing a finished document browsed from the sidenav.
   const [intakeDocument, setIntakeDocument] = useState<Document | null>(null);
   const [isLoadingViewedDocument, setIsLoadingViewedDocument] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -226,9 +297,9 @@ function WorkspacePageContent() {
   const [titleInput, setTitleInput] = useState("");
   const [ocrRunningIds, setOcrRunningIds] = useState<Record<string, boolean>>({});
   const [actioningPageId, setActioningPageId] = useState<string | null>(null);
-  // OCR transcription correction (docs/OCR_Master_Implementation_Plan.md §7-8): local textarea
-  // drafts, per-page save/error/saved state. Keyed by pageId, separate from actioningPageId so
-  // Save stays a distinct action from Accept/Re-upload/Delete.
+  // OCR transcription correction state (docs/OCR_Master_Implementation_Plan.md §7-8): local
+  // textarea drafts plus per-page saving/error/saved flags, all keyed by pageId. Kept separate
+  // from actioningPageId so Save stays a distinct action from Accept/Re-upload/Delete.
   const [correctionDrafts, setCorrectionDrafts] = useState<Record<string, string>>({});
   const [savingCorrectionIds, setSavingCorrectionIds] = useState<Record<string, boolean>>({});
   const [correctionErrors, setCorrectionErrors] = useState<Record<string, string | null>>({});
@@ -244,15 +315,18 @@ function WorkspacePageContent() {
   }>({ isOpen: false, pageId: null, isDeleting: false, error: null });
   const deletePageModalRef = useRef<HTMLDivElement | null>(null);
   useFocusTrap(deletePageModal.isOpen, deletePageModalRef);
-  // Keyed by page id: an explicit ref->click() trigger for each page's hidden re-upload file
-  // input, since a <label> wrapping both a visible Button and the input resolves its implicit
-  // control to the first labelable descendant (the button), not the input -- clicking never
-  // opened the file picker. See docs/USABILITY_UI_AUDIT.md follow-up diagnosis.
+  // Per-page refs used to ref->click() each hidden re-upload file input. A <label> wrapping both
+  // the visible Button and the input resolves its implicit control to the first labelable
+  // descendant (the button), so clicking never opened the file picker — hence the explicit ref.
   const reuploadInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
-  // Set once the workspace is owned by a signed-in account (Phase 7). null while temporary.
+  // Account id once the workspace is owned by a signed-in user (Phase 7); null while temporary.
   const [savedUserId, setSavedUserId] = useState<string | null>(null);
   const [isSigningOut, setIsSigningOut] = useState(false);
 
+  /**
+   * Bootstraps the workspace on mount: resolves the owner, the active intake document (creating
+   * one in temporary mode when none exists), and the initially-shown document + pages.
+   */
   async function initializeWorkspace() {
     try {
       // Privacy acceptance and session lookup use next/headers (cookies()) and must run
@@ -347,6 +421,12 @@ function WorkspacePageContent() {
     }
   };
 
+  /**
+   * Re-fetches a document's pages into state.
+   *
+   * @param documentId - The document whose pages to load.
+   * @returns The loaded pages (also stored in state), or `[]` on failure.
+   */
   const refetchPages = async (documentId: string) => {
     const pagesResponse = await fetch(`/api/documents/${documentId}/pages`);
     if (pagesResponse.ok) {
@@ -357,9 +437,14 @@ function WorkspacePageContent() {
     return [];
   };
 
-  // Loads a specific, already-finished document selected from the sidenav (?documentId=) into
-  // the main content area, independent of the user's own active intake document. Reuses the same
-  // owner-aware endpoints as the default flow -- no new persistence path for guests or accounts.
+  /**
+   * Loads a specific finished document (selected via `?documentId=`) into the main content area.
+   *
+   * Independent of the user's own active intake document, and reuses the same owner-aware
+   * endpoints as the default flow (no separate persistence path for guests or accounts).
+   *
+   * @param id - The document id to load.
+   */
   const loadViewedDocument = async (id: string) => {
     setIsLoadingViewedDocument(true);
     try {
@@ -383,6 +468,11 @@ function WorkspacePageContent() {
     }
   };
 
+  /**
+   * Re-fetches a document's status and sections, merging them into the current `document`.
+   *
+   * @param documentId - The document to refresh.
+   */
   const refetchDocument = async (documentId: string) => {
     const response = await fetch(`/api/documents/${documentId}`);
     if (!response.ok) return;
@@ -398,6 +488,12 @@ function WorkspacePageContent() {
     );
   };
 
+  /**
+   * Runs OCR for a page and merges the result (page + OCR) into state.
+   *
+   * @param documentId - The owning document.
+   * @param pageId - The page to OCR.
+   */
   const runOcrForPage = async (documentId: string, pageId: string) => {
     setOcrRunningIds((prev) => ({ ...prev, [pageId]: true }));
     try {
@@ -423,12 +519,24 @@ function WorkspacePageContent() {
     }
   };
 
-  // An in-progress local edit if one exists, otherwise falls back to initialCorrectionValue.
+  /**
+   * Returns a page's current correction text: the in-progress local draft if any, else the
+   * {@link initialCorrectionValue}.
+   *
+   * @param page - The page whose correction value to read.
+   * @returns The draft or initial correction text.
+   */
   const getCorrectionValue = (page: Page): string => {
     if (page.id in correctionDrafts) return correctionDrafts[page.id];
     return initialCorrectionValue(page.ocr);
   };
 
+  /**
+   * Updates a page's local correction draft and clears any stale saved/error indicator.
+   *
+   * @param pageId - The page being edited.
+   * @param value - The new draft text.
+   */
   const handleCorrectionChange = (pageId: string, value: string) => {
     setCorrectionDrafts((prev) => ({ ...prev, [pageId]: value }));
     // Editing again clears a stale "Saved" indicator or error from a prior attempt.
@@ -436,6 +544,11 @@ function WorkspacePageContent() {
     setCorrectionErrors((prev) => (prev[pageId] ? { ...prev, [pageId]: null } : prev));
   };
 
+  /**
+   * Validates and persists a page's transcription correction (writes only `correctedText`).
+   *
+   * @param pageId - The page whose correction to save.
+   */
   const handleSaveCorrection = async (pageId: string) => {
     if (!document) return;
     const page = pages.find((p) => p.id === pageId);
@@ -476,28 +589,31 @@ function WorkspacePageContent() {
     }
   };
 
+  /**
+   * Handles a page-image file selection: uploads each file to the intake document (creating one
+   * in temporary mode if needed), enforces the 10-page cap, and runs OCR on each new page.
+   *
+   * @param e - The file-input change event.
+   */
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    // The Upload box always targets the user's active intake document, not necessarily whatever
-    // is currently shown in the main content area (see intakeDocument's declaration above). If
-    // `document` already IS the intake document, it's the freshest copy -- handlers like
-    // handleFinishDocument only update `document`, not the separate intakeDocument snapshot, so
-    // checking intakeDocument.status directly here would go stale the moment the active intake
-    // document finishes.
+    // The Upload box always targets the user's active intake document, not necessarily what's
+    // shown in the main content area (see intakeDocument's declaration). When `document` already
+    // IS the intake document it's the freshest copy — handlers like handleFinishDocument update
+    // `document` but not the separate intakeDocument snapshot, so reading intakeDocument.status
+    // directly would go stale the moment the active intake document finishes.
     const liveIntake =
       document && intakeDocument && document.id === intakeDocument.id ? document : intakeDocument;
     let targetDocument = liveIntake && liveIntake.status === "IN_PROGRESS" ? liveIntake : null;
 
     if (!targetDocument) {
-      // No usable active intake document (none exists yet, or the previous one just finished) --
-      // start a new one. Reuses the existing guest auto-create action (createTemporaryDocument),
-      // just triggered here instead of only on mount. Signed-in accounts hit this only if the
-      // render guard below is bypassed, which it isn't: the Upload box is disabled for them in
-      // this state (see canOfferNewDocument/newDocumentUploadDisabled), since
-      // createTemporaryDocument doesn't yet resolve an authenticated owner -- a known,
-      // pre-existing gap this change doesn't attempt to fix.
+      // No usable active intake document (none yet, or the previous one just finished) — start a
+      // new one via the guest auto-create action, triggered here instead of only on mount.
+      // Signed-in accounts are bailed out here because createTemporaryDocument doesn't yet
+      // resolve an authenticated owner (a known, pre-existing gap); their Upload box is disabled
+      // in this state (see canOfferNewDocument/newDocumentUploadDisabled) so this is defensive.
       if (savedUserId) {
         e.target.value = "";
         return;
@@ -530,7 +646,7 @@ function WorkspacePageContent() {
       return;
     }
 
-    // Switch the main view to the intake document being uploaded to, so the new page is visible
+    // Switch the main view to the intake document being uploaded to, so the new page shows
     // immediately even if the user was browsing a different finished document via the sidenav.
     if (document?.id !== targetId) {
       router.push("/app/workspace");
@@ -567,11 +683,16 @@ function WorkspacePageContent() {
       alert(error instanceof Error ? error.message : "Failed to upload pages");
     } finally {
       setIsUploading(false);
-      // Reset file input
+      // Clear the input so selecting the same file again still fires a change event.
       e.target.value = "";
     }
   };
 
+  /**
+   * Accepts a page, marking its transcription as the authoritative source text.
+   *
+   * @param pageId - The page to accept.
+   */
   const handleAcceptPage = async (pageId: string) => {
     if (!document) return;
     setActioningPageId(pageId);
@@ -587,6 +708,12 @@ function WorkspacePageContent() {
     }
   };
 
+  /**
+   * Replaces a page's image and re-runs OCR on the new image.
+   *
+   * @param pageId - The page to replace.
+   * @param file - The new image file.
+   */
   const handleReuploadPage = async (pageId: string, file: File) => {
     if (!document) return;
     setActioningPageId(pageId);
@@ -615,14 +742,17 @@ function WorkspacePageContent() {
     }
   };
 
+  /** Opens the delete-page confirmation modal for a page. */
   const handleDeletePageClick = (pageId: string) => {
     setDeletePageModal({ isOpen: true, pageId, isDeleting: false, error: null });
   };
 
+  /** Closes the delete-page modal without deleting. */
   const handleDeletePageCancel = () => {
     setDeletePageModal({ isOpen: false, pageId: null, isDeleting: false, error: null });
   };
 
+  /** Confirms deletion of the modal's page, then refetches the (renumbered) page list. */
   const handleDeletePageConfirm = async () => {
     if (!document || !deletePageModal.pageId) return;
     const pageId = deletePageModal.pageId;
@@ -645,6 +775,10 @@ function WorkspacePageContent() {
     }
   };
 
+  /**
+   * Finishes the current document (closing intake and starting section generation), then
+   * notifies the sidenav so the newly-finished document appears in its list.
+   */
   const handleFinishDocument = async () => {
     if (!document) return;
 
@@ -652,10 +786,10 @@ function WorkspacePageContent() {
     try {
       await finishDocument(document.id);
       await refetchDocument(document.id);
-      // Finishing moves this Document out of IN_PROGRESS, making it newly eligible for the
-      // sidenav's "Documents" list (components/layout/AppNav.tsx) -- that list only re-fetches
-      // on route changes otherwise, so without this the just-finished document wouldn't appear
-      // there until an unrelated navigation happened to trigger a refetch.
+      // Finishing moves this document out of IN_PROGRESS, making it newly eligible for the
+      // sidenav's "Documents" list (components/layout/AppNav.tsx). That list otherwise only
+      // refetches on route changes, so this event is what makes the just-finished document
+      // appear there without an unrelated navigation.
       window.dispatchEvent(new Event(DOCUMENTS_CHANGED_EVENT));
     } catch (error) {
       alert(error instanceof Error ? error.message : "Failed to finish document");
@@ -664,6 +798,7 @@ function WorkspacePageContent() {
     }
   };
 
+  /** Retries section generation for a document stuck in PROCESSING_FAILED. */
   const handleRetryProcessing = async () => {
     if (!document) return;
 
@@ -678,6 +813,7 @@ function WorkspacePageContent() {
     }
   };
 
+  /** Persists the edited document title (or cancels the edit when blank). */
   const handleTitleSave = async () => {
     if (!document || !titleInput.trim()) {
       setIsEditingTitle(false);
@@ -701,6 +837,7 @@ function WorkspacePageContent() {
     }
   };
 
+  /** Signs the user out and returns to the public landing page. */
   const handleSignOut = async () => {
     setIsSigningOut(true);
     try {
@@ -712,29 +849,30 @@ function WorkspacePageContent() {
     }
   };
 
+  // Bootstrap the workspace once on mount.
   useEffect(() => {
     initializeWorkspace();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- initializeWorkspace is stable per mount
   }, []);
 
-  // Reacts to ?documentId= changing (sidenav navigation between finished documents, or back to
-  // the plain /app/workspace URL) without requiring a full page reload. Runs after the initial
-  // intake resolution above so a bad/foreign id can fall back to the intake document instead of
-  // leaving the page blank.
+  // React to ?documentId= changing (sidenav navigation between finished documents, or back to
+  // the plain /app/workspace URL) without a full page reload. Runs after the initial intake
+  // resolution so a bad/foreign id can fall back to the intake document rather than blank out.
   useEffect(() => {
     if (isLoading) return;
     if (viewedDocumentId) {
       loadViewedDocument(viewedDocumentId);
     } else if (intakeDocument && document?.id !== intakeDocument.id) {
-      // Only refetches when actually switching back from a different viewed document -- the
-      // initial load already put the intake document in place, so this avoids a redundant fetch.
-      // Fetches fresh rather than trusting the intakeDocument snapshot, which can go stale (e.g.
-      // it finished while the user was browsing a different document via the sidenav).
+      // Only refetch when actually switching back from a different viewed document — the initial
+      // load already placed the intake document. Fetch fresh rather than trusting the
+      // intakeDocument snapshot, which can go stale (e.g. it finished while the user browsed a
+      // different document via the sidenav).
       loadViewedDocument(intakeDocument.id);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- loadViewedDocument/refetchPages are stable per render cycle; re-running on their identity would loop
   }, [viewedDocumentId, isLoading]);
 
+  // Escape closes the expanded page-image overlay.
   useEffect(() => {
     if (!expandedImagePage) return;
     function handleKeyDown(e: KeyboardEvent) {
@@ -744,6 +882,7 @@ function WorkspacePageContent() {
     return () => window.document.removeEventListener("keydown", handleKeyDown);
   }, [expandedImagePage]);
 
+  // Escape closes the delete-page confirmation modal.
   useEffect(() => {
     if (!deletePageModal.isOpen) return;
     function handleKeyDown(e: KeyboardEvent) {
@@ -804,29 +943,29 @@ function WorkspacePageContent() {
   const isReady = document.status === "READY";
   const isProcessing = document.status === "COMPLETED" || document.status === "PROCESSING";
   const isProcessingFailed = document.status === "PROCESSING_FAILED";
-  // Which tab of the finished-document organized view is showing: "Sections" (default, matches
-  // today's behavior for the plain sidenav document link) or "Pages" (read-only page set, reached
-  // via the sidenav overflow menu's "Review pages" action -- see components/layout/AppNav.tsx).
-  // Derived straight from the URL, the same way ?documentId= itself already is, so switching tabs
-  // is just a query-param update and there's no separate state to keep in sync on document change.
+  // Which tab of a finished document's view is showing: "Sections" (default) or "Pages"
+  // (read-only page set, reached via the sidenav overflow menu's "Review pages"). Derived
+  // straight from the URL, like ?documentId= itself, so switching tabs is just a query-param
+  // update with no separate state to keep in sync on document change.
   const viewedPanel = searchParams.get("panel") === "pages" ? "pages" : "sections";
+  /** Switches the finished-document view tab by updating the `?panel=` query param. */
   function setViewedPanel(panel: "sections" | "pages") {
     router.push(buildWorkspacePanelUrl(searchParams.toString(), panel));
   }
   const acceptedPageCount = pages.filter((p) => p.status === "ACCEPTED").length;
   const canFinish = acceptedPageCount > 0 && document.status === "IN_PROGRESS";
   const isViewingIntake = document.id === intakeDocument?.id;
-  // `document` is the freshest copy of the intake document whenever it's the one being viewed
-  // (kept live by the handlers above); otherwise fall back to the separately-tracked snapshot.
+  // Use `document` as the freshest intake copy while it's the one being viewed (handlers keep it
+  // live); otherwise fall back to the separately-tracked snapshot.
   const effectiveIntake = isViewingIntake ? document : intakeDocument;
   const hasActiveIntakeRoom =
     !!effectiveIntake && effectiveIntake.status === "IN_PROGRESS" && effectiveIntake.pageCount < 10;
-  // Once the active intake document is finished (or none exists yet), the Upload box switches
-  // from "add a page" to "start a new document" instead of disappearing.
+  // Once the active intake document is finished (or none exists), the Upload box switches from
+  // "add a page" to "start a new document" instead of disappearing.
   const canOfferNewDocument = !hasActiveIntakeRoom && (!effectiveIntake || effectiveIntake.status !== "IN_PROGRESS");
   const showUploadBox = hasActiveIntakeRoom || canOfferNewDocument;
-  // createTemporaryDocument doesn't yet resolve an authenticated owner (pre-existing, tracked
-  // gap -- see .agent-memory/OPEN_QUESTIONS.md) so "start a new document" is guest-only for now.
+  // "Start a new document" is guest-only for now: createTemporaryDocument doesn't yet resolve an
+  // authenticated owner (a known, pre-existing gap), so it's disabled for signed-in users.
   const newDocumentUploadDisabled = canOfferNewDocument && !hasActiveIntakeRoom && !!savedUserId;
 
   return (
@@ -980,10 +1119,9 @@ function WorkspacePageContent() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left column - Document info and pages */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Upload section: adding pages to the active intake document, or -- once that
-                document is finished (or none exists yet) -- starting a new one. Always visible
-                so the user can keep working even while browsing a different, finished document
-                below (see intakeDocument's declaration above). */}
+            {/* Upload section: adds pages to the active intake document, or starts a new one
+                once that document is finished (or none exists). Always visible so the user can
+                keep working even while browsing a different finished document below. */}
             {showUploadBox && (
               <Card variant="panel">
                 <h2
@@ -1086,9 +1224,9 @@ function WorkspacePageContent() {
               </Card>
             )}
 
-            {/* Pages list -- once the document is finished, this whole review area is replaced
-                by the organized Sections view below, since page-by-page review is no longer the
-                point of the page for a document that's already been organized. */}
+            {/* Pages list (intake only). Once the document is finished, this review area is
+                replaced by the organized Sections view below — page-by-page review is no longer
+                the point for an already-organized document. */}
             {document.status === "IN_PROGRESS" && (
             <Card variant="panel">
               <h2
@@ -1325,9 +1463,9 @@ function WorkspacePageContent() {
             </Card>
             )}
 
-            {/* Organized document view: replaces the Pages review area once the document is
-                finished, matching how the document reads after Finish Document -- browsing/
-                reading, not page-by-page review. */}
+            {/* Organized document view (finished documents). Replaces the Pages review area,
+                matching how a document reads after Finish Document: browsing/reading rather than
+                page-by-page review. */}
             {document.status !== "IN_PROGRESS" && (
               <Card variant="panel">
                 <div className="flex items-center justify-between mb-4" style={{ marginBottom: 'var(--spacing-4)' }}>
@@ -1496,8 +1634,8 @@ function WorkspacePageContent() {
 
           {/* Right column - Actions */}
           <div className="space-y-6">
-            {/* Naming nudge: shown once pages exist but the document still has its default
-                title, so the user is prompted to name it before finishing. */}
+            {/* Naming nudge: prompts the user to name the document before finishing, shown once
+                pages exist but the title is still the default. */}
             {pages.length > 0 &&
               document.status === "IN_PROGRESS" &&
               isDefaultDocumentTitle(document.title) && (
@@ -1806,12 +1944,26 @@ function WorkspacePageContent() {
   );
 }
 
-// Compact transcript preview (for an OCR_COMPLETE page) that opens a full-size <dialog> for
-// editing (docs/03_OCR_Specifications.md §5, docs/OCR_Master_Implementation_Plan.md §7-8). Save
-// is a distinct action from Accept: saving only writes OcrResult.correctedText and never changes
-// page/document status or the image. Kept as a single component (preview trigger + dialog)
-// rather than splitting further -- both halves share the same page/value/error/saved state and
-// there's only ever one caller.
+/**
+ * A compact transcript preview for an OCR_COMPLETE page that opens a full-size editing dialog.
+ *
+ * (`docs/03_OCR_Specifications.md` §5, `docs/OCR_Master_Implementation_Plan.md` §7–8.) Save is
+ * a distinct action from Accept: it writes only `OcrResult.correctedText` and never changes
+ * page/document status or the image. Kept as a single component (preview trigger + dialog)
+ * because both halves share the same page/value/error/saved state and there's only one caller.
+ *
+ * @param props - Component props.
+ * @param props.page - The page whose transcription is being edited.
+ * @param props.value - The current correction text (controlled).
+ * @param props.onChange - Called with the new text as the user types.
+ * @param props.onSave - Called to persist the correction.
+ * @param props.isSaving - Whether a save is in flight.
+ * @param props.disabled - True while a different action for this page is in flight, so Save
+ *   can't race with Accept/Re-upload/Delete or a running OCR call.
+ * @param props.error - A save error to display, if any.
+ * @param props.saved - Whether the last save succeeded (drives the "Saved" indicator).
+ * @returns The preview trigger and its editing dialog.
+ */
 function PageCorrectionField({
   page,
   value,
@@ -1827,8 +1979,6 @@ function PageCorrectionField({
   onChange: (value: string) => void;
   onSave: () => void;
   isSaving: boolean;
-  // True while a different action (Accept/Re-upload/Delete, or a running OCR call) is in
-  // flight for this page, so Save can't race with it.
   disabled: boolean;
   error: string | null;
   saved: boolean;
@@ -1846,20 +1996,21 @@ function PageCorrectionField({
   const dialogRef = useRef<HTMLDialogElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
+  /** Opens the editing dialog and locks page scroll behind it. */
   function openModal() {
     dialogRef.current?.showModal();
     window.document.documentElement.classList.add("overflow-hidden");
   }
 
+  /** Closes the dialog, unlocks scroll, and returns focus to the trigger. */
   function closeModal() {
     dialogRef.current?.close();
     window.document.documentElement.classList.remove("overflow-hidden");
     triggerRef.current?.focus();
   }
 
-  // The native "cancel" event fires on Escape (and only then, for a <dialog> opened via
-  // showModal()) -- prevented so closeModal can also unlock scroll and return focus, instead of
-  // just letting the dialog's own default close happen.
+  // Intercept the dialog's native "cancel" event (fired on Escape for a showModal() dialog) so
+  // closeModal can also unlock scroll and restore focus, instead of the dialog just closing itself.
   useEffect(() => {
     const dialogEl = dialogRef.current;
     if (!dialogEl) return;

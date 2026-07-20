@@ -1,9 +1,14 @@
-// Orchestrates section generation for a Document (docs/08_..._Roadmap.md Phase 5,
-// docs/09_Coding_Risk_Register.md R-003 — lifecycle is a strict state machine).
-//
-// Called by both finishDocument and retryDocumentProcessing. Never throws on a generation
-// failure — that is an expected outcome (PROCESSING_FAILED, retryable), not an application
-// error. Only pre-conditions checked by the caller (ownership, status) may throw.
+/**
+ * Orchestrates section generation for a Document (`docs/08_..._Roadmap.md` Phase 5,
+ * `docs/09_Coding_Risk_Register.md` R-003 — the document lifecycle is a strict state machine).
+ *
+ * Called by both `finishDocument` and `retryDocumentProcessing`. A generation failure is an
+ * expected outcome (transition to the retryable `PROCESSING_FAILED` state), not an
+ * application error, so this function never throws on failure — it records the failed state
+ * and returns. Only caller-checked pre-conditions (ownership, status) may surface as throws.
+ *
+ * @module lib/sections/generate
+ */
 
 import type { Document } from "@/generated/prisma/client";
 import { prisma } from "@/lib/database/prisma";
@@ -11,6 +16,18 @@ import { logger } from "@/lib/logger";
 import { type Owner, ownerScopedDocumentWhere } from "@/lib/permissions/ownership";
 import { generateDocumentSections } from "@/lib/sections/client";
 
+/**
+ * Runs the full generate-and-persist lifecycle transition for one owned Document.
+ *
+ * Moves the document to `PROCESSING`, gathers its ordered accepted page text, calls the
+ * model, and — on success — replaces the document's sections and marks it `READY`, all in
+ * one transaction. On any failure the document is moved to `PROCESSING_FAILED` (retryable)
+ * and returned rather than throwing.
+ *
+ * @param owner - The owner; scopes every document/section write.
+ * @param documentId - The document to (re)generate sections for.
+ * @returns The updated {@link Document} in its resulting state (`READY` or `PROCESSING_FAILED`).
+ */
 export async function generateSectionsForDocument(
   owner: Owner,
   documentId: string
@@ -21,8 +38,8 @@ export async function generateSectionsForDocument(
   });
 
   try {
-    // Only ACCEPTED pages are source text; page order is preserved. `ocr: { isNot: null }` is a
-    // belt-and-suspenders guard — acceptPage() already requires OCR to have completed.
+    // Source text is the ACCEPTED pages only, in page order. The `ocr: { isNot: null }`
+    // filter is a redundant safety guard — acceptPage() already requires completed OCR.
     const pages = await prisma.page.findMany({
       where: { documentId, status: "ACCEPTED", ocr: { isNot: null } },
       orderBy: { order: "asc" },
@@ -33,9 +50,9 @@ export async function generateSectionsForDocument(
       throw new Error("No accepted pages available for section generation.");
     }
 
-    // Accepted page text is the user-reviewed transcription: correctedText when the user edited
-    // it, otherwise the raw extraction stands as accepted-without-correction (correctedText is
-    // null). Raw extractedText itself is never sent when a correction exists.
+    // The user-reviewed transcription is the source of truth: prefer correctedText (the
+    // user's edit) and fall back to extractedText only when the page was accepted without
+    // correction. When a correction exists the raw extraction is never sent to the model.
     const numberedPages = pages.map((page, index) => ({
       pageNumber: index + 1,
       pageId: page.id,
@@ -75,7 +92,8 @@ export async function generateSectionsForDocument(
     const results = await prisma.$transaction(ops);
     return results[results.length - 1] as Document;
   } catch (error) {
-    // Never log the underlying error verbatim — it may echo back document/source text.
+    // Log only the error's name — never the error itself, which can echo back
+    // document/source text. The document is moved to the retryable failed state below.
     logger.error("Section generation failed", {
       documentId,
       errorName: error instanceof Error ? error.name : "unknown",

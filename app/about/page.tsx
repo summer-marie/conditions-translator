@@ -1,7 +1,12 @@
-// About page. Public marketing page, outside the authenticated app shell (app/app/layout.tsx +
-// AppNav) -- shares PublicHeader/FooterCTA with the landing page and /terms instead.
-//
-// Content provided by the project owner 2026-07-17 -- not authored by Claude.
+/**
+ * About page — a public marketing page outside the authenticated app shell.
+ *
+ * Shares {@link PublicHeader}/{@link FooterCTA} with the landing page and `/terms` rather than
+ * the `AppNav` chrome. Body content was provided by the project owner (2026-07-17), not
+ * authored by Claude.
+ *
+ * @module app/about/page
+ */
 
 import Image from "next/image";
 import { PublicHeader } from "@/components/landing/PublicHeader";
@@ -9,12 +14,15 @@ import { FooterCTA } from "@/components/landing/FooterCTA";
 import { Card } from "@/components/ui/Card";
 import { APP_NAME } from "@/lib/constants";
 
+/** Inline style for body copy, tied to the design tokens. */
 const BODY_TEXT = { fontSize: "var(--font-size-body)", color: "var(--color-text-body)" } as const;
+/** Inline style for sub-headings, tied to the design tokens. */
 const HEADING_TEXT = {
   fontSize: "var(--font-size-h3)",
   color: "var(--color-text-heading)",
 } as const;
 
+/** The kinds of documents the product helps explain, listed on the About page. */
 const DOCUMENT_LIST = [
   "Probation and parole conditions.",
   "Court orders, sentencing paperwork, and compliance instructions.",
@@ -25,10 +33,16 @@ const DOCUMENT_LIST = [
   "Workplace policies, school conduct paperwork, and other rules-based documents where people need clear explanations of expectations and consequences.",
 ];
 
+/** Page metadata (browser/tab title). */
 export const metadata = {
   title: `About — ${APP_NAME}`,
 };
 
+/**
+ * Renders the About marketing page.
+ *
+ * @returns The rendered About page.
+ */
 export default function AboutPage() {
   return (
     <div className="landing-page-glow min-h-screen">

@@ -1,21 +1,28 @@
-// FAQ page. Public marketing page, outside the authenticated app shell (app/app/layout.tsx +
-// AppNav) -- shares PublicHeader/FooterCTA with the landing page and /about and /terms instead.
-//
-// Answers are grounded in docs/01_MVP_PRD.md and the app's actual implemented behavior (temporary
-// retention, no legal advice/violation determination, no data sharing/training use, OCR quality
-// gating + correction), not invented marketing claims.
+/**
+ * FAQ page — a public marketing page outside the authenticated app shell.
+ *
+ * Shares {@link PublicHeader}/{@link FooterCTA} with the landing, About, and Terms pages.
+ * Answers are grounded in `docs/01_MVP_PRD.md` and the app's actual behavior (temporary
+ * retention, no legal advice / violation determination, no data sharing or training use, OCR
+ * quality gating + correction) rather than invented marketing claims.
+ *
+ * @module app/faq/page
+ */
 
 import { PublicHeader } from "@/components/landing/PublicHeader";
 import { FooterCTA } from "@/components/landing/FooterCTA";
 import { Card } from "@/components/ui/Card";
 import { APP_NAME } from "@/lib/constants";
 
+/** Inline style for body copy, tied to the design tokens. */
 const BODY_TEXT = { fontSize: "var(--font-size-body)", color: "var(--color-text-body)" } as const;
+/** Inline style for sub-headings, tied to the design tokens. */
 const HEADING_TEXT = {
   fontSize: "var(--font-size-h3)",
   color: "var(--color-text-heading)",
 } as const;
 
+/** The question/answer pairs rendered on the FAQ page. */
 const FAQS: { question: string; answer: string }[] = [
   {
     question: "Do I need to create an account to use this?",
@@ -53,10 +60,16 @@ const FAQS: { question: string; answer: string }[] = [
   },
 ];
 
+/** Page metadata (browser/tab title). */
 export const metadata = {
   title: `FAQ — ${APP_NAME}`,
 };
 
+/**
+ * Renders the FAQ marketing page from the {@link FAQS} entries.
+ *
+ * @returns The rendered FAQ page.
+ */
 export default function FaqPage() {
   return (
     <div className="landing-page-glow min-h-screen">

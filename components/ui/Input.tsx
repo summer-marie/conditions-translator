@@ -1,8 +1,17 @@
+/** Props for {@link Input}; extends the native `<input>` attributes. */
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  /** `"default"` field styling, or `"heading"` for an inline editable title. Defaults to `"default"`. */
   variant?: "default" | "heading";
+  /** Whether the input fills its container's width. Defaults to `true`. */
   fullWidth?: boolean;
 }
 
+/**
+ * A themed text input wrapping the native `<input>`.
+ *
+ * @param props - {@link InputProps}; all native input attributes are forwarded.
+ * @returns The rendered input element.
+ */
 export function Input({
   variant = "default",
   fullWidth = true,

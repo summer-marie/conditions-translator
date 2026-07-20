@@ -1,25 +1,27 @@
-// Dashboard UI for saved documents.
-//
-// Shows all documents for the current owner (user or temporary session) with:
-// - document cards displaying title, status, page count, and created date
-// - loading, empty, and error states
-// - delete confirmation modal wired to DELETE /api/documents/[documentId]
-// - navigation to view sections or start chat for READY documents
-//
-// "View sections" (document detail view) remains a stub — out of scope for the Phase 8
-// backend pass, which covers deletion + owner-aware reads only.
+/**
+ * Dashboard UI for a document owner's documents.
+ *
+ * Shows all documents for the current owner (user or temporary session) as cards with title,
+ * status, page count, and created date, plus loading/empty/error states. Supports deleting a
+ * document (confirmation modal → `DELETE /api/documents/[documentId]`), viewing a READY
+ * document's generated sections, starting a chat, and — for signed-in users — deleting the
+ * whole account via {@link deleteAccountAction}'s Blob-then-DB safe delete.
+ *
+ * @module app/app/dashboard/page
+ */
 
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { signOut } from "@/lib/actions/auth";
+import { signOut, deleteAccountAction } from "@/lib/actions/auth";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 
+/** A document's lifecycle status. */
 type DocumentStatus =
   | "IN_PROGRESS"
   | "COMPLETED"
@@ -27,6 +29,7 @@ type DocumentStatus =
   | "READY"
   | "PROCESSING_FAILED";
 
+/** A document as rendered on the dashboard, with its page count and sections. */
 interface Document {
   id: string;
   title: string;
@@ -43,12 +46,14 @@ interface Document {
   }>;
 }
 
+/** Top-level dashboard fetch state. */
 interface DashboardState {
   documents: Document[];
   isLoading: boolean;
   error: string | null;
 }
 
+/** State for the "view sections" modal (its own lazy fetch of the document's sections). */
 interface SectionsModalState {
   isOpen: boolean;
   document: Document | null;
@@ -63,6 +68,19 @@ interface SectionsModalState {
   error: string | null;
 }
 
+/**
+ * Renders the dashboard page: the document grid plus the delete, sections, and
+ * delete-account modals.
+ *
+ * State & side effects:
+ * - Fetches the owner's documents on mount, and the session status to decide whether to show
+ *   the sign-out / delete-account affordances (signed-in users only).
+ * - Manages three modals (delete document, view sections, delete account), each focus-trapped
+ *   and Escape-dismissable.
+ * - Performs deletes/sign-out/account-deletion and navigates accordingly.
+ *
+ * @returns The rendered dashboard.
+ */
 export default function DashboardPage() {
   const router = useRouter();
   const [state, setState] = useState<DashboardState>({
@@ -70,7 +88,7 @@ export default function DashboardPage() {
     isLoading: true,
     error: null,
   });
-  // Set once the dashboard is viewed by a signed-in account (Phase 7). null while temporary.
+  // Account id when viewed by a signed-in user (Phase 7); null while the workspace is temporary.
   const [savedUserId, setSavedUserId] = useState<string | null>(null);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [deleteModal, setDeleteModal] = useState<{
@@ -82,6 +100,14 @@ export default function DashboardPage() {
   const deleteModalRef = useRef<HTMLDivElement | null>(null);
   useFocusTrap(deleteModal.isOpen, deleteModalRef);
 
+  const [deleteAccountModal, setDeleteAccountModal] = useState<{
+    isOpen: boolean;
+    isDeleting: boolean;
+    error: string | null;
+  }>({ isOpen: false, isDeleting: false, error: null });
+  const deleteAccountModalRef = useRef<HTMLDivElement | null>(null);
+  useFocusTrap(deleteAccountModal.isOpen, deleteAccountModalRef);
+
   const [sectionsModal, setSectionsModal] = useState<SectionsModalState>({
     isOpen: false,
     document: null,
@@ -92,6 +118,7 @@ export default function DashboardPage() {
   const sectionsModalRef = useRef<HTMLDivElement | null>(null);
   useFocusTrap(sectionsModal.isOpen, sectionsModalRef);
 
+  /** Fetches the owner's documents, returning either the list or a user-facing error. */
   const fetchDocuments = useCallback(async () => {
     try {
       const response = await fetch("/api/documents");
@@ -142,7 +169,7 @@ export default function DashboardPage() {
         }
       })
       .catch(() => {
-        // Non-fatal: the sign-out button simply won't show if this fails.
+        // Non-fatal: on failure the sign-out / account affordances simply stay hidden.
       });
 
     return () => {
@@ -150,6 +177,7 @@ export default function DashboardPage() {
     };
   }, []);
 
+  /** Signs the user out and returns to the public landing page. */
   const handleSignOut = async () => {
     setIsSigningOut(true);
     try {
@@ -161,10 +189,12 @@ export default function DashboardPage() {
     }
   };
 
+  /** Opens the delete-document confirmation modal for the given document. */
   const handleDeleteClick = (document: Document) => {
     setDeleteModal({ isOpen: true, document, isDeleting: false, error: null });
   };
 
+  /** Confirms document deletion, removing it from the list on success. */
   const handleDeleteConfirm = async () => {
     if (!deleteModal.document) return;
     const documentId = deleteModal.document.id;
@@ -181,9 +211,9 @@ export default function DashboardPage() {
         throw new Error(data.error || "Failed to delete document");
       }
 
-      // The document is already inaccessible server-side (deletionState left ACTIVE) the
-      // moment this request succeeds, regardless of whether storage cleanup fully finished —
-      // so it disappears from the list immediately either way.
+      // Once this request succeeds the document is already inaccessible server-side (it left
+      // the ACTIVE state), whether or not storage cleanup fully finished — so drop it from the
+      // list immediately either way.
       setState((prev) => ({
         ...prev,
         documents: prev.documents.filter((d) => d.id !== documentId),
@@ -198,10 +228,44 @@ export default function DashboardPage() {
     }
   };
 
+  /** Closes the delete-document modal without deleting. */
   const handleDeleteCancel = () => {
     setDeleteModal({ isOpen: false, document: null, isDeleting: false, error: null });
   };
 
+  /** Opens the delete-account confirmation modal. */
+  const handleDeleteAccountClick = () => {
+    setDeleteAccountModal({ isOpen: true, isDeleting: false, error: null });
+  };
+
+  /** Confirms account deletion, then hard-navigates to the landing page on success. */
+  const handleDeleteAccountConfirm = async () => {
+    setDeleteAccountModal((prev) => ({ ...prev, isDeleting: true, error: null }));
+
+    try {
+      await deleteAccountAction();
+      // Account + auth session are gone server-side. Use a full navigation (not router.push)
+      // so every cached page/layout state tied to the now-deleted user is dropped, not reused.
+      window.location.href = "/";
+    } catch (error) {
+      setDeleteAccountModal((prev) => ({
+        ...prev,
+        isDeleting: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : "We couldn't delete your account. Please try again.",
+      }));
+    }
+  };
+
+  /** Closes the delete-account modal, unless a deletion is already in flight. */
+  const handleDeleteAccountCancel = () => {
+    if (deleteAccountModal.isDeleting) return;
+    setDeleteAccountModal({ isOpen: false, isDeleting: false, error: null });
+  };
+
+  /** Opens the sections modal for a document and lazily fetches its generated sections. */
   const handleViewSections = async (document: Document) => {
     setSectionsModal({
       isOpen: true,
@@ -232,6 +296,7 @@ export default function DashboardPage() {
     }
   };
 
+  /** Closes the sections modal and clears its loaded content. */
   const handleCloseSectionsModal = () => {
     setSectionsModal({
       isOpen: false,
@@ -242,22 +307,36 @@ export default function DashboardPage() {
     });
   };
 
+  // Global Escape handler for whichever modal is open (delete, sections, or delete-account).
   useEffect(() => {
-    if (!deleteModal.isOpen && !sectionsModal.isOpen) return;
+    if (!deleteModal.isOpen && !sectionsModal.isOpen && !deleteAccountModal.isOpen) return;
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key !== "Escape") return;
       if (deleteModal.isOpen) handleDeleteCancel();
       if (sectionsModal.isOpen) handleCloseSectionsModal();
+      if (deleteAccountModal.isOpen) handleDeleteAccountCancel();
     }
     window.document.addEventListener("keydown", handleKeyDown);
     return () => window.document.removeEventListener("keydown", handleKeyDown);
-  }, [deleteModal.isOpen, sectionsModal.isOpen]);
+  }, [deleteModal.isOpen, sectionsModal.isOpen, deleteAccountModal.isOpen]);
 
-  // Simple duplicate detection: case-insensitive equality with whitespace normalization
+  /**
+   * Normalizes a title for duplicate detection: lowercased, trimmed, collapsed whitespace.
+   *
+   * @param title - The raw document title.
+   * @returns The normalized comparison key.
+   */
   const normalizeTitle = (title: string): string => {
     return title.trim().toLowerCase().replace(/\s+/g, " ");
   };
 
+  /**
+   * Reports whether another document shares this one's normalized title.
+   *
+   * @param document - The document to check.
+   * @param documents - All documents to compare against.
+   * @returns `true` when a different document has the same normalized title.
+   */
   const hasDuplicateTitle = (document: Document, documents: Document[]): boolean => {
     const normalizedTitle = normalizeTitle(document.title);
     return documents.some(
@@ -265,6 +344,12 @@ export default function DashboardPage() {
     );
   };
 
+  /**
+   * Maps a {@link DocumentStatus} to its user-facing label.
+   *
+   * @param status - The document status.
+   * @returns The display label (e.g. `"Needs Retry"` for `PROCESSING_FAILED`).
+   */
   const documentStatusLabel = (status: DocumentStatus): string => {
     switch (status) {
       case "IN_PROGRESS":
@@ -281,6 +366,12 @@ export default function DashboardPage() {
     }
   };
 
+  /**
+   * Maps a {@link DocumentStatus} to a {@link Badge} variant.
+   *
+   * @param status - The document status.
+   * @returns The badge tone to render for that status.
+   */
   const getStatusBadgeVariant = (status: DocumentStatus): "success" | "warning" | "destructive" | "processing" | "neutral" => {
     switch (status) {
       case "READY":
@@ -297,6 +388,12 @@ export default function DashboardPage() {
     }
   };
 
+  /**
+   * Formats an ISO date string as a short human-readable date (e.g. "Jul 19, 2026").
+   *
+   * @param dateString - The ISO date string.
+   * @returns The formatted date.
+   */
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
     return date.toLocaleDateString("en-US", {
@@ -306,7 +403,7 @@ export default function DashboardPage() {
     });
   };
 
-  // Loading skeleton
+  // Loading skeleton — placeholder cards shown while the initial document fetch is in flight.
   if (state.isLoading) {
     return (
       <div className="min-h-screen bg-(--color-background-page) p-4 sm:p-6 lg:p-8">
@@ -336,7 +433,7 @@ export default function DashboardPage() {
     );
   }
 
-  // Error state
+  // Error state — shown when the document fetch failed, with a retry button.
   if (state.error) {
     return (
       <div className="min-h-screen bg-(--color-background-page) flex items-center justify-center p-4">
@@ -354,30 +451,47 @@ export default function DashboardPage() {
     );
   }
 
-  // Empty state
+  // Empty state — the owner has no documents yet.
   if (state.documents.length === 0) {
     return (
-      <div className="min-h-screen bg-(--color-background-page) flex items-center justify-center p-4">
-        <Card padding="lg" className="text-center max-w-md">
-          <div className="text-(--color-text-meta) text-6xl mb-4">📄</div>
-          <h2 className="font-(--font-weight-h2) mb-2" style={{ fontSize: 'var(--font-size-h2)', color: 'var(--color-text-heading)' }}>
-            No documents yet
-          </h2>
-            <p style={{ fontSize: 'var(--font-size-body)', color: 'var(--color-text-body)' }} className="mb-6">
-              Upload your first supervision document to get started with AI-powered
-              explanations.
-            </p>
-          <Link href="/app/workspace" className="inline-block">
-            <Button variant="primary" size="md">
-              Create new document
-            </Button>
-          </Link>
-        </Card>
+      <div className="min-h-screen bg-(--color-background-page) flex flex-col p-4 sm:p-6">
+        {savedUserId && (
+          <div className="flex justify-end mb-4">
+            <AccountActionsBar
+              isSigningOut={isSigningOut}
+              onSignOut={handleSignOut}
+              onDeleteAccountClick={handleDeleteAccountClick}
+            />
+          </div>
+        )}
+        <div className="flex-1 flex items-center justify-center">
+          <Card padding="lg" className="text-center max-w-md">
+            <div className="text-(--color-text-meta) text-6xl mb-4">📄</div>
+            <h2 className="font-(--font-weight-h2) mb-2" style={{ fontSize: 'var(--font-size-h2)', color: 'var(--color-text-heading)' }}>
+              No documents yet
+            </h2>
+              <p style={{ fontSize: 'var(--font-size-body)', color: 'var(--color-text-body)' }} className="mb-6">
+                Upload your first supervision document to get started with AI-powered
+                explanations.
+              </p>
+            <Link href="/app/workspace" className="inline-block">
+              <Button variant="primary" size="md">
+                Create new document
+              </Button>
+            </Link>
+          </Card>
+        </div>
+        <DeleteAccountModal
+          state={deleteAccountModal}
+          modalRef={deleteAccountModalRef}
+          onCancel={handleDeleteAccountCancel}
+          onConfirm={handleDeleteAccountConfirm}
+        />
       </div>
     );
   }
 
-  // Main dashboard with documents
+  // Main dashboard — the document grid plus all three modals.
   return (
     <div className="min-h-screen bg-(--color-background-page) p-4 sm:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
@@ -392,13 +506,12 @@ export default function DashboardPage() {
             </p>
           </div>
           {savedUserId && (
-            <button
-              onClick={handleSignOut}
-              disabled={isSigningOut}
-              className="text-sm font-medium text-(--color-text-body) hover:text-(--color-text-heading) disabled:opacity-50 self-start sm:self-auto"
-            >
-              {isSigningOut ? "Signing out..." : "Sign out"}
-            </button>
+            <AccountActionsBar
+              isSigningOut={isSigningOut}
+              onSignOut={handleSignOut}
+              onDeleteAccountClick={handleDeleteAccountClick}
+              className="self-start sm:self-auto"
+            />
           )}
         </div>
 
@@ -550,6 +663,13 @@ export default function DashboardPage() {
         </div>
       )}
 
+      <DeleteAccountModal
+        state={deleteAccountModal}
+        modalRef={deleteAccountModalRef}
+        onCancel={handleDeleteAccountCancel}
+        onConfirm={handleDeleteAccountConfirm}
+      />
+
       {/* Sections view modal */}
       {sectionsModal.isOpen && sectionsModal.document && (
         <div
@@ -661,6 +781,125 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * The "Sign out" / "Delete account" action row, shared across all dashboard states.
+ *
+ * Extracted so the loading/error/empty/main states render the identical row (and the
+ * delete-account modal) instead of each duplicating it. Before extraction the empty state had
+ * no way to reach Sign out or Delete account, since that JSX only existed inline in the main
+ * (has-documents) return.
+ *
+ * @param props - Component props.
+ * @param props.isSigningOut - Whether a sign-out is in flight (disables the button).
+ * @param props.onSignOut - Called when "Sign out" is pressed.
+ * @param props.onDeleteAccountClick - Called when "Delete account" is pressed.
+ * @param props.className - Extra classes appended to the row container.
+ * @returns The rendered account-actions row.
+ */
+function AccountActionsBar({
+  isSigningOut,
+  onSignOut,
+  onDeleteAccountClick,
+  className = "",
+}: {
+  isSigningOut: boolean;
+  onSignOut: () => void;
+  onDeleteAccountClick: () => void;
+  className?: string;
+}) {
+  return (
+    <div className={`flex items-center gap-4 ${className}`}>
+      <button
+        onClick={onSignOut}
+        disabled={isSigningOut}
+        className="text-sm font-medium text-(--color-text-body) hover:text-(--color-text-heading) disabled:opacity-50"
+      >
+        {isSigningOut ? "Signing out..." : "Sign out"}
+      </button>
+      <button
+        onClick={onDeleteAccountClick}
+        className="text-sm font-medium text-(--color-accent-destructive) hover:underline"
+      >
+        Delete account
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Confirmation modal for irreversibly deleting the signed-in user's account.
+ *
+ * @param props - Component props.
+ * @param props.state - Open/deleting/error state driving the modal.
+ * @param props.modalRef - Focus-trap ref for the modal container.
+ * @param props.onCancel - Called to dismiss without deleting.
+ * @param props.onConfirm - Called to confirm account deletion.
+ * @returns The rendered modal, or `null` when closed.
+ */
+function DeleteAccountModal({
+  state,
+  modalRef,
+  onCancel,
+  onConfirm,
+}: {
+  state: { isOpen: boolean; isDeleting: boolean; error: string | null };
+  modalRef: React.RefObject<HTMLDivElement | null>;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  if (!state.isOpen) return null;
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      onClick={onCancel}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="delete-account-modal-title"
+    >
+      <div
+        ref={modalRef}
+        className="bg-(--color-background-card) rounded-lg shadow-xl max-w-md w-full p-6 border border-(--color-border-card)"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-4">
+          <h2
+            id="delete-account-modal-title"
+            className="font-(--font-weight-h2) mb-2"
+            style={{ fontSize: 'var(--font-size-h2)', color: 'var(--color-text-heading)' }}
+          >
+            Delete your account?
+          </h2>
+          <p style={{ fontSize: 'var(--font-size-body)', color: 'var(--color-text-body)' }}>
+            This is permanent and cannot be undone. Your account, all saved documents, and
+            all chat history will be deleted.
+          </p>
+          {state.error && (
+            <p className="text-(--color-accent-destructive) text-sm mt-2" role="alert">
+              {state.error}
+            </p>
+          )}
+        </div>
+
+        <div className="flex gap-3 justify-end">
+          <Button onClick={onCancel} disabled={state.isDeleting} variant="secondary" size="md">
+            Cancel
+          </Button>
+          <Button
+            onClick={onConfirm}
+            disabled={state.isDeleting}
+            variant="danger"
+            size="md"
+            isLoading={state.isDeleting}
+          >
+            Yes, delete my account
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

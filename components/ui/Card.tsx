@@ -1,10 +1,24 @@
+/** Props for {@link Card}; extends the native `<div>` attributes. */
 interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
+  /** `"default"` (bordered surface) or `"panel"` (borderless grouped region). Defaults to `"default"`. */
   variant?: "default" | "panel";
+  /** Inner padding scale. Defaults to `"md"`. */
   padding?: "sm" | "md" | "lg";
+  /** Whether to apply elevation shadow. Defaults to `true`. */
   shadow?: boolean;
+  /** Whether hovering raises the card one elevation level. Defaults to `false`. */
   hover?: boolean;
 }
 
+/**
+ * An elevated content surface for the blue-gray app canvas.
+ *
+ * Forwards remaining native `<div>` attributes. Cards separate from the canvas by a lighter
+ * tone plus elevation and (for the default variant) a border — never a faint border alone.
+ *
+ * @param props - {@link CardProps}; `children` is the card content.
+ * @returns The rendered card container.
+ */
 export function Card({
   variant = "default",
   padding = "md",
@@ -21,16 +35,14 @@ export function Card({
     lg: "p-8",
   };
 
-  // Cards are elevated content surfaces on the blue-gray app canvas. They separate from the
-  // canvas by tone (lighter than the page) + elevation + border, never a faint border alone.
   const variantStyles = {
+    // Default: lighter card tone plus a card border to lift it off the page.
     default: `bg-(--color-background-card) border border-(--color-border-card)`,
-    // "panel" is a borderless elevated content surface (used for grouped workspace regions);
-    // it lifts off the blue-gray page with its own tone + shadow rather than sitting flat on it.
+    // Panel: borderless grouped region that lifts off the page by tone + shadow alone.
     panel: "bg-(--color-background-card)",
   };
 
-  // Semantic elevation (navy-derived --shadow-* via globals.css utilities); hover raises one level.
+  // Navy-derived elevation via globals.css utilities; hover bumps it up one level.
   const elevationStyles = shadow ? (hover ? "u-elevation-sm u-elevation-hover" : "u-elevation-sm") : "";
 
   return (

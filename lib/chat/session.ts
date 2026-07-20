@@ -1,10 +1,15 @@
-// Temporary AI chat orchestration (docs/06_AI_Safety_and_Persona.md,
-// docs/07_Launch_Readiness_Checklist.md §5–§6, docs/09_Coding_Risk_Register.md R-002/R-004).
-//
-// A ChatSession is ephemeral: it always has an expiresAt and is owned by exactly one owner (a
-// temporary session for MVP; users arrive in Phase 7). It is NOT permanent history — reads are
-// scoped by owner AND expiry, and the session cascades away with its owner. Messages persist only
-// for the lifetime of this session.
+/**
+ * Temporary AI chat orchestration (`docs/06_AI_Safety_and_Persona.md`,
+ * `docs/07_Launch_Readiness_Checklist.md` §5–§6, `docs/09_Coding_Risk_Register.md`
+ * R-002/R-004).
+ *
+ * A `ChatSession` is ephemeral: it always carries an `expiresAt` and is owned by exactly
+ * one owner (a temporary session for MVP; users arrive in Phase 7). It is NOT permanent
+ * history — every read is scoped by owner AND expiry, and the session cascades away with
+ * its owner. Messages persist only for the lifetime of the session.
+ *
+ * @module lib/chat/session
+ */
 
 import { prisma } from "@/lib/database/prisma";
 import { AppError } from "@/lib/errors";
@@ -18,50 +23,93 @@ import {
 import { assembleChatContext } from "@/lib/chat/context";
 import { generateChatAnswer, type ChatHistoryMessage } from "@/lib/chat/client";
 
+/** A resolved citation attached to an assistant message, ready for display. */
 export interface ChatSourceView {
+  /** Cited document's id. */
   documentId: string;
+  /** Cited document's title. */
   documentTitle: string;
+  /** Cited page's id, or `null` for a document-level citation. */
   pageId: string | null;
+  /** Cited page's 1-based number, or `null` when not page-specific. */
   pageNumber: number | null;
 }
 
+/** A single chat message shaped for the UI. */
 export interface ChatMessageView {
+  /** Message id. */
   id: string;
+  /** Author of the message. */
   role: "USER" | "ASSISTANT";
+  /** Message text. */
   content: string;
+  /** Creation timestamp (used for ordering and display). */
   createdAt: Date;
+  /** Resolved supporting citations (empty for user messages and missing-source answers). */
   sources: ChatSourceView[];
 }
 
+/** Message-budget counters and derived warning/blocking flags for a chat session. */
 export interface ChatLimits {
+  /** Number of user questions asked so far. */
   userMessageCount: number;
+  /** Total messages (user + assistant) so far. */
   totalMessageCount: number;
+  /** Hard cap on user questions. */
   maxUserMessages: number;
+  /** Hard cap on total messages. */
   maxTotalMessages: number;
+  /** True once either hard cap is reached; further sends are rejected. */
   limitReached: boolean;
+  /** True once the soft warning threshold is crossed (UI nudges a fresh chat). */
   approachingLimit: boolean;
 }
 
+/** Full snapshot of a chat session returned to the client. */
 export interface ChatSessionState {
+  /** The session's id. */
   chatSessionId: string;
+  /** The documents grounding this chat. */
   documents: { documentId: string; title: string }[];
+  /** All messages so far, oldest first. */
   messages: ChatMessageView[];
+  /** Current message-budget state. */
   limits: ChatLimits;
 }
 
+/** Result of {@link sendChatMessage}: the new assistant message plus updated limits. */
 export interface SendMessageResult {
+  /** The assistant's answer message with resolved sources. */
   message: ChatMessageView;
+  /** Message-budget state after this turn. */
   limits: ChatLimits;
 }
 
-// Owner filter for ChatSession (parallel to ownerWhere for Document, which is Document-typed).
+/**
+ * Builds the owner filter for a `ChatSession` query.
+ *
+ * Parallel to `ownerWhere` for Document, but returns ChatSession-shaped columns.
+ *
+ * @param owner - The current owner.
+ * @returns A Prisma `where` fragment scoping to that owner's chat sessions.
+ */
 function chatOwnerWhere(owner: Owner) {
   return owner.kind === "user"
     ? { userId: owner.userId }
     : { temporarySessionId: owner.temporarySessionId };
 }
 
-// Owner-scoped, non-expired chat session lookup. Never fetch a chat by id alone.
+/**
+ * Loads a chat session scoped to its owner and non-expired, with its attached documents.
+ *
+ * Never fetches a chat by id alone — the owner and expiry guards are mandatory so an
+ * expired or unowned session is indistinguishable from "not found".
+ *
+ * @param owner - The current owner.
+ * @param chatSessionId - The session id to load.
+ * @returns The owned, live `ChatSession` including its `documents`.
+ * @throws {AppError} `CHAT_SESSION_NOT_FOUND` (404) when no live owned session matches.
+ */
 async function requireOwnedChatSession(owner: Owner, chatSessionId: string) {
   const chatSession = await prisma.chatSession.findFirst({
     where: {
@@ -79,6 +127,13 @@ async function requireOwnedChatSession(owner: Owner, chatSessionId: string) {
   return chatSession;
 }
 
+/**
+ * Derives the {@link ChatLimits} view from raw message counts.
+ *
+ * @param userMessageCount - Number of user questions asked.
+ * @param totalMessageCount - Total messages (user + assistant).
+ * @returns The counters plus `limitReached`/`approachingLimit` flags.
+ */
 function computeLimits(userMessageCount: number, totalMessageCount: number): ChatLimits {
   return {
     userMessageCount,
@@ -95,14 +150,21 @@ function computeLimits(userMessageCount: number, totalMessageCount: number): Cha
 /**
  * Creates a temporary chat session grounded in the selected READY documents.
  *
- * Selection is fully validated first (ownership, READY status, max-count, and the combined
- * confirmed-text limit) so an invalid or oversized selection never produces a session.
+ * The selection is fully validated first (ownership, READY status, max-count, and the
+ * combined confirmed-text limit), so an invalid or oversized selection never produces a
+ * session. The session is created with its `expiresAt` already set and its documents
+ * attached.
+ *
+ * @param owner - The owner the session belongs to.
+ * @param documentIds - Ids of the READY documents to ground the chat in.
+ * @returns The initial {@link ChatSessionState} (no messages, zeroed limits).
+ * @throws {AppError} Propagated from `assembleChatContext` for any invalid selection.
  */
 export async function createChatSession(
   owner: Owner,
   documentIds: string[]
 ): Promise<ChatSessionState> {
-  // Validates ownership/READY/limits and throws clearly on any problem (no truncation).
+  // Validates ownership/READY/limits and throws clearly on any problem (never truncates).
   const context = await assembleChatContext(owner, documentIds);
 
   const expiresAt = new Date(Date.now() + CHAT_SESSION_TTL_MINUTES * 60 * 1000);
@@ -131,8 +193,16 @@ export async function createChatSession(
 }
 
 /**
- * Returns the current state of an owned, non-expired chat session: its documents, its messages
- * (oldest first, with resolved source references), and its limit counters.
+ * Returns the current state of an owned, non-expired chat session.
+ *
+ * Loads the session's documents and messages in parallel, resolves each message's source
+ * citations to document titles, and computes the current limit counters.
+ *
+ * @param owner - The current owner; scopes the lookup.
+ * @param chatSessionId - The session to load.
+ * @returns The full {@link ChatSessionState}: documents, messages (oldest first, with
+ *   resolved sources), and limits.
+ * @throws {AppError} `CHAT_SESSION_NOT_FOUND` (404) when no live owned session matches.
  */
 export async function getChatSessionState(
   owner: Owner,
@@ -187,14 +257,25 @@ export async function getChatSessionState(
 /**
  * Sends a user question and returns the grounded assistant answer.
  *
- * Order of operations is deliberate:
- *   1. Enforce message limits BEFORE calling the model (fail clearly, never degrade).
- *   2. Re-assemble context from the attached documents each turn (re-validates ownership/READY and
- *      the character limit; a document deleted or un-readied mid-chat is rejected here).
- *   3. Call the model with prior history for conversational context.
- *   4. Persist the user message, the assistant message, and — only when a relevant source was
- *      found — its true source references, all in one transaction. A missing-source answer stores
- *      no citation.
+ * The order of operations is deliberate and security-relevant:
+ *
+ * 1. Enforce message limits BEFORE calling the model (fail clearly, never degrade).
+ * 2. Re-assemble context from the attached documents *every turn*. This re-validates
+ *    ownership, READY status, and the character limit, so a document deleted or
+ *    un-readied mid-chat is rejected here rather than silently reused.
+ * 3. Call the model with prior history for conversational context.
+ * 4. Persist the user message, the assistant message, and — only when a relevant source
+ *    was found — its true source references, all in one transaction. A missing-source
+ *    answer stores no citation.
+ *
+ * @param owner - The current owner; scopes the session and its documents.
+ * @param chatSessionId - The session receiving the message.
+ * @param userMessage - The user's raw question text.
+ * @returns The persisted assistant {@link ChatMessageView} and post-turn {@link ChatLimits}.
+ * @throws {AppError} `EMPTY_MESSAGE` (400) when the message is blank.
+ * @throws {AppError} `CHAT_SESSION_NOT_FOUND` (404) when the session is unowned or expired.
+ * @throws {AppError} `CHAT_LIMIT_REACHED` (429) when the session's message budget is exhausted.
+ * @throws {AppError} Propagated from context assembly or the model call on failure.
  */
 export async function sendChatMessage(
   owner: Owner,
@@ -241,8 +322,9 @@ export async function sendChatMessage(
     latestUserMessage: trimmed,
   });
 
-  // Map the model's (documentNumber, pageNumber) citations back to real ids. Only trust citations
-  // when the model reported a relevant source — a missing-source answer never carries a citation.
+  // Translate the model's (documentNumber, pageNumber) citations back to real ids, and
+  // only when it reported a relevant source. Unknown numbers are dropped rather than
+  // trusted, so a hallucinated citation can never point at an unrelated document/page.
   const resolvedSources: { documentId: string; pageId: string | null; pageNumber: number | null }[] =
     [];
   if (answer.foundRelevantSource) {

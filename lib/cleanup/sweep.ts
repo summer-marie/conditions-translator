@@ -1,47 +1,57 @@
-// Phase 9 — scheduled cleanup for expired temporary data
-// (docs/08_Conditions_Translator_Implementation_Roadmap.md Phase 9,
-// docs/05_Account_Creation_and_Temporary_Access.md, docs/09_Coding_Risk_Register.md R-002).
-//
-// Two independent sweeps, both idempotent and safe to re-run on every invocation:
-//
-// 1. sweepExpiredChatSessions — deletes any ChatSession (temp- or user-owned) whose own
-//    expiresAt has passed. Chat is always temporary regardless of Document ownership
-//    (docs/01_MVP_PRD.md, docs/04_Schema_Architecture.md), so this runs independently of
-//    TemporarySession expiry. A single deleteMany relies on the schema's ON DELETE CASCADE
-//    (ChatMessage, ChatSessionDocument, ChatMessageSource all cascade from ChatSession) — no
-//    Blob storage is involved in chat, so there is nothing to retry.
-//
-// 2. sweepExpiredTemporarySessions — for each expired TemporarySession, reuses the existing,
-//    already-tested Phase 8 deletion pipeline (lib/documents/deletion.ts's deleteDocument) for
-//    every ACTIVE Document it owns. That pipeline deletes each Page's Blob image BEFORE deleting
-//    DB rows, so a Blob failure leaves the Document at DELETE_PENDING with its Page rows intact —
-//    the next sweep run retries it automatically, with no new schema or retry-tracking needed.
-//    Only once a session has zero ACTIVE/DELETE_PENDING Documents left (all fully DELETED, or it
-//    never had any) is the TemporarySession row itself hard-deleted. That final delete cascades
-//    the now-childless DELETED Document tombstones and any remaining ChatSession/ChatMessage rows
-//    tied to the session — safe, because every Blob object was already confirmed removed before
-//    this point.
-//
-// Keying cleanup off TemporarySession.expiresAt (not each Document's own expiresAt) also closes a
-// previously-flagged latent gap (.agent-memory/OPEN_QUESTIONS.md): a Document's independently
-// computed expiresAt could outlive its parent session's expiresAt, silently orphaning it once the
-// session expired and was replaced. Under this sweep, once the parent session expires, all of its
-// Documents are cleaned up regardless of their own expiresAt value.
+/**
+ * Phase 9 — scheduled cleanup for expired temporary data
+ * (`docs/08_Conditions_Translator_Implementation_Roadmap.md` Phase 9,
+ * `docs/05_Account_Creation_and_Temporary_Access.md`, `docs/09_Coding_Risk_Register.md` R-002).
+ *
+ * Two independent sweeps, both idempotent and safe to re-run on every invocation:
+ *
+ * 1. **Chat sessions** ({@link sweepExpiredChatSessions}) — deletes any expired ChatSession,
+ *    temp- or user-owned. Chat is always temporary regardless of Document ownership, so this
+ *    runs independently of TemporarySession expiry. A single `deleteMany` relies on the
+ *    schema's ON DELETE CASCADE (ChatMessage, ChatSessionDocument, ChatMessageSource) — no
+ *    Blob storage is involved in chat, so there is nothing to retry.
+ *
+ * 2. **Temporary sessions** ({@link sweepExpiredTemporarySessions}) — for each expired
+ *    TemporarySession, reuses the Phase 8 deletion pipeline (`deleteDocument`) for every
+ *    ACTIVE Document it owns. That pipeline deletes each Page's Blob image BEFORE deleting DB
+ *    rows, so a Blob failure leaves the Document at DELETE_PENDING with its rows intact and
+ *    the next sweep retries it — no new schema or retry-tracking needed. The session row is
+ *    hard-deleted only once it has zero ACTIVE/DELETE_PENDING Documents left; that final
+ *    delete cascades the childless DELETED tombstones and any remaining chat rows, which is
+ *    safe because every Blob object was already confirmed removed.
+ *
+ * Keying cleanup off `TemporarySession.expiresAt` (not each Document's own `expiresAt`) also
+ * closes a latent gap: a Document's independently computed expiry could outlive its parent
+ * session's, silently orphaning it once the session expired and was replaced. Here, once the
+ * parent session expires, all of its Documents are cleaned up regardless of their own expiry.
+ *
+ * @module lib/cleanup/sweep
+ */
 
 import { prisma } from "@/lib/database/prisma";
 import { logger } from "@/lib/logger";
 import { deleteDocument } from "@/lib/documents/deletion";
 import { temporaryOwner } from "@/lib/permissions/ownership";
 
+/** Aggregate counts returned by a full {@link runCleanupSweep}. */
 export interface CleanupSweepResult {
+  /** Expired chat sessions removed. */
   expiredChatSessionsDeleted: number;
+  /** Expired temporary sessions examined. */
   expiredTemporarySessionsScanned: number;
+  /** Temporary session rows fully deleted this run. */
   temporarySessionsDeleted: number;
+  /** Documents whose Blob + DB cleanup completed this run. */
   documentsCleanedUp: number;
+  /** Documents left at DELETE_PENDING for a later retry (Blob delete failed). */
   documentsPendingRetry: number;
 }
 
-/** Deletes every ChatSession whose own expiresAt has passed, regardless of owner kind. */
+/**
+ * Deletes every ChatSession whose own `expiresAt` has passed, regardless of owner kind.
+ *
+ * @returns The number of chat sessions deleted (children cascade automatically).
+ */
 export async function sweepExpiredChatSessions(): Promise<number> {
   const result = await prisma.chatSession.deleteMany({
     where: { expiresAt: { lt: new Date() } },
@@ -50,10 +60,16 @@ export async function sweepExpiredChatSessions(): Promise<number> {
 }
 
 /**
- * For each expired TemporarySession, cleans up its ACTIVE Documents via the existing
- * owner-scoped deletion pipeline, then hard-deletes the session row once no ACTIVE/
- * DELETE_PENDING Document remains under it. Never logs a document title, page text, or chat
- * content — only ids and counts.
+ * Cleans up every expired temporary session and the Documents it owns.
+ *
+ * For each expired session, runs the owner-scoped deletion pipeline over its ACTIVE
+ * Documents, then hard-deletes the session row once no ACTIVE/DELETE_PENDING Document
+ * remains. A per-document Blob failure is caught and logged (by name only) and leaves that
+ * session for the next run rather than aborting the whole sweep. Never logs a document
+ * title, page text, or chat content — only ids and counts.
+ *
+ * @returns Counts of sessions `scanned`/`sessionsDeleted` and documents
+ *   `documentsCleanedUp`/`documentsPendingRetry`.
  */
 export async function sweepExpiredTemporarySessions(): Promise<{
   scanned: number;
@@ -99,8 +115,9 @@ export async function sweepExpiredTemporarySessions(): Promise<{
     }
 
     if (allCleaned) {
-      // Cascades any remaining DELETED Document tombstones and ChatSession/ChatMessage rows.
-      // Safe: every Blob object under this session was already confirmed deleted above.
+      // Deleting the session cascades any remaining DELETED Document tombstones and
+      // ChatSession/ChatMessage rows. Safe because every Blob object under this session
+      // was already confirmed deleted in the loop above.
       const deleted = await prisma.temporarySession.deleteMany({ where: { id: session.id } });
       sessionsDeleted += deleted.count;
     }
@@ -114,7 +131,13 @@ export async function sweepExpiredTemporarySessions(): Promise<{
   };
 }
 
-/** Runs both sweeps and returns a summary safe to log or return from the cron route. */
+/**
+ * Runs both sweeps in sequence and returns an id/count-only summary.
+ *
+ * The result is safe to log or return from the cron route (contains no user content).
+ *
+ * @returns The combined {@link CleanupSweepResult}.
+ */
 export async function runCleanupSweep(): Promise<CleanupSweepResult> {
   const expiredChatSessionsDeleted = await sweepExpiredChatSessions();
   const sessionSweep = await sweepExpiredTemporarySessions();

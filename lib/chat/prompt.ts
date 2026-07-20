@@ -1,11 +1,21 @@
-// The AI chat system prompt and safety rules (docs/06_AI_Safety_and_Persona.md).
-//
-// Kept in its own module, as an explicit constant, so the behavioral rules are testable and so
-// prompt changes are made one at a time and reviewed (docs/09_Coding_Risk_Register.md R-001).
-// The prompt is intentionally simple and document-grounded; refine only after structured testing.
+/**
+ * The AI chat system prompt and its safety rules (`docs/06_AI_Safety_and_Persona.md`).
+ *
+ * Isolated in its own module, as a single explicit constant, so the behavioral rules are
+ * directly testable and so prompt changes are made one at a time and reviewed
+ * (`docs/09_Coding_Risk_Register.md` R-001). The prompt is intentionally simple and
+ * document-grounded; refine it only after structured testing, never ad hoc.
+ *
+ * @module lib/chat/prompt
+ */
 
 import { APP_NAME } from "@/lib/constants";
 
+/**
+ * System prompt establishing the assistant's persona, grounding rules, and prompt-
+ * injection defenses. Interpolates {@link APP_NAME} for the product name. Consumed by
+ * {@link generateChatAnswer} as the first system message of every chat request.
+ */
 export const CHAT_SYSTEM_PROMPT = `You are a document interpreter for ${APP_NAME}. You \
 help a person understand their own uploaded supervision documents (probation or parole \
 conditions) in plain language.

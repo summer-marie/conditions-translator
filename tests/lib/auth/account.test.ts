@@ -1,14 +1,16 @@
-// Tests for account creation and credential verification (lib/auth/account.ts).
+// Tests for account creation, credential verification, and account deletion (lib/auth/account.ts).
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { createAccount, verifyCredentials } from "@/lib/auth/account";
+import { createAccount, verifyCredentials, deleteAccount } from "@/lib/auth/account";
 import { prisma } from "@/lib/database/prisma";
 import { verifyPassword } from "@/lib/auth/password";
+import { deletePageImage } from "@/lib/storage/blob";
 
 vi.mock("@/lib/database/prisma", () => ({
   prisma: {
-    user: { findFirst: vi.fn(), create: vi.fn() },
+    user: { findFirst: vi.fn(), create: vi.fn(), delete: vi.fn() },
+    page: { findMany: vi.fn() },
   },
 }));
 
@@ -17,6 +19,10 @@ vi.mock("@/lib/database/prisma", () => ({
 vi.mock("@/lib/auth/password", () => ({
   hashPassword: vi.fn(async (pw: string) => `hashed:${pw}`),
   verifyPassword: vi.fn(),
+}));
+
+vi.mock("@/lib/storage/blob", () => ({
+  deletePageImage: vi.fn(),
 }));
 
 describe("createAccount", () => {
@@ -157,5 +163,103 @@ describe("verifyCredentials", () => {
     expect(await verifyCredentials({ identifier: "", password: "x" })).toBeNull();
     expect(await verifyCredentials({ identifier: "a@b.com", password: "" })).toBeNull();
     expect(prisma.user.findFirst).not.toHaveBeenCalled();
+  });
+});
+
+describe("deleteAccount", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(prisma.user.delete).mockResolvedValue({ id: "user-1" } as any);
+  });
+
+  it("deletes every Blob-backed page image before deleting the user row", async () => {
+    vi.mocked(prisma.page.findMany).mockResolvedValue([
+      { id: "page-1", blobPath: "path/1" },
+      { id: "page-2", blobPath: "path/2" },
+    ] as any);
+    vi.mocked(deletePageImage).mockResolvedValue(undefined);
+
+    const deleteOrder: string[] = [];
+    vi.mocked(deletePageImage).mockImplementation(async (path: string) => {
+      deleteOrder.push(`blob:${path}`);
+    });
+    vi.mocked(prisma.user.delete).mockImplementation((async () => {
+      deleteOrder.push("user:deleted");
+      return { id: "user-1" };
+    }) as any);
+
+    await deleteAccount("user-1");
+
+    expect(prisma.page.findMany).toHaveBeenCalledWith({
+      where: { document: { userId: "user-1" }, blobPath: { not: null } },
+      select: { id: true, blobPath: true },
+    });
+    expect(deletePageImage).toHaveBeenCalledWith("path/1");
+    expect(deletePageImage).toHaveBeenCalledWith("path/2");
+    // Both Blob deletes happened strictly before the user row was deleted.
+    expect(deleteOrder).toEqual(["blob:path/1", "blob:path/2", "user:deleted"]);
+  });
+
+  it("hard-deletes the user row (cascade handles the rest) once Blob cleanup succeeds", async () => {
+    vi.mocked(prisma.page.findMany).mockResolvedValue([]);
+
+    await deleteAccount("user-1");
+
+    expect(prisma.user.delete).toHaveBeenCalledWith({ where: { id: "user-1" } });
+  });
+
+  it("aborts and leaves the user row intact if any Blob delete fails", async () => {
+    vi.mocked(prisma.page.findMany).mockResolvedValue([
+      { id: "page-1", blobPath: "path/1" },
+      { id: "page-2", blobPath: "path/2" },
+    ] as any);
+    vi.mocked(deletePageImage).mockRejectedValueOnce(new Error("network error"));
+
+    await expect(deleteAccount("user-1")).rejects.toMatchObject({
+      statusCode: 502,
+      code: "BLOB_CLEANUP_FAILED",
+    });
+
+    expect(prisma.user.delete).not.toHaveBeenCalled();
+  });
+
+  it("does not attempt to delete the user row if the first of several Blob deletes fails", async () => {
+    vi.mocked(prisma.page.findMany).mockResolvedValue([
+      { id: "page-1", blobPath: "path/1" },
+      { id: "page-2", blobPath: "path/2" },
+      { id: "page-3", blobPath: "path/3" },
+    ] as any);
+    vi.mocked(deletePageImage).mockRejectedValueOnce(new Error("network error"));
+
+    await expect(deleteAccount("user-1")).rejects.toMatchObject({ code: "BLOB_CLEANUP_FAILED" });
+
+    // Stops at the first failure rather than attempting every path and aggregating errors --
+    // matches this codebase's existing per-document deletion behavior (lib/documents/deletion.ts).
+    expect(deletePageImage).toHaveBeenCalledTimes(1);
+    expect(prisma.user.delete).not.toHaveBeenCalled();
+  });
+
+  it("is retry-safe: calling again after a Blob failure re-attempts cleanup and succeeds once the failure clears", async () => {
+    vi.mocked(prisma.page.findMany).mockResolvedValue([
+      { id: "page-1", blobPath: "path/1" },
+      { id: "page-2", blobPath: "path/2" },
+    ] as any);
+
+    // First attempt: path/1 succeeds, path/2 fails transiently.
+    vi.mocked(deletePageImage).mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error("transient"));
+    await expect(deleteAccount("user-1")).rejects.toMatchObject({ code: "BLOB_CLEANUP_FAILED" });
+    expect(prisma.user.delete).not.toHaveBeenCalled();
+
+    // Retry: nothing was mutated in the DB, so the same page rows (with blobPath still intact)
+    // are found again. deletePageImage never throws for an already-deleted object (per its own
+    // contract in lib/storage/blob.ts), so re-deleting path/1 is a harmless no-op here.
+    vi.mocked(deletePageImage).mockReset();
+    vi.mocked(deletePageImage).mockResolvedValue(undefined);
+
+    await deleteAccount("user-1");
+
+    expect(deletePageImage).toHaveBeenCalledWith("path/1");
+    expect(deletePageImage).toHaveBeenCalledWith("path/2");
+    expect(prisma.user.delete).toHaveBeenCalledWith({ where: { id: "user-1" } });
   });
 });

@@ -1,9 +1,16 @@
 "use client";
 
-// The privacy-notice gate, presented as an overlay from the landing page's primary CTA.
-// Same notice copy and intent as app/app/start/page.tsx (the standalone fallback route still
-// reached when workspace/chat detect an unaccepted session), duplicated rather than shared --
-// small enough content that a shared import wasn't worth touching that route in this pass.
+/**
+ * The privacy-notice gate, shown as an overlay from the landing page's primary CTA.
+ *
+ * Shares its notice copy and intent with `app/app/start/page.tsx` (the standalone fallback
+ * route reached when workspace/chat detect an unaccepted session). The copy is duplicated
+ * rather than shared — small enough that a shared import wasn't worth touching that route.
+ * Submitting "I Understand" invokes the {@link acceptPrivacy} server action, which records
+ * acceptance and redirects into the workspace.
+ *
+ * @module components/landing/PrivacyGateModal
+ */
 
 import { useEffect, useRef } from "react";
 import { acceptPrivacy } from "@/lib/actions/privacy";
@@ -11,6 +18,17 @@ import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 
+/**
+ * Modal dialog presenting the privacy notice and acceptance action.
+ *
+ * Focus-trapped while open and closable via backdrop click or Escape. Renders nothing when
+ * closed.
+ *
+ * @param props - Component props.
+ * @param props.open - Whether the modal is visible.
+ * @param props.onClose - Called to dismiss the modal without accepting.
+ * @returns The rendered modal, or `null` when closed.
+ */
 export function PrivacyGateModal({
   open,
   onClose,

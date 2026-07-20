@@ -1,10 +1,21 @@
+/** Props for {@link Badge}. */
 interface BadgeProps {
+  /** Semantic color variant selecting the background/text token pair. */
   variant: "success" | "warning" | "destructive" | "processing" | "neutral";
+  /** Text size. Defaults to `"md"`. */
   size?: "sm" | "md";
+  /** Extra classes appended to the computed class list. */
   className?: string;
+  /** Badge label. */
   children: React.ReactNode;
 }
 
+/**
+ * A small pill label for statuses and counts.
+ *
+ * @param props - {@link BadgeProps}.
+ * @returns The rendered badge span.
+ */
 export function Badge({ variant, size = "md", className = "", children }: BadgeProps) {
   const baseStyles = "inline-flex items-center px-2.5 py-0.5 rounded-full font-medium";
   
