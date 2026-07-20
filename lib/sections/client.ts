@@ -1,14 +1,23 @@
-// Server-side OpenAI call that turns accepted page text into plain-language sections
-// (docs/03_OCR_Specifications.md §6, docs/04_Schema_Architecture.md).
-//
-// Model is always read from OPENAI_SECTION_MODEL — never hardcoded (docs/11_Model_Routing_and_
-// Fallback.md). Runs only on the server; the API key never reaches the browser.
+/**
+ * Server-side OpenAI call that turns accepted page text into plain-language sections
+ * (`docs/03_OCR_Specifications.md` §6, `docs/04_Schema_Architecture.md`).
+ *
+ * The model is always read from `OPENAI_SECTION_MODEL` and never hardcoded
+ * (`docs/11_Model_Routing_and_Fallback.md`). This module runs only on the server, so the
+ * API key never reaches the browser, and provider errors are sanitized before leaving it.
+ *
+ * @module lib/sections/client
+ */
 
 import OpenAI from "openai";
 import { zodTextFormat } from "openai/helpers/zod";
 import { AppError } from "@/lib/errors";
 import { SectionGenerationResultSchema, type SectionGenerationResult } from "@/lib/sections/schema";
 
+/**
+ * Instruction prompt for the sectioning model: reorganize confirmed source text into
+ * short, plain-language, page-cited sections without adding, interpreting, or advising.
+ */
 const SYSTEM_PROMPT = `You reorganize the accepted, user-confirmed text of a legal supervision \
 document (probation or parole conditions) into short, plain-language sections that help a reader \
 navigate the document. You are given the document split into numbered pages, in order.
@@ -23,8 +32,17 @@ source content, not a legal interpretation of it.
 - Prefer several focused sections over one long section. Cover the whole document; do not omit \
 pages that contain requirements.`;
 
+/** Lazily-created singleton client; reused across requests within a warm server instance. */
 let cachedClient: OpenAI | null = null;
 
+/**
+ * Returns the shared OpenAI client, constructing it on first use.
+ *
+ * Timeout and retry counts come from `OPENAI_REQUEST_TIMEOUT_MS` / `OPENAI_MAX_RETRIES`,
+ * defaulting to 60s and 2 retries.
+ *
+ * @returns The memoized {@link OpenAI} client.
+ */
 function getClient(): OpenAI {
   if (!cachedClient) {
     cachedClient = new OpenAI({
@@ -35,6 +53,21 @@ function getClient(): OpenAI {
   return cachedClient;
 }
 
+/**
+ * Generates plain-language sections from a document's ordered accepted page text.
+ *
+ * Pages are concatenated with `--- Page N ---` markers so the model can cite page numbers.
+ * The response is parsed against {@link SectionGenerationResultSchema}; an empty section
+ * list is treated as an invalid response. Provider failures are sanitized into an
+ * {@link AppError}.
+ *
+ * @param params - Call inputs.
+ * @param params.pages - Ordered accepted pages, each with its 1-based `pageNumber` and `text`.
+ * @returns The parsed {@link SectionGenerationResult}.
+ * @throws {AppError} `SECTION_MODEL_NOT_CONFIGURED` (500) when `OPENAI_SECTION_MODEL` is unset.
+ * @throws {AppError} `SECTION_GENERATION_REQUEST_FAILED` (502) when the provider call fails.
+ * @throws {AppError} `SECTION_GENERATION_INVALID_RESPONSE` (502) when the response is empty or malformed.
+ */
 export async function generateDocumentSections(params: {
   pages: { pageNumber: number; text: string }[];
 }): Promise<SectionGenerationResult> {
@@ -65,7 +98,8 @@ export async function generateDocumentSections(params: {
       text: { format: zodTextFormat(SectionGenerationResultSchema, "document_sections") },
     });
   } catch {
-    // Never log the underlying error verbatim — it may echo back request content.
+    // Swallow the provider error deliberately: it can echo back document/source text and
+    // must never be logged. Only the sanitized AppError leaves this module.
     throw new AppError(
       "The section generation request failed.",
       502,
