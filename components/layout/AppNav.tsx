@@ -1,10 +1,14 @@
-// Shared app navigation shell: desktop sidebar + mobile bottom tab bar.
-//
-// Wraps /app/* page content in app/app/layout.tsx. Hides itself on /app/save and
-// /app/start since those are single-task entry/onboarding screens, not persistent
-// app destinations (see design-specs/functionality/dashboard-spec.md "Navigation Rules"
-// and login-spec.md, which frame this app's real routes differently from the
-// generic wireframe exports).
+/**
+ * Shared app navigation shell: desktop sidebar + mobile top bar / bottom tab bar.
+ *
+ * Wraps `/app/*` page content in `app/app/layout.tsx`. Hides itself on `/app/save` and
+ * `/app/start`, which are single-task entry/onboarding screens rather than persistent app
+ * destinations (see `dashboard-spec.md` "Navigation Rules" and `login-spec.md`). Also owns
+ * the theme toggle, sidebar collapse state, the per-document overflow actions, and the
+ * delete-document confirmation modal.
+ *
+ * @module components/layout/AppNav
+ */
 
 "use client";
 
@@ -16,39 +20,71 @@ import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { APP_NAME, DOCUMENTS_CHANGED_EVENT } from "@/lib/constants";
 import { Button } from "@/components/ui/Button";
 
+/** Fixed top-level nav destinations, in display order. */
 const NAV_ITEMS = [
   { href: "/app/dashboard", label: "Dashboard", icon: DashboardIcon },
   { href: "/app/workspace", label: "Workspace", icon: WorkspaceIcon },
   { href: "/app/chat", label: "Chat", icon: ChatIcon },
 ];
 
+/** Routes where the nav chrome is suppressed (single-task entry/onboarding screens). */
 const HIDDEN_ROUTES = ["/app/save", "/app/start"];
 
+/** A finished document surfaced as an extra sidenav destination. */
 interface FinishedDocument {
   id: string;
   title: string;
 }
 
+/** localStorage key persisting the chosen theme. */
 const THEME_STORAGE_KEY = "theme";
+/** localStorage key persisting the collapsed/expanded sidebar preference. */
 const SIDEBAR_COLLAPSED_STORAGE_KEY = "sidebar-collapsed";
+/** The two supported color themes. */
 type Theme = "light" | "dark";
 
+/**
+ * Reports whether a nav item is active for the current path (exact or nested match).
+ *
+ * @param pathname - The current route pathname.
+ * @param href - The nav item's href.
+ * @returns `true` when `pathname` equals `href` or is nested beneath it.
+ */
 function isActiveRoute(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+/**
+ * App navigation shell wrapping all `/app/*` page content.
+ *
+ * A thin Suspense wrapper around {@link AppNavContent}; the boundary is required because the
+ * inner component calls `useSearchParams()` (to highlight the active document link). The
+ * fallback still renders `children`, so page content is never blocked — the boundary only
+ * matters for the build-time static-generation check.
+ *
+ * @param props - Component props.
+ * @param props.children - The page content to render inside the nav shell.
+ * @returns The nav shell with page content.
+ */
 export function AppNav({ children }: { children: React.ReactNode }) {
   return (
-    // useSearchParams() (used below to highlight the active document link) requires a Suspense
-    // boundary in the App Router. The fallback still renders children so page content is never
-    // blocked on it -- useSearchParams() is synchronous in a client component and this only
-    // matters for the build-time static-generation check.
     <Suspense fallback={<main id="main-content">{children}</main>}>
       <AppNavContent>{children}</AppNavContent>
     </Suspense>
   );
 }
 
+/**
+ * The stateful body of the nav shell (rendered inside {@link AppNav}'s Suspense boundary).
+ *
+ * Manages: the mobile menu open state (focus-trapped), the per-document overflow
+ * menu/sheet, the delete-document modal, the theme, and the sidebar collapse preference. It
+ * also fetches the current owner's finished documents for the extra sidenav links.
+ *
+ * @param props - Component props.
+ * @param props.children - The page content to render in the main region.
+ * @returns The full navigation chrome plus page content, or bare content on hidden routes.
+ */
 function AppNavContent({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -59,10 +95,9 @@ function AppNavContent({ children }: { children: React.ReactNode }) {
   const mobileMenuRef = useRef<HTMLElement | null>(null);
   useFocusTrap(menuOpen, mobileMenuRef);
 
-  // Overflow actions (Review pages / Delete document) for a finished document row in the sidenav
-  // or mobile menu -- id of the document whose menu/sheet is currently open, or null. Shared by
-  // both the desktop popover and mobile action sheet (DocumentActionsMenu below): only one is
-  // ever visible at a given viewport, so one state/ref pair is enough.
+  // Id of the finished document whose overflow menu/sheet is open, or null. Shared by the
+  // desktop popover and the mobile action sheet — only one is visible per viewport, so a
+  // single state value (and the two refs below) covers both.
   const [openActionsFor, setOpenActionsFor] = useState<string | null>(null);
   const actionsPopoverRef = useRef<HTMLDivElement | null>(null);
   const actionsSheetRef = useRef<HTMLDivElement | null>(null);
@@ -125,9 +160,9 @@ function AppNavContent({ children }: { children: React.ReactNode }) {
       setFinishedDocuments((prev) => prev.filter((d) => d.id !== documentId));
       setDeleteDocModal({ isOpen: false, document: null, isDeleting: false, error: null });
 
-      // If the deleted document was the one currently open in the workspace, its ?documentId=
-      // now points nowhere -- send the user back to the plain workspace route, which already
-      // falls back to the active intake document (or the empty state) on its own.
+      // If the deleted document was the one open in the workspace, its ?documentId= now points
+      // nowhere — redirect to the plain workspace route, which falls back to the active intake
+      // document (or the empty state) on its own.
       if (pathname === "/app/workspace" && searchParams.get("documentId") === documentId) {
         router.push("/app/workspace");
       }
@@ -139,20 +174,17 @@ function AppNavContent({ children }: { children: React.ReactNode }) {
       }));
     }
   }
-  // Always starts "light" to exactly match the server render (server has no access to
-  // localStorage/matchMedia). Reading those during the initial client render instead
-  // would make this component's hydrated output differ from the server's, which forces
-  // React to discard and client-render the whole tree from the nearest boundary --
-  // that recovery skips re-running the blocking theme script in app/layout.tsx and
-  // resets <html data-theme> back to its server-rendered "light" default. Confirmed via
-  // a real production-build reproduction: every route that renders AppNav lost dark
-  // mode on load, while routes that don't (save, start) kept it correctly. Syncing from
-  // the DOM after mount (below) avoids ever creating that mismatch in the first place.
+  // Must start "light" to match the server render exactly (the server can't read
+  // localStorage/matchMedia). Reading the real theme during the initial client render would
+  // make hydration diverge, forcing React to discard and client-render the subtree from the
+  // nearest boundary — a recovery that skips the blocking theme script in app/layout.tsx and
+  // resets <html data-theme> to "light". (Reproduced in a production build: every route with
+  // AppNav lost dark mode on load; save/start kept it.) The post-mount sync below reads the
+  // real value without ever creating that mismatch.
   const [theme, setTheme] = useState<Theme>("light");
 
-  // One-time sync from the DOM attribute the blocking script in app/layout.tsx already
-  // set before hydration; can't be known without reading the DOM, so this can't be
-  // derived without an effect.
+  // One-time sync from the data-theme attribute the blocking script in app/layout.tsx set
+  // before hydration. It's only knowable by reading the DOM, so an effect is unavoidable.
   useEffect(() => {
     const current = document.documentElement.getAttribute("data-theme");
     if (current === "light" || current === "dark") {
@@ -161,9 +193,8 @@ function AppNavContent({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Same reasoning as theme above: starts "false" (expanded) to exactly match the server
-  // render, then syncs from localStorage after mount rather than during the initial client
-  // render, so this component's hydrated output never diverges from the server's.
+  // Same hydration reasoning as `theme`: starts "false" (expanded) to match the server
+  // render, then syncs the real preference from localStorage after mount.
   const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
@@ -171,20 +202,22 @@ function AppNavContent({ children }: { children: React.ReactNode }) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setCollapsed(window.localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === "true");
     } catch {
-      // localStorage unavailable (e.g. private browsing) -- stays expanded this session
+      // localStorage unavailable (e.g. private browsing) — stays expanded this session.
     }
   }, []);
 
+  /** Toggles the sidebar collapsed state and persists it (best-effort). */
   function toggleCollapsed() {
     const next = !collapsed;
     setCollapsed(next);
     try {
       window.localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, String(next));
     } catch {
-      // localStorage unavailable -- collapse still applies this session
+      // localStorage unavailable — the collapse still applies for this session.
     }
   }
 
+  /** Toggles the theme, updates the <html data-theme> attribute, and persists it (best-effort). */
   function toggleTheme() {
     const next: Theme = theme === "dark" ? "light" : "dark";
     setTheme(next);
@@ -192,14 +225,14 @@ function AppNavContent({ children }: { children: React.ReactNode }) {
     try {
       window.localStorage.setItem(THEME_STORAGE_KEY, next);
     } catch {
-      // localStorage unavailable (e.g. private browsing) -- theme still applies this session
+      // localStorage unavailable — the theme still applies for this session.
     }
   }
 
+  // Close the mobile menu on Escape. useFocusTrap's cleanup handles returning focus to the trigger.
   useEffect(() => {
     if (!menuOpen) return;
     function handleKeyDown(e: KeyboardEvent) {
-      // Focus restore to the trigger on close is handled by useFocusTrap's cleanup.
       if (e.key === "Escape") {
         setMenuOpen(false);
       }
@@ -208,15 +241,11 @@ function AppNavContent({ children }: { children: React.ReactNode }) {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [menuOpen]);
 
-  // Lists the current owner's finished documents (organized/"Sections" view available) as extra
-  // sidenav destinations, alongside the fixed Dashboard/Workspace/Chat items. Reuses the existing
-  // owner-aware GET /api/documents endpoint used elsewhere (dashboard, chat, workspace) -- guests
-  // get their temporary session's documents, signed-in users get their persisted ones, with no
-  // separate nav-specific persistence. Re-fetched on route change (a document finished on a prior
-  // route shows up here without a full reload) AND on DOCUMENTS_CHANGED_EVENT, which the workspace
-  // page dispatches right after Finish Document succeeds -- that transition happens without any
-  // route/pathname change, so the pathname trigger alone would leave a just-finished document
-  // missing from this list until an unrelated navigation happened to refetch it.
+  // Load the current owner's finished documents as extra sidenav destinations, beside the
+  // fixed Dashboard/Workspace/Chat items. Reuses the owner-aware GET /api/documents endpoint
+  // (guests get their temp session's docs, signed-in users their persisted ones). Re-fetched
+  // on route change AND on DOCUMENTS_CHANGED_EVENT — the workspace page fires that right after
+  // Finish Document, a transition with no pathname change that the route trigger alone would miss.
   useEffect(() => {
     if (HIDDEN_ROUTES.includes(pathname)) return;
     let cancelled = false;
@@ -231,7 +260,7 @@ function AppNavContent({ children }: { children: React.ReactNode }) {
           .map((d: { id: string; title: string }) => ({ id: d.id, title: d.title }));
         setFinishedDocuments(finished);
       } catch {
-        // Non-fatal: the sidenav just won't show document links if this fails.
+        // Non-fatal: on failure the sidenav simply omits the document links.
       }
     }
     loadFinishedDocuments();
@@ -504,11 +533,10 @@ function AppNavContent({ children }: { children: React.ReactNode }) {
         {children}
       </main>
 
-      {/* Mobile action sheet: rendered once here at the top level (not nested inside the mobile
-          menu's own <nav>) because that nav and the fixed bottom tab bar are z-index siblings --
-          the bottom tab bar comes later in DOM order and would otherwise win the stacking tie and
-          intercept taps on the sheet's buttons despite the sheet's own higher z-index, since a
-          z-index only wins against siblings within the same stacking context as its parent. */}
+      {/* Mobile action sheet, rendered at the top level rather than inside the mobile menu's
+          <nav>. That nav and the fixed bottom tab bar are stacking siblings; the tab bar comes
+          later in DOM order and would win the tie and intercept taps on the sheet's buttons,
+          because a z-index only outranks siblings within its parent's stacking context. */}
       {openActionsFor &&
         (() => {
           const doc = finishedDocuments.find((d) => d.id === openActionsFor);
@@ -530,10 +558,10 @@ function AppNavContent({ children }: { children: React.ReactNode }) {
           );
         })()}
 
-      {/* Delete document confirmation modal, reachable from the sidenav/mobile-menu overflow
-          actions on any finished document. Mirrors app/app/dashboard/page.tsx's delete-document
-          modal pattern exactly (same copy, same layout, same Cancel/Delete Button pair) since
-          this is the same destructive action, just reachable from a second entry point. */}
+      {/* Delete-document confirmation modal, reached from the sidenav/mobile-menu overflow
+          actions on any finished document. Intentionally mirrors the dashboard's delete modal
+          (same copy, layout, and Cancel/Delete pair) — it's the same destructive action from a
+          second entry point. */}
       {deleteDocModal.isOpen && deleteDocModal.document && (
         <div
           className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
@@ -591,6 +619,7 @@ function AppNavContent({ children }: { children: React.ReactNode }) {
   );
 }
 
+/** Decorative grid glyph for the Dashboard nav item. */
 function DashboardIcon() {
   return (
     <svg
@@ -609,6 +638,7 @@ function DashboardIcon() {
   );
 }
 
+/** Decorative upload glyph for the Workspace nav item. */
 function WorkspaceIcon() {
   return (
     <svg
@@ -625,6 +655,7 @@ function WorkspaceIcon() {
   );
 }
 
+/** Decorative speech-bubble glyph for the Chat nav item. */
 function ChatIcon() {
   return (
     <svg
@@ -644,6 +675,7 @@ function ChatIcon() {
   );
 }
 
+/** Decorative page glyph for a finished-document sidenav link. */
 function DocumentIcon() {
   return (
     <svg
@@ -664,13 +696,24 @@ function DocumentIcon() {
   );
 }
 
-// Overflow actions (Review pages / Delete document) for one finished-document sidenav/mobile-menu
-// row. Deliberately short and focused -- two actions only, per the chosen UX direction. Renders
-// either an anchored popover (desktop, "popover") or a bottom action sheet (mobile, "sheet");
-// callers pass the matching ref/variant rather than this component picking responsively itself,
-// since the two call sites already live in separate desktop/mobile JSX blocks (matching this
-// file's existing convention of duplicating desktop vs. mobile nav markup rather than branching
-// internally on viewport).
+/**
+ * Overflow actions (Review pages / Delete document) for one finished-document row.
+ *
+ * Renders either an anchored desktop popover (`variant="popover"`) or a mobile bottom sheet
+ * (`variant="sheet"`). Callers pass the matching `variant` and ref rather than having the
+ * component branch on viewport itself, matching this file's convention of duplicating
+ * desktop/mobile markup at the call sites.
+ *
+ * @param props - Component props.
+ * @param props.variant - `"popover"` (desktop) or `"sheet"` (mobile) presentation.
+ * @param props.document - The finished document the actions apply to.
+ * @param props.popoverRef - Focus-trap ref for the popover variant.
+ * @param props.sheetRef - Focus-trap ref for the sheet variant.
+ * @param props.onClose - Called to dismiss the menu (backdrop click / Cancel).
+ * @param props.onReviewPagesClick - Called when "Review pages" is chosen.
+ * @param props.onDeleteClick - Called when "Delete document" is chosen.
+ * @returns The rendered popover or action sheet.
+ */
 function DocumentActionsMenu({
   variant,
   document,
@@ -691,8 +734,8 @@ function DocumentActionsMenu({
   if (variant === "popover") {
     return (
       <>
-        {/* Invisible backdrop: closes the popover on an outside click without dimming the page,
-            matching typical popover (not modal) weight. */}
+        {/* Invisible full-screen backdrop: closes the popover on an outside click without
+            dimming the page, keeping it popover-weight rather than modal-weight. */}
         <div className="fixed inset-0 z-40" onClick={onClose} />
         <div
           ref={popoverRef}
@@ -761,6 +804,7 @@ function DocumentActionsMenu({
   );
 }
 
+/** Decorative vertical-ellipsis glyph for the per-document overflow-actions button. */
 function OverflowIcon() {
   return (
     <svg
@@ -776,6 +820,15 @@ function OverflowIcon() {
   );
 }
 
+/**
+ * Icon button that toggles between light and dark theme.
+ *
+ * @param props - Component props.
+ * @param props.theme - The current theme (selects the icon and `aria-pressed`).
+ * @param props.onToggle - Called when the button is pressed.
+ * @param props.className - Extra classes (e.g. positioning) appended to the button.
+ * @returns The rendered theme-toggle button.
+ */
 function ThemeToggleButton({
   theme,
   onToggle,
@@ -799,6 +852,7 @@ function ThemeToggleButton({
   );
 }
 
+/** Decorative sun glyph shown by the theme toggle while in dark mode (tap to go light). */
 function SunIcon() {
   return (
     <svg
@@ -818,6 +872,7 @@ function SunIcon() {
   );
 }
 
+/** Decorative moon glyph shown by the theme toggle while in light mode (tap to go dark). */
 function MoonIcon() {
   return (
     <svg
@@ -837,6 +892,7 @@ function MoonIcon() {
   );
 }
 
+/** Decorative hamburger glyph for the mobile menu open button. */
 function MenuIcon() {
   return (
     <svg
@@ -852,6 +908,7 @@ function MenuIcon() {
   );
 }
 
+/** Decorative left-chevron glyph shown on the sidebar collapse button while expanded. */
 function ChevronLeftIcon() {
   return (
     <svg
@@ -867,6 +924,7 @@ function ChevronLeftIcon() {
   );
 }
 
+/** Decorative right-chevron glyph shown on the sidebar expand button while collapsed. */
 function ChevronRightIcon() {
   return (
     <svg
@@ -882,6 +940,7 @@ function ChevronRightIcon() {
   );
 }
 
+/** Decorative X glyph for the mobile menu close button. */
 function CloseIcon() {
   return (
     <svg
