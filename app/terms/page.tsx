@@ -1,24 +1,30 @@
-// Terms of Service page. Public marketing page, outside the authenticated app shell
-// (app/app/layout.tsx + AppNav) -- shares PublicHeader/FooterCTA with the landing page
-// and /about instead.
+/**
+ * Terms of Service page — a public marketing page outside the authenticated app shell.
+ *
+ * Shares {@link PublicHeader}/{@link FooterCTA} with the landing and About pages. Content was
+ * provided by the project owner (2026-07-17), not authored by Claude; Section 13's contact
+ * placeholder is verbatim from the source and still needs a real email/form link.
+ *
+ * @module app/terms/page
+ */
 
 import { PublicHeader } from "@/components/landing/PublicHeader";
 import { FooterCTA } from "@/components/landing/FooterCTA";
 import { Card } from "@/components/ui/Card";
 import { APP_NAME } from "@/lib/constants";
 
+/** "Last updated" date shown at the top of the Terms. */
 const LAST_UPDATED = "July 17, 2026";
 
-// A section body is a sequence of blocks: a plain string renders as a paragraph, a string[]
-// renders as a bullet list. Content provided by the project owner 2026-07-17 -- not authored by
-// Claude. Section 13's contact placeholder is verbatim from the source and still needs a real
-// email/form link.
+/** One content block in a section: a plain string renders as a paragraph, a string[] as a bullet list. */
 type TermsBlock = string | string[];
+/** One numbered Terms section: a heading plus its ordered content blocks. */
 interface TermsSection {
   heading: string;
   blocks: TermsBlock[];
 }
 
+/** The full Terms of Service content, section by section. */
 const TERMS_SECTIONS: TermsSection[] = [
   {
     heading: "1. Acceptance of Terms",
@@ -128,10 +134,18 @@ const TERMS_SECTIONS: TermsSection[] = [
   },
 ];
 
+/** Page metadata (browser/tab title). */
 export const metadata = {
   title: `Terms of Service — ${APP_NAME}`,
 };
 
+/**
+ * Renders one {@link TermsBlock}: a bullet list for an array, otherwise a paragraph.
+ *
+ * @param props - Component props.
+ * @param props.block - The content block to render.
+ * @returns The rendered list or paragraph.
+ */
 function TermsBlockView({ block }: { block: TermsBlock }) {
   if (Array.isArray(block)) {
     return (
@@ -155,6 +169,11 @@ function TermsBlockView({ block }: { block: TermsBlock }) {
   );
 }
 
+/**
+ * Renders the Terms of Service marketing page from {@link TERMS_SECTIONS}.
+ *
+ * @returns The rendered Terms page.
+ */
 export default function TermsPage() {
   return (
     <div className="landing-page-glow min-h-screen">
