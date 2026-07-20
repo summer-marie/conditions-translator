@@ -119,7 +119,17 @@ export default function LandingPage() {
           .landing-section-features. Blends from the Hero section above and into How It Works
           below via the shared --landing-tone-mid tone. */}
         <section className="landing-section-features">
-          <div className="max-w-6xl mx-auto px-(--landing-container-px) py-(--landing-space-section-y)">
+          <div className="max-w-6xl mx-auto px-(--landing-container-px) pt-0 pb-(--landing-space-section-y)">
+          <p
+            className="font-(--font-weight-h3) text-center max-w-2xl mx-auto mb-6"
+            style={{
+              fontSize: "var(--landing-font-h3)",
+              color: "var(--color-text-heading)",
+            }}
+          >
+            Don&apos;t lose your freedom to a technicality. Upload your documents, ask anything,
+            and stop the guesswork.
+          </p>
           <h2
             className="font-(--font-weight-h2) text-center mb-8"
             style={{
