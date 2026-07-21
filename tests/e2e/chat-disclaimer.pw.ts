@@ -77,7 +77,6 @@ test.describe("chat disclaimer: mobile bottom sheet", () => {
   }) => {
     const session = await owners.createTemporarySession({ expiresAt: futureDate() });
     const doc = await seedReadyDocument(session.id, `E2E Disclaimer Doc ${Date.now()}`);
-    void doc;
 
     await attachTempSessionCookie(context, session.token);
     await page.goto("/app/chat");
