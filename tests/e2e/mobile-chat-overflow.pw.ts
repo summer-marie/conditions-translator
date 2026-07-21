@@ -42,6 +42,13 @@ test.describe("mobile chat: long response scroll containment", () => {
     context,
   }) => {
     const session = await owners.createTemporarySession({ expiresAt: futureDate() });
+    // Pre-acknowledge the chat disclaimer (lib/session/chatDisclaimer.ts) directly, so this
+    // layout-only regression test isn't gated by the unrelated disclaimer bottom sheet added
+    // in chat-disclaimer.pw.ts.
+    await prisma.temporarySession.update({
+      where: { id: session.id },
+      data: { chatDisclaimerAcknowledgedAt: new Date() },
+    });
 
     const documentRow = await prisma.document.create({
       data: {

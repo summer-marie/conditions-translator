@@ -25,10 +25,23 @@ export default defineConfig({
   },
   projects: [
     {
+      // Default project: every *.pw.ts file except ones explicitly scoped to desktop below,
+      // so existing mobile-only specs (e.g. mobile-chat-overflow.pw.ts) keep running exactly
+      // as before — unaffected by the new desktop-chrome project.
       name: "mobile-chrome",
       use: {
         ...devices["Pixel 5"],
       },
+      testIgnore: "**/*.desktop.pw.ts",
+    },
+    {
+      // Desktop-scoped specs only (naming convention: *.desktop.pw.ts), for UI that's
+      // intentionally different at the md+ breakpoint (e.g. the chat disclaimer banner).
+      name: "desktop-chrome",
+      use: {
+        ...devices["Desktop Chrome"],
+      },
+      testMatch: "**/*.desktop.pw.ts",
     },
   ],
   webServer: {
