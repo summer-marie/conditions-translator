@@ -70,6 +70,11 @@ model User {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
+  // Chat-specific "not legal advice" disclaimer, separate from TemporarySession's
+  // noticeAcceptedAt (privacy/data-retention notice). Acknowledged once per account —
+  // never re-prompted once set.
+  chatDisclaimerAcknowledgedAt DateTime?
+
   authSessions AuthSession[]
   documents    Document[]
   chatSessions ChatSession[]
@@ -97,6 +102,11 @@ model TemporarySession {
   noticeAcceptedAt DateTime?
   expiresAt        DateTime
   createdAt        DateTime  @default(now())
+
+  // Chat-specific "not legal advice" disclaimer, separate from noticeAcceptedAt (privacy/
+  // data-retention notice). Scoped to this session row, so a new temporary session (a new
+  // visit after this one expires) always requires re-acknowledgment.
+  chatDisclaimerAcknowledgedAt DateTime?
 
   documents    Document[]
   chatSessions ChatSession[]
