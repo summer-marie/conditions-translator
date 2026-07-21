@@ -370,7 +370,7 @@ export default function ChatPage() {
   // Chat screen — the message log, limit banners, composer, and desktop inspector panel.
   return (
     <div className="flex flex-col md:flex-row md:justify-center md:gap-6 h-[calc(100dvh-7.5rem)] md:h-dvh p-4 md:p-6">
-    <div className="flex flex-col flex-1 min-w-0 max-w-2xl mx-auto md:mx-0 md:h-full">
+    <div className="flex flex-col flex-1 min-h-0 min-w-0 max-w-2xl mx-auto md:mx-0 md:h-full">
       <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
         <h1
           className="font-(--font-weight-h3)"

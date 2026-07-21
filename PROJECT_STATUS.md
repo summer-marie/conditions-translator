@@ -82,6 +82,31 @@ separately when work resumes.
   installed the PWA under the old manifest won't get the fix until reinstalled or the OS/browser
   re-fetches the manifest (platform-dependent).
 
+## Recent Fixes (Post-Phase, Unscoped)
+
+- **Mobile chat layout overflow (2026-07-21, branch `fix/mobile-chat-scroll-overflow`, not yet
+  merged).** On mobile, a long assistant response in `/app/chat` grew past the viewport instead of
+  scrolling inside the message log, making the composer unreachable. Root cause: the chat screen's
+  inner flex column (`app/app/chat/page.tsx`) was missing `min-h-0`, so it kept CSS flexbox's
+  default `min-height: auto` and refused to shrink below its content's intrinsic height inside the
+  outer viewport-height-constrained wrapper — the message `Card`'s existing `overflow-y-auto` never
+  got a bounded height to scroll within. Fix: added `min-h-0` to that inner flex column (one class,
+  one line).
+
+  Validated: `tsc --noEmit` clean; `npm run lint` shows only the pre-existing 24-error/7-warning
+  baseline (unrelated files); full `npm test` (282/282) unaffected; and — after checking with the
+  user, since this project had zero E2E infrastructure before this fix — a new Playwright regression
+  test (`tests/e2e/mobile-chat-overflow.pw.ts`, `npm run test:e2e`) that seeds a real
+  TemporarySession + READY Document/Page directly via Prisma (same live-DB pattern as
+  `tests/schema/helpers.ts`), reaches the real chat screen through the real UI (no OpenAI call
+  involved in `startChat`), and injects a long assistant message directly into the DOM to avoid a
+  real billed OpenAI call. Confirmed the test genuinely catches the regression: reverting the
+  `min-h-0` fix reproduced a 6748px document height against a 729px mobile viewport and failed the
+  test; restoring the fix passes it. This is the project's first Playwright/E2E test — see
+  `playwright.config.ts` and `.claude/session-memory/OPEN_QUESTIONS.md` for the infra-gap context
+  that preceded it (now resolved for this fix; future live-integration tests should still be
+  discussed with the user given the live Neon DB is shared with real dev use).
+
 ## Historical: OCR Transcription Correction
 
 **OCR transcription correction workflow** — **approved, documented, and implemented.** This was
@@ -96,7 +121,7 @@ Remaining verification: the Launch Readiness Checklist's dedicated OCR-correctio
 
 ## Documentation Status
 
-Up to date as of 2026-07-20. `.claude/session-memory/` (tracked in git as of this update — see
+Up to date as of 2026-07-21. `.claude/session-memory/` (tracked in git as of this update — see
 `.gitignore`) holds ongoing session detail; see `.claude/session-memory/WORK_LOG.md` for the
 fullest chronological detail, including this update. **Note:** this file is hand-maintained and
 has previously gone stale between updates (e.g. this revision found three items in the previous

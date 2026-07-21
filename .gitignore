@@ -13,6 +13,12 @@ dist/
 build/
 coverage/
 
+# Playwright output
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
 # Local platform configuration
 .vercel/
 
