@@ -1,59 +1,72 @@
 # Current Session
 
 **Date:** 2026-07-21
-**Branch:** fix/mobile-chat-scroll-overflow (3 commits ahead of main, working tree clean)
+**Branch:** feat/chat-legal-disclaimer (new branch off main, not yet merged)
 
-## Task — COMPLETE, awaiting user push/merge
+## Task — COMPLETE, awaiting user review/push/merge
 
-Fixed a mobile-only layout bug in `/app/chat`: a long assistant response
-grew the chat screen past the viewport instead of scrolling inside the
-message log, making the composer unreachable. Root cause confirmed by
-reading `app/app/chat/page.tsx`, `components/layout/AppNav.tsx`, and
-`components/ui/Card.tsx`: the inner flex column (line ~373) was missing
-`min-h-0`, so CSS flexbox's default `min-height: auto` kept it from
-shrinking below its content's intrinsic height inside the outer,
-already-viewport-height-constrained wrapper. Fix: added `min-h-0` to that
-one class list — no other application files changed.
+Implemented the audited chat legal-disclaimer plan (an audit-only pass earlier in this same
+conversation, then approved with three confirmed decisions: separate from the Privacy Notice
+gate, compact focus-trapped bottom sheet on mobile, and server-side enforcement in addition to
+UI).
 
-Three commits on this branch:
-- `2c283ab` — the one-line layout fix.
-- `13a011a` — docs/memory logging the fix and the (then-open) Playwright
-  infra question.
-- `202ca53` — added `@playwright/test` (chromium only) as this project's
-  first E2E/browser-test tool, `playwright.config.ts`, and
-  `tests/e2e/mobile-chat-overflow.pw.ts` (seeds a real TemporarySession +
-  READY Document/Page via Prisma, reaches the real chat screen with no
-  OpenAI call involved, injects a long assistant message directly into the
-  DOM to avoid a real billed OpenAI call).
+### Root cause fixed
 
-`PROJECT_STATUS.md`'s "Recent Fixes" entry, `DECISIONS.md`, and
-`OPEN_QUESTIONS.md` are all updated to reflect the finished state.
+`lib/chat/prompt.ts`'s `CHAT_SYSTEM_PROMPT` told the model to "add a brief, calm disclaimer
+where appropriate" on every substantive answer, stacked on top of four SPECIFIC BEHAVIORS
+categories that each separately encode a hedge (permission/missing-source/conflict/violation).
+Real supervision questions land in one of those four categories almost every time, so the
+model was repeating "not legal advice"-style boilerplate constantly. Fixed by moving the
+standing disclaimer into the product UI (acknowledged once) and rewriting the CORE RULES bullet
+to tell the model not to repeat a generic disclaimer per answer — the four required safety
+behaviors themselves are untouched.
 
-## Key context for continuation
+### What was built
 
-- All requested validation is done and passing: `tsc --noEmit` clean,
-  `npm run lint` shows only the pre-existing 24-error/7-warning baseline
-  (unrelated files), full `npm test` (282/282) passing, and
-  `npm run test:e2e` (Playwright) passing.
-- **The Playwright test was verified to actually catch the regression**,
-  not just run: temporarily reverted the `min-h-0` fix, reran the test —
-  it failed exactly as expected (6748px document `scrollHeight` against a
-  729px mobile viewport). Restored the fix (confirmed zero drift via
-  `git diff`) and reran — passed.
-- This project's E2E infra gap (no Playwright before this session) is now
-  partially closed: one live-DB-seeded Playwright test exists, reusing
-  `tests/schema/helpers.ts`'s `OwnerCleanup` for setup/teardown. See
-  [[project-test-infrastructure-gap]] (persistent memory) — **still ask
-  the user before adding another live-integration test**, since each one
-  touches the same shared live dev database; this session's precedent is
-  not blanket permission.
-- Prior orientation-session context (2026-07-20) still holds: architecture
-  frozen, all phases (1-10, E2E, Wireframe Implementation) closed per
-  PROJECT_STATUS.md/DECISIONS.md; `.claude/session-memory/` is tracked in
-  git (see DECISIONS.md 2026-07-20 entry) so these 4 files are staged and
-  committed like any other tracked file.
+- Schema: `User.chatDisclaimerAcknowledgedAt` + `TemporarySession.chatDisclaimerAcknowledgedAt`
+  (migration `20260721224749_add_chat_disclaimer_acknowledgment`) — deliberately separate from
+  `noticeAcceptedAt` (the existing Privacy Notice gate).
+- `lib/session/chatDisclaimer.ts` (isAcknowledged/acknowledge/require helpers),
+  `lib/actions/chatDisclaimer.ts` (Server Action).
+- `/api/session/status` now also returns `chatDisclaimerAcknowledged`.
+- Server-side enforcement: `lib/chat/session.ts`'s `createChatSession`/`sendChatMessage` both
+  call `requireChatDisclaimerAcknowledged` and throw `CHAT_DISCLAIMER_NOT_ACKNOWLEDGED` (403) —
+  chat use does not rely on client state alone.
+- UI: compact `Alert` banner at the top of the chat box (desktop, `hidden md:flex`) and a new
+  `components/chat/ChatDisclaimerSheet.tsx` (mobile-only, `md:hidden`, focus-trapped via the
+  existing `useFocusTrap` hook, single "Got it" action, no Escape/backdrop dismiss) wired into
+  `app/app/chat/page.tsx`. Start Chat/Send are disabled client-side until acknowledged too.
+
+### Validation
+
+- `tsc --noEmit`: clean.
+- `npm run lint`: unchanged at the pre-existing 24-error/7-warning baseline.
+- `npm test`: 300/300 (was 282/282 before this session — 18 new tests: chat-disclaimer helper,
+  extended chat-session enforcement tests, extended prompt tests, new `/api/session/status`
+  tests).
+- `npm run test:e2e` (Playwright): 6/6 passing across two projects — the existing
+  `mobile-chrome` (Pixel 5) plus a new `desktop-chrome` (Desktop Chrome) project, scoped via a
+  `*.desktop.pw.ts` naming convention (`playwright.config.ts`) so it doesn't run against the
+  pre-existing mobile-only spec. Covers: mobile sheet appears/traps focus/blocks the screen
+  underneath until acknowledged; a new temporary session is prompted independently of another
+  session's acknowledgment; desktop banner appears/hides; signed-in user's acknowledgment
+  persists per-account regardless of any temporary session.
+- Fixed one incidental regression: `tests/e2e/mobile-chat-overflow.pw.ts`'s seeded session now
+  pre-acknowledges the new disclaimer directly via Prisma (that test is about layout, not this
+  flow) — without this it timed out because the new sheet correctly blocked it.
+
+## Known limitation
+
+Whether real live chat answers actually repeat the disclaimer less often is **not**
+Playwright-testable without a real, billed OpenAI call — validated only via
+`tests/lib/chat/prompt.test.ts`'s static assertions on the prompt text. Recommend a manual
+spot-check against a handful of live chat turns before merging, per
+`docs/09_Coding_Risk_Register.md` R-001 (prompt-change testing advice).
 
 ## Next steps
 
-None outstanding on this task. Branch `fix/mobile-chat-scroll-overflow` is
-not pushed; user pushes/merges per CLAUDE.md's git workflow rules.
+None outstanding on this task. Branch `feat/chat-legal-disclaimer` is not pushed; user
+pushes/merges per CLAUDE.md's git workflow rules. A real migration was applied to the shared
+dev Neon DB (`20260721224749_add_chat_disclaimer_acknowledgment`) — routine schema work, not a
+live-integration-test decision (see [[project-test-infrastructure-gap]] for the distinct
+concern that memory tracks, which is about *test* writes to the live DB, not schema migrations).
