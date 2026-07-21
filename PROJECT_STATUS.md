@@ -91,15 +91,21 @@ separately when work resumes.
   default `min-height: auto` and refused to shrink below its content's intrinsic height inside the
   outer viewport-height-constrained wrapper — the message `Card`'s existing `overflow-y-auto` never
   got a bounded height to scroll within. Fix: added `min-h-0` to that inner flex column (one class,
-  one line). Verified: `tsc --noEmit` clean, `npm run lint` shows only the pre-existing 24
-  errors/7 warnings baseline (unrelated, in `tests/lib/session/temporary.test.ts` and elsewhere),
-  full `npm test` suite (282/282) unaffected. **Not yet verified**: a real mobile-browser/Playwright
-  visual regression check — this project currently has zero Playwright/E2E infrastructure (the
-  entire test suite is Vitest with fully mocked Prisma), and `.env.local`'s `DATABASE_URL`/
-  `OPENAI_API_KEY` point to real remote services (Neon, OpenAI) with no test/sandbox separation, so
-  standing up a live-integration browser test is a real infrastructure decision, not a quick
-  addition — flagged to the user rather than done unilaterally. See
-  `.claude/session-memory/OPEN_QUESTIONS.md`.
+  one line).
+
+  Validated: `tsc --noEmit` clean; `npm run lint` shows only the pre-existing 24-error/7-warning
+  baseline (unrelated files); full `npm test` (282/282) unaffected; and — after checking with the
+  user, since this project had zero E2E infrastructure before this fix — a new Playwright regression
+  test (`tests/e2e/mobile-chat-overflow.pw.ts`, `npm run test:e2e`) that seeds a real
+  TemporarySession + READY Document/Page directly via Prisma (same live-DB pattern as
+  `tests/schema/helpers.ts`), reaches the real chat screen through the real UI (no OpenAI call
+  involved in `startChat`), and injects a long assistant message directly into the DOM to avoid a
+  real billed OpenAI call. Confirmed the test genuinely catches the regression: reverting the
+  `min-h-0` fix reproduced a 6748px document height against a 729px mobile viewport and failed the
+  test; restoring the fix passes it. This is the project's first Playwright/E2E test — see
+  `playwright.config.ts` and `.claude/session-memory/OPEN_QUESTIONS.md` for the infra-gap context
+  that preceded it (now resolved for this fix; future live-integration tests should still be
+  discussed with the user given the live Neon DB is shared with real dev use).
 
 ## Historical: OCR Transcription Correction
 

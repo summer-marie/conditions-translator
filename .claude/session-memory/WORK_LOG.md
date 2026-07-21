@@ -115,3 +115,47 @@
   bug fix's minimal scope. Logged as an open question rather than
   installing Playwright and picking an approach unilaterally, per
   CLAUDE.md's dependency-check and clarification rules.
+- Asked the user via 3 concrete options (live-DB seed + DOM injection /
+  isolated CSS fixture / skip Playwright). User chose live-DB seed + DOM
+  injection.
+- Checked current official Playwright docs (playwright.dev/docs/intro,
+  /docs/test-webserver) before installing, per CLAUDE.md's
+  testing-framework dependency-check rule: confirmed `npm init
+  playwright@latest` is the current scaffolding command, but installed
+  manually instead (`npm install -D @playwright/test` +
+  `npx playwright install chromium`) to avoid the interactive wizard and
+  keep the addition minimal/inspectable.
+- Added `playwright.config.ts` (chromium only, `Pixel 5` mobile device
+  emulation, `webServer` auto-starting `npm run dev`, `testDir: tests/e2e`,
+  `testMatch: **/*.pw.ts` so Vitest's default include glob never picks up
+  Playwright spec files — verified: `npm test` still reports exactly 30
+  files/282 tests after adding it).
+- Wrote `tests/e2e/mobile-chat-overflow.pw.ts`: seeds a real
+  `TemporarySession` + READY `Document`/`Page`/`OcrResult` via Prisma
+  (reusing `tests/schema/helpers.ts`'s `OwnerCleanup`/`futureDate`/
+  `isLiveDbConfigured` directly rather than reinventing them), attaches
+  the matching `tmp_session` cookie via `context.addCookies()`, reaches
+  the real chat screen through the real UI (confirmed by reading
+  `lib/chat/session.ts`'s `createChatSession` first that `startChat`
+  makes no OpenAI call), then injects a long assistant message directly
+  into the real message-log DOM node (avoiding a real, billed
+  `sendMessage` → OpenAI call). Asserts: document doesn't grow past
+  viewport, the message log itself has real internal overflow
+  (`scrollHeight > clientHeight`), the composer is in the viewport, and
+  the bottom nav is in the viewport and doesn't overlap the composer.
+- **Verified the test isn't vacuous**: temporarily reverted the `min-h-0`
+  fix, reran — test failed exactly as expected (`scrollHeight` 6748 vs a
+  729px viewport bound). Restored the fix (confirmed via `git diff`
+  showing no drift from the committed version) and reran — passed. This
+  round-trip is the actual proof the test catches the regression, not
+  just that it runs.
+- Added `npm run test:e2e` (`playwright test`) to `package.json`, and
+  gitignored Playwright's own output (`test-results/`,
+  `playwright-report/`, `blob-report/`, `playwright/.cache/`).
+- Committed in two scoped commits: `2c283ab` (already-committed layout
+  fix, unchanged), `13a011a` (docs/memory), `202ca53` (Playwright infra +
+  test). Updated `PROJECT_STATUS.md`'s "Recent Fixes" entry and
+  `OPEN_QUESTIONS.md` to mark the Playwright question resolved.
+- Not pushed; branch `fix/mobile-chat-scroll-overflow` is ready for the
+  user to review/push/merge per CLAUDE.md's git workflow rules (Claude
+  does not push or merge).

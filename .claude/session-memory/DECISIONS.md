@@ -65,3 +65,41 @@ that carve-out.
 **How to apply:** these 4 files are now part of the normal commit/push flow going forward: stage
 them by name like any other tracked file when they change. `settings.local.json` is not
 committable without a further explicit request to change scope.
+
+## 2026-07-21 — Added Playwright as this project's first E2E/browser-test tool; live-DB-seed pattern approved
+
+Before this date the project had zero Playwright/E2E infrastructure — every test was Vitest with
+fully mocked Prisma. A mobile chat layout bug fix (`min-h-0` missing in
+`app/app/chat/page.tsx`, branch `fix/mobile-chat-scroll-overflow`) needed real-browser validation,
+so this was surfaced to the user as a genuine infrastructure decision rather than made
+unilaterally — `.env.local`'s `DATABASE_URL`/`OPENAI_API_KEY` point to real remote Neon/OpenAI
+services with no test/sandbox separation, so any live-integration browser test necessarily touches
+real infrastructure.
+
+User chose: install `@playwright/test` (chromium only), seed a real `TemporarySession` + READY
+`Document`/`Page`/`OcrResult` directly via Prisma for setup, and inject a long assistant message
+directly into the DOM rather than triggering a real `sendMessage` call (which would hit the real,
+billed OpenAI API). Implemented as `playwright.config.ts` + `tests/e2e/mobile-chat-overflow.pw.ts`
++ `npm run test:e2e`.
+
+- Reused `tests/schema/helpers.ts`'s existing `OwnerCleanup`/`futureDate`/`isLiveDbConfigured`
+  rather than inventing new seed/cleanup helpers — that file already established the live-DB test
+  pattern (gated behind `isLiveDbConfigured()` so it auto-skips without a real `DATABASE_URL`).
+- Playwright test files use the `.pw.ts` suffix (not `.spec.ts`/`.test.ts`), and
+  `playwright.config.ts` sets `testMatch: "**/*.pw.ts"` explicitly, so Vitest's default include
+  glob never picks them up — verified `npm test` still reports the same file/test count after
+  adding it.
+- Verified the new test isn't vacuous by temporarily reverting the `min-h-0` fix and confirming it
+  fails (reproduced the real bug: 6748px document height against a 729px mobile viewport), then
+  restored the fix and confirmed it passes.
+
+**Why:** CLAUDE.md requires checking current docs before installing a testing framework and
+flagging decisions with real infrastructure/cost implications rather than making them
+unilaterally — this one touches the live dev database and could otherwise trigger real OpenAI
+spend.
+**How to apply:** this establishes the precedent for future browser-driven tests on this project:
+seed via Prisma reusing `tests/schema/helpers.ts`'s cleanup helpers, avoid real OpenAI calls by
+injecting content directly or stubbing at the seam that exists, and always verify a new regression
+test actually fails without the fix before trusting it. Still ask the user before adding *another*
+live-integration test rather than assuming this precedent is blanket permission — each one touches
+the same shared live dev database. See [[project-test-infrastructure-gap]].

@@ -1,6 +1,13 @@
 # Open Questions
 
-## Blocking: how to validate the mobile chat overflow fix with Playwright (2026-07-21)
+## RESOLVED — how to validate the mobile chat overflow fix with Playwright (2026-07-21)
+
+User chose "live-DB seed + DOM injection." Implemented as `tests/e2e/mobile-chat-overflow.pw.ts` +
+`playwright.config.ts` (`npm run test:e2e`). Confirmed the test actually catches the regression
+(reverting the fix reproduced a 6748px document height against a 729px viewport and failed the
+test). See PROJECT_STATUS.md's "Recent Fixes" entry and WORK_LOG.md for full detail. Original
+framing of the blocker kept below for context on the underlying infra gap, which is otherwise
+still true going forward (any *other* live-integration test still needs the same conversation).
 
 `fix/mobile-chat-scroll-overflow` (commit `2c283ab`) fixes the layout bug (see WORK_LOG.md), and
 `tsc`/`lint`/`npm test` all pass. The one remaining requested validation step — a Playwright mobile
