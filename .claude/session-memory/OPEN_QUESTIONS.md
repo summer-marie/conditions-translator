@@ -1,5 +1,32 @@
 # Open Questions
 
+## Blocking: how to validate the mobile chat overflow fix with Playwright (2026-07-21)
+
+`fix/mobile-chat-scroll-overflow` (commit `2c283ab`) fixes the layout bug (see WORK_LOG.md), and
+`tsc`/`lint`/`npm test` all pass. The one remaining requested validation step — a Playwright mobile
+regression test — is blocked on a real infrastructure decision, not just missing code:
+
+- This project has **no Playwright/E2E setup at all** (not a devDependency, no config, no spec
+  files). Every existing test is Vitest with fully mocked Prisma.
+- `.env.local`'s `DATABASE_URL` (Neon Postgres) and `OPENAI_API_KEY` are real remote credentials —
+  there is no test/sandbox database or mocked-AI test seam anywhere in the codebase.
+- Reaching the actual long-message chat screen for real requires either (a) writing real rows into
+  the user's live dev database (a temp session + READY document/page) and, if a message is
+  actually sent, a real billed OpenAI call, or (b) adding a new test-only seam to production code
+  (e.g. an injectable OpenAI `baseURL`) that doesn't exist today — outside this fix's minimal scope.
+
+Options to put to the user rather than deciding alone:
+1. Install Playwright + seed one real Document directly via Prisma into the live dev DB, reach the
+   chat screen via the real UI, then inject a long message into the DOM directly (no real
+   `sendMessage`/OpenAI call) to verify the layout — real component tree, real CSS, but writes a
+   couple of throwaway rows to the live Neon DB (cleanable after).
+2. Skip live app/DB integration; write an isolated Playwright fixture reproducing the exact
+   Tailwind class structure to pin down the flexbox mechanism — no DB/API involved, but doesn't
+   exercise the real component tree.
+3. Skip Playwright for this fix; rely on `tsc`/`lint`/code-reasoning, and note a real
+   mobile-device/manual QA pass as a follow-up.
+
+
 Compiled from a full docs review on 2026-07-20, **corrected same-day**
 after discovering PROJECT_STATUS.md itself is stale (last touched at
 commit `ae4b107`, before several items below were actually resolved).

@@ -74,3 +74,44 @@
   catch-all as "redundant" with the named `.env.*.local` entries above
   it — it wasn't (it's what actually covers `.env.vercel`/
   `.env.vercel.pull`) — restored it as a single consolidated line.
+
+## 2026-07-21
+
+- Investigated a reported mobile chat bug (long assistant response grows
+  past the viewport, composer unreachable). Read
+  `app/app/chat/page.tsx`, `components/layout/AppNav.tsx`, and
+  `components/ui/Card.tsx`. Confirmed the diagnosis: the chat screen's
+  inner flex column (line ~373) had no `min-h-0`, so it kept flexbox's
+  default `min-height: auto` and refused to shrink below its content's
+  intrinsic height inside the outer, already viewport-height-constrained
+  wrapper (`h-[calc(100dvh-7.5rem)]` on mobile) — the message `Card`'s
+  existing `overflow-y-auto` never received a bounded height to scroll
+  within.
+- Fix: added `min-h-0` to that one class list in `app/app/chat/page.tsx`.
+  No other files changed (`Card` and `AppNav` were read-only for
+  verification). Branched `fix/mobile-chat-scroll-overflow` off `main`;
+  staged only the one changed file; committed `2c283ab`.
+- Validated: `npx tsc --noEmit` clean; `npm run lint` shows only the
+  pre-existing baseline (24 errors/7 warnings, all in unrelated files,
+  mainly `tests/lib/session/temporary.test.ts`'s `no-explicit-any`); full
+  `npm test` 282/282 passing (no test currently covers this file's
+  rendering/layout, so this only confirms no regression elsewhere).
+- Updated `PROJECT_STATUS.md` with a new "Recent Fixes (Post-Phase,
+  Unscoped)" section documenting the bug, root cause, fix, and validation
+  status.
+- **Did not** install or run Playwright. Checked first: this project has
+  zero E2E/browser-test infrastructure today — every existing test file
+  (30 files, 282 tests) is Vitest with fully mocked Prisma via `vi.mock`,
+  confirmed by reading `tests/lib/actions/document.test.ts` as a
+  representative example. `.env.local`'s `DATABASE_URL` and
+  `OPENAI_API_KEY` (confirmed via `env.example`) point to real remote
+  services (Neon Postgres, OpenAI) with no test/sandbox separation
+  anywhere in the codebase. Standing up a live-integration Playwright test
+  for the real chat flow would mean either seeding real rows into the
+  user's actual dev database and/or triggering a real paid OpenAI call
+  (`sendMessage` → `lib/chat/client.ts`), or adding new test-only seams to
+  application code (e.g. an injectable OpenAI `baseURL`) purely to make it
+  mockable — the latter would be an unrelated-file change outside this
+  bug fix's minimal scope. Logged as an open question rather than
+  installing Playwright and picking an approach unilaterally, per
+  CLAUDE.md's dependency-check and clarification rules.
