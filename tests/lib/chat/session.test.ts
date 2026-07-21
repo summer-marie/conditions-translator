@@ -35,6 +35,12 @@ vi.mock("@/lib/chat/client", () => ({
   generateChatAnswer: vi.fn(),
 }));
 
+vi.mock("@/lib/session/chatDisclaimer", () => ({
+  requireChatDisclaimerAcknowledged: vi.fn(),
+}));
+
+import { requireChatDisclaimerAcknowledged } from "@/lib/session/chatDisclaimer";
+
 const owner = { kind: "temporary" as const, temporarySessionId: "session-123" };
 
 const singleDocContext = {
@@ -134,6 +140,26 @@ describe("createChatSession", () => {
     });
     expect(prisma.chatSession.create).not.toHaveBeenCalled();
   });
+
+  it("checks the chat-disclaimer acknowledgment before assembling context", async () => {
+    vi.mocked(assembleChatContext).mockResolvedValue(singleDocContext as any);
+
+    await createChatSession(owner, ["doc-1"]);
+
+    expect(requireChatDisclaimerAcknowledged).toHaveBeenCalledWith(owner);
+  });
+
+  it("does not create a session when the chat disclaimer has not been acknowledged", async () => {
+    vi.mocked(requireChatDisclaimerAcknowledged).mockRejectedValueOnce(
+      Object.assign(new Error("not acknowledged"), { code: "CHAT_DISCLAIMER_NOT_ACKNOWLEDGED" })
+    );
+
+    await expect(createChatSession(owner, ["doc-1"])).rejects.toMatchObject({
+      code: "CHAT_DISCLAIMER_NOT_ACKNOWLEDGED",
+    });
+    expect(assembleChatContext).not.toHaveBeenCalled();
+    expect(prisma.chatSession.create).not.toHaveBeenCalled();
+  });
 });
 
 describe("sendChatMessage", () => {
@@ -217,6 +243,32 @@ describe("sendChatMessage", () => {
     await expect(sendChatMessage(owner, "chat-1", "   ")).rejects.toMatchObject({
       code: "EMPTY_MESSAGE",
     });
+  });
+
+  it("checks the chat-disclaimer acknowledgment before loading the session", async () => {
+    vi.mocked(prisma.chatMessage.findMany).mockResolvedValue([]);
+    vi.mocked(generateChatAnswer).mockResolvedValue({
+      answer: "You report monthly.",
+      foundRelevantSource: true,
+      conflictDetected: false,
+      sources: [{ documentNumber: 1, pageNumbers: [1] }],
+    });
+
+    await sendChatMessage(owner, "chat-1", "Do I report monthly?");
+
+    expect(requireChatDisclaimerAcknowledged).toHaveBeenCalledWith(owner);
+  });
+
+  it("rejects the message when the chat disclaimer has not been acknowledged", async () => {
+    vi.mocked(requireChatDisclaimerAcknowledged).mockRejectedValueOnce(
+      Object.assign(new Error("not acknowledged"), { code: "CHAT_DISCLAIMER_NOT_ACKNOWLEDGED" })
+    );
+
+    await expect(sendChatMessage(owner, "chat-1", "Do I report monthly?")).rejects.toMatchObject({
+      code: "CHAT_DISCLAIMER_NOT_ACKNOWLEDGED",
+    });
+    expect(prisma.chatSession.findFirst).not.toHaveBeenCalled();
+    expect(generateChatAnswer).not.toHaveBeenCalled();
   });
 
   it("persists a grounded answer with true source mappings (documentNumber/pageNumber -> ids)", async () => {
