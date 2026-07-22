@@ -1,5 +1,67 @@
 # Work Log
 
+## 2026-07-21 (workspace upload queue fix)
+
+- Audit pass (no code, earlier in this same conversation): user reported being unable to
+  upload additional photos/pages while other uploaded pages were still being OCR-processed.
+  Traced to `app/app/workspace/page.tsx`'s `handleFileUpload`: it awaited a `for` loop that
+  uploaded each file then awaited `runOcrForPage` before the next, and `isUploading` (true for
+  the whole loop) disabled the file input. OCR runs synchronously server-side (a real OpenAI
+  Vision call inside `app/api/documents/[documentId]/pages/[pageId]/ocr/route.ts`, no job
+  queue). Confirmed UI-only — no docs described this as intentional, no test covered it.
+  Flagged one real server-side constraint: `Page.order` is assigned from a `prisma.page.count()`
+  read at request time, unique per `(documentId, order)` — so uploads must stay strictly serial
+  per document to avoid a collision. Reported root cause, files involved, complexity (small),
+  and recommended "queue uploads visibly but process serially" over true parallel uploads.
+- User approved "Implement Option 2" with explicit scope: client-side queue, strictly serial
+  upload+OCR processing, no server/schema/architecture changes.
+- Created branch `fix/workspace-upload-queue` off `main`.
+- `app/app/workspace/page.tsx`: added `uploadQueueRef` (ref-backed FIFO of
+  `{file, targetId, uploaded}`) and `drainUploadQueue` (serial worker: upload then OCR per
+  item, one at a time). `handleFileUpload` now enqueues and returns instead of awaiting the
+  whole cycle. File input `disabled` changed from `isUploading` to `isCreating` (the one
+  remaining real race — creating a brand-new intake document). Added `viewedDocumentIdRef`
+  (synced via a new `useEffect`) so a queued upload finishing after the user navigates to a
+  different document via the sidenav doesn't append into the wrong document's `pages` state.
+  10-page cap check now factors in queued files, not just committed `pageCount`.
+- While writing the Playwright regression test, found and fixed a real double-counting bug in
+  the cap check: a queue item whose `POST .../pages` already succeeded (only its OCR still
+  pending) was being counted both via the now-incremented `pageCount` *and* via the queue
+  filter (only fully dequeued after OCR too finishes) — over-rejecting batches that actually
+  still fit. Fixed by adding a per-item `uploaded` flag, flipped true right after the upload
+  call succeeds, and excluding `uploaded` items from the queued-count used in the cap check.
+  See DECISIONS.md.
+- Added `tests/e2e/workspace-upload-queue.pw.ts` (2 tests, live-DB Playwright). Both `POST
+  .../pages` and `POST .../pages/[pageId]/ocr` are intercepted via `page.route()` with fake
+  JSON (no real Blob storage or billed OpenAI call). Test 1 (fresh doc): picker stays enabled
+  and a second file queues while the first's mocked OCR is artificially delayed 1.2s; asserts
+  no overlapping requests to either endpoint (proves the order-collision-safety by
+  construction) and both pages land in order. Test 2 (8 pre-seeded pages): selects 2 files at
+  once (fills to exactly 10), then immediately a 3rd while the first of the two is still
+  mid-upload (pages-POST mocked with an 800ms delay) — correctly rejected because both queued
+  files count even though committed `pageCount` hasn't moved yet; this is the exact scenario
+  that caught the double-counting bug above during development.
+- Debugging notes worth keeping (also in CURRENT_SESSION.md): the upload box hides itself
+  entirely once `pageCount` actually reaches 10 while `IN_PROGRESS` (pre-existing, unrelated
+  logic) — so the cap test had to stay below that ceiling (8+2+1, not 9+1+1) or the input
+  would vanish before the second selection. `getByText("Page N")` needed `{exact:true}` since
+  it otherwise substring-matches the same page's closed-but-DOM-present transcript dialog
+  heading ("Page N transcript"). An early version of the OCR mock hardcoded `order: 0` in its
+  response, which silently overwrote the real page order client-side (the response gets
+  spread into existing page state) and caused a confusing "Page 1" appearing twice instead of
+  "Page 9"/"Page 10" — fixed by parsing the order back out of the mock's own `pageId`.
+- Updated `PROJECT_STATUS.md`: added this fix's entry, and while there, found and corrected 3
+  other entries stale relative to `git log` — `fix/signed-in-new-document` (merged PR #39),
+  `feat/chat-legal-disclaimer` (merged PR #38), `fix/mobile-chat-scroll-overflow` (merged PR
+  #37) were all still marked "not yet merged."
+- Final validation: `tsc --noEmit` clean, `npm run lint` unchanged at the pre-existing
+  24-error/6-warning baseline, `npm test` 301/301 (no vitest changes — no component-render
+  harness exists in this repo), `npx playwright test` 10/10 across both projects (8
+  pre-existing + 2 new).
+- Committed as 3 commits: `fix:` (page.tsx), `test:` (new Playwright spec), `docs:`
+  (PROJECT_STATUS.md). Not pushed; branch `fix/workspace-upload-queue` ready for the user to
+  review/push/merge per CLAUDE.md's git workflow rules.
+
 ## 2026-07-21 (signed-in "start new document" fix)
 
 - Audit pass (no code): user reported that on mobile, a signed-in account trying to
