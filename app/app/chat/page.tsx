@@ -153,7 +153,7 @@ export default function ChatPage() {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, isSending]);
 
   /**
    * Toggles a document in/out of the selection, capping additions at {@link MAX_DOCUMENTS}.
@@ -574,6 +574,30 @@ export default function ChatPage() {
             )}
           </div>
         ))}
+        {isSending && (
+          <div className="text-left">
+            <div
+              className="inline-block max-w-[85%] rounded-lg rounded-bl-md px-3 py-2 text-sm"
+              style={{ backgroundColor: 'var(--color-background-subtle)', color: 'var(--color-text-body)' }}
+            >
+              <span className="sr-only">Assistant is thinking…</span>
+              <span className="inline-flex items-center gap-1" aria-hidden="true">
+                <span
+                  className="h-1.5 w-1.5 rounded-full animate-bounce"
+                  style={{ backgroundColor: 'var(--color-text-meta)', animationDelay: '0ms' }}
+                />
+                <span
+                  className="h-1.5 w-1.5 rounded-full animate-bounce"
+                  style={{ backgroundColor: 'var(--color-text-meta)', animationDelay: '150ms' }}
+                />
+                <span
+                  className="h-1.5 w-1.5 rounded-full animate-bounce"
+                  style={{ backgroundColor: 'var(--color-text-meta)', animationDelay: '300ms' }}
+                />
+              </span>
+            </div>
+          </div>
+        )}
         <div ref={messagesEndRef} />
       </Card>
 

@@ -1,5 +1,48 @@
 # Work Log
 
+## 2026-07-22 (chat in-thread thinking bubble)
+
+- Task: after sending a chat message, the log itself stayed static (only the Send button's own
+  spinner gave feedback) until the real reply arrived — user wanted a small in-thread
+  loading/thinking bubble so the conversation feels alive while waiting.
+- Read `app/app/chat/page.tsx` fully (only file genuinely in scope — message list/composer all
+  live in this one client component; no separate message-item component exists to touch).
+  Confirmed root cause: `isSending` drove only the Send button's `isLoading` prop; the
+  `role="log"` `Card` rendered purely from `messages`, with nothing keyed to `isSending`.
+- Created branch `feat/chat-thinking-bubble` off `main`.
+- Added an `isSending`-gated bubble block right before the `messagesEndRef` sentinel: styled
+  identically to a real ASSISTANT bubble (`rounded-bl-md`, `--color-background-subtle` /
+  `--color-text-body`), containing three `animate-bounce` dots (staggered 0/150/300ms delays)
+  plus an `sr-only` "Assistant is thinking…" label (dots marked `aria-hidden`). Reused Tailwind's
+  built-in `animate-bounce`, no new CSS.
+- Added `isSending` to the existing scroll-into-view `useEffect`'s deps (was `[messages]` only)
+  so the bubble is scrolled into view the instant it appears.
+- Kept the Send button's spinner as-is — both together are intentional double feedback, not
+  redundant, per the task's explicit instruction.
+- Checked `tests/` for any existing test targeting `chat/page.tsx` rendering: none (no
+  jsdom/component-render harness in this repo, matching prior sessions' notes). `npm test`
+  301/301 unaffected.
+- Manual verification: needed a live chat session without triggering a real, billed OpenAI call.
+  Tried a standalone Prisma-seeding Node script first — failed, since this project's Prisma
+  client is generated as TypeScript-only (`generated/prisma`, `provider = "prisma-client"`, no
+  compiled `.js`/no `tsx`/`ts-node` devDependency available to run it standalone). Pivoted to
+  writing a temporary `tests/e2e/tmp-chat-bubble-check.pw.ts` (same live-DB seeding pattern as
+  `mobile-chat-overflow.pw.ts`, run via the project's existing `npx playwright test`, which
+  already has working TS support) — started a real chat session through the real UI, then
+  registered a `page.route()` intercept *after* Start Chat completed (registering it earlier
+  ended up also delaying/aborting the `startChat` action's own POST to the same route, since
+  both server actions post to the same page URL — first attempt broke "Start chat" itself; fixed
+  by moving the intercept registration to after the composer became visible), delayed 2.5s then
+  aborted the `sendMessage` action's request. Screenshot-confirmed the three-dot bubble appears
+  correctly alongside the optimistic user message and the Send spinner while pending, and clears
+  correctly (0 count) once the request fails, with the pre-existing rollback/error-alert flow
+  taking over unaffected (shown as "Failed to fetch" from the aborted fetch, not a custom
+  message — expected, not a bug). Deleted the temp test file and `test-results/` output after
+  use; not committed.
+- Updated `PROJECT_STATUS.md`'s "Recent Fixes" section with this entry.
+- Final validation: `tsc --noEmit` clean, `npm run lint` unchanged at the 24-error/6-warning
+  baseline, `npm test` 301/301.
+
 ## 2026-07-21 (pointer-cursor gap fix, follow-up to check-only audit)
 
 - Earlier in this conversation (check-only, no code): audited `app/globals.css`'s sitewide
