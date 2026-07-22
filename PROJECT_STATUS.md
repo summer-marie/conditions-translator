@@ -84,6 +84,27 @@ separately when work resumes.
 
 ## Recent Fixes (Post-Phase, Unscoped)
 
+- **In-thread chat "thinking" bubble (2026-07-22, branch `feat/chat-thinking-bubble`, not yet
+  merged).** After sending a chat message, the only pending-state feedback was the Send
+  button's spinner (`isLoading={isSending}`) — the message log itself (`app/app/chat/page.tsx`'s
+  `role="log"` `Card`) only ever rendered from the `messages` array, with no rendering tied to
+  `isSending`, so the log stayed static until the real reply landed. Fixed by rendering a small
+  assistant-side bubble (three staggered `animate-bounce` dots, styled identically to a real
+  assistant message bubble, plus an `sr-only` "Assistant is thinking…" label) directly inside the
+  message log whenever `isSending` is true, and adding `isSending` to the log's existing
+  auto-scroll effect's dependency array so the bubble scrolls into view immediately on send. The
+  existing Send-button spinner was left in place (both together read as consistent double
+  feedback, not redundant). No new shared component — the bubble is inline JSX local to this one
+  screen. Validated: `tsc --noEmit` clean; `npm run lint` unchanged at the pre-existing
+  24-error/6-warning baseline; full `npm test` 301/301 unaffected (no existing test targets this
+  file's rendering). Manually verified via a throwaway (not committed) live-DB Playwright script
+  that delayed then failed the real `sendMessage` server action's request: the three-dot bubble
+  appeared correctly alongside the optimistic user message while pending, and cleared correctly
+  once the request failed and the existing rollback/error-alert behavior took over — screenshot-
+  confirmed both states. No automated regression test added (not requested; would mean either a
+  new live-DB Playwright spec purely for this small UI addition, or intercepting the server
+  action's request shape long-term, judged out of scope for a surgical fix).
+
 - **Pointer-cursor gaps on custom clickable backdrops (2026-07-21, branch
   `fix/mobile-pointer-cursor-gaps`, not yet merged).** Follow-up to a check-only audit (same
   day) of the sitewide `@media (any-pointer: fine)` pointer-cursor rule in `app/globals.css`.
