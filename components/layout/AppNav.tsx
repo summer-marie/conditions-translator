@@ -434,7 +434,7 @@ function AppNavContent({ children }: { children: React.ReactNode }) {
       {menuOpen && (
         <>
           <div
-            className="md:hidden fixed inset-0 z-30 bg-black/30"
+            className="md:hidden fixed inset-0 z-30 bg-black/30 cursor-pointer"
             onClick={() => setMenuOpen(false)}
             aria-hidden="true"
           />
@@ -564,7 +564,7 @@ function AppNavContent({ children }: { children: React.ReactNode }) {
           second entry point. */}
       {deleteDocModal.isOpen && deleteDocModal.document && (
         <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 cursor-pointer"
           onClick={handleDeleteDocCancel}
           role="dialog"
           aria-modal="true"
@@ -736,7 +736,7 @@ function DocumentActionsMenu({
       <>
         {/* Invisible full-screen backdrop: closes the popover on an outside click without
             dimming the page, keeping it popover-weight rather than modal-weight. */}
-        <div className="fixed inset-0 z-40" onClick={onClose} />
+        <div className="fixed inset-0 z-40 cursor-pointer" onClick={onClose} />
         <div
           ref={popoverRef}
           role="menu"
@@ -766,7 +766,7 @@ function DocumentActionsMenu({
 
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-black/50" onClick={onClose} aria-hidden="true" />
+      <div className="fixed inset-0 z-40 bg-black/50 cursor-pointer" onClick={onClose} aria-hidden="true" />
       <div
         ref={sheetRef}
         role="menu"

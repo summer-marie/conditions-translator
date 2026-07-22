@@ -1930,7 +1930,7 @@ function WorkspacePageContent() {
       {/* Delete page confirmation modal (mirrors the dashboard's delete-document modal pattern) */}
       {deletePageModal.isOpen && (
         <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 cursor-pointer"
           onClick={handleDeletePageCancel}
           role="dialog"
           aria-modal="true"
@@ -1983,7 +1983,7 @@ function WorkspacePageContent() {
       {/* Expanded image modal */}
       {expandedImagePage && document && (
         <div
-          className="fixed inset-0 bg-black/75 flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-black/75 flex items-center justify-center z-50 p-4 cursor-pointer"
           onClick={() => setExpandedImagePage(null)}
           role="dialog"
           aria-modal="true"

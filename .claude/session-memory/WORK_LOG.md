@@ -1,5 +1,38 @@
 # Work Log
 
+## 2026-07-21 (pointer-cursor gap fix, follow-up to check-only audit)
+
+- Earlier in this conversation (check-only, no code): audited `app/globals.css`'s sitewide
+  `@media (any-pointer: fine)` pointer-cursor rule. Found it's real and comprehensive
+  (`a[href]`, `button`, native form-control types, `summary`, `label[for]`, `select`,
+  `[role="button"/"link"]`, focusable `[tabindex]`, `[onclick]`, `.cursor-pointer` escape
+  hatch), but two real gaps: (1) `[onclick]` never matches React's `onClick` prop (confirmed via
+  repo-wide grep: zero literal `onclick=` attributes exist), so it's effectively dead code; (2)
+  ~6 real backdrop `<div>`s with genuine `onClick` dismiss handlers had no pointer affordance
+  since they use none of the rule's other selectors. Reported findings, no code changed.
+- This session: user approved a surgical fix, explicitly scoped to only the audited gaps, no
+  global-rule redesign, prefer `.cursor-pointer` over adding `role="button"` for backdrops.
+- Created branch `fix/mobile-pointer-cursor-gaps` off `main`.
+- Patched `app/app/workspace/page.tsx`: delete-page modal backdrop
+  (`fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4` -> added
+  `cursor-pointer`), expanded-image modal backdrop (same pattern, `bg-black/75`). Checked the
+  file-upload dropzone `<label>` (implicit-association, no `htmlFor`) — already had
+  `.cursor-pointer` from before this session; confirmed correct, no change needed.
+- Patched `components/layout/AppNav.tsx`: mobile hamburger-menu backdrop, delete-document modal
+  backdrop, document-actions popover backdrop, document-actions bottom-sheet backdrop — added
+  `cursor-pointer` to each's existing className.
+- Left `app/globals.css` and the modal-content `stopPropagation` divs untouched, per scope.
+- Validated: `tsc --noEmit` clean, `npm run lint` unchanged at the 24-error/6-warning baseline.
+  Started `next dev`; found the previous session's dev server (port 3000) had been left running
+  as an orphaned background process (its tracked task ID no longer resolved) — stopped it after
+  reusing it for verification via `Stop-Process`. Two throwaway Playwright scripts (not
+  committed, copied into the project root as `.cjs` temporarily to resolve `@playwright/test`
+  then deleted): a computed-style check against the real bundled CSS for all 5 patched class
+  strings (all resolved `cursor: pointer`), and a live click-through (`/app/start` accept ->
+  `/app/workspace` -> open mobile hamburger menu) confirming the real rendered backdrop reports
+  `cursor: pointer`, screenshot-verified.
+- Updated `PROJECT_STATUS.md`'s "Recent Fixes" section with this entry.
+
 ## 2026-07-21 (mobile footer/CTA overflow fix)
 
 - Task described a squeezed/cramped mobile footer "shown in the screenshot" — no image was

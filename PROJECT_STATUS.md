@@ -84,6 +84,29 @@ separately when work resumes.
 
 ## Recent Fixes (Post-Phase, Unscoped)
 
+- **Pointer-cursor gaps on custom clickable backdrops (2026-07-21, branch
+  `fix/mobile-pointer-cursor-gaps`, not yet merged).** Follow-up to a check-only audit (same
+  day) of the sitewide `@media (any-pointer: fine)` pointer-cursor rule in `app/globals.css`.
+  That rule's `[onclick]` selector only matches a literal HTML `onclick="..."` attribute — it
+  never matches React's `onClick` prop, since React doesn't render one to the DOM (confirmed:
+  zero literal `onclick=` attributes exist anywhere in the codebase). As a result, ~6 real
+  full-screen backdrop `<div>`s with real `onClick` dismiss handlers (modal/popover/mobile-nav
+  overlays) had no pointer affordance on hover. Fixed by adding the rule's existing
+  `.cursor-pointer` escape-hatch class directly to each: the delete-page and expanded-image
+  modal backdrops and the file-upload dropzone label check in
+  `app/app/workspace/page.tsx` (the dropzone label already had `.cursor-pointer` — confirmed,
+  not changed), and the mobile hamburger-menu backdrop, delete-document modal backdrop, actions
+  popover backdrop, and document-actions bottom-sheet backdrop in
+  `components/layout/AppNav.tsx`. `role="button"` was deliberately not added — these are
+  dismiss-on-click-outside backdrops, not semantic buttons, so a class-only visual fix keeps the
+  change purely cosmetic. The global rule in `app/globals.css` itself was left unchanged (no
+  cleanup was needed). Validated: `tsc --noEmit` clean; `npm run lint` unchanged at the
+  pre-existing 24-error/6-warning baseline; verified via Playwright — a computed-style check
+  confirmed each patched class string resolves to `cursor: pointer`, and a live interaction test
+  (privacy-gate accept -> workspace -> open the mobile hamburger menu) confirmed the real
+  rendered backdrop reports `cursor: pointer`. No automated regression test added (styling-only
+  class additions, no new logic).
+
 - **Mobile footer/CTA overflow (2026-07-21, branch `fix/mobile-footer-cta-overflow`, not yet
   merged).** On mobile widths, the sticky footer/CTA bar's (`components/landing/FooterCTA.tsx`)
   "get started" button rendered at its intrinsic content width instead of shrinking to the
