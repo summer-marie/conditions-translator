@@ -17,7 +17,7 @@ interface BadgeProps {
  * @returns The rendered badge span.
  */
 export function Badge({ variant, size = "md", className = "", children }: BadgeProps) {
-  const baseStyles = "inline-flex items-center px-2.5 py-0.5 rounded-full font-medium";
+  const baseStyles = "inline-flex items-center text-center px-2.5 py-0.5 rounded-full font-medium";
   
   const variantStyles = {
     success: "bg-(--color-accent-success-bg) text-(--color-accent-success)",
