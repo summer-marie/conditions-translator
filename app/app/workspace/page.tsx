@@ -372,9 +372,11 @@ function WorkspacePageContent() {
             sections: inProgress.sections || [],
           };
         }
-      } else if (!status.userId) {
-        // Only auto-create a fresh document in temporary mode; a saved account with no documents
-        // is handled by the empty-state below rather than silently creating a temporary one.
+      } else {
+        // No documents at all yet (guest or signed-in) — auto-create the first intake document
+        // so the workspace never lands on the dead-end "Unable to load workspace" state.
+        // createTemporaryDocument resolves the owner itself (signed-in user or temporary
+        // session), so this is safe for both.
         setIsCreating(true);
         try {
           const newDoc = await createTemporaryDocument(DEFAULT_DOCUMENT_TITLE);
@@ -610,14 +612,9 @@ function WorkspacePageContent() {
 
     if (!targetDocument) {
       // No usable active intake document (none yet, or the previous one just finished) — start a
-      // new one via the guest auto-create action, triggered here instead of only on mount.
-      // Signed-in accounts are bailed out here because createTemporaryDocument doesn't yet
-      // resolve an authenticated owner (a known, pre-existing gap); their Upload box is disabled
-      // in this state (see canOfferNewDocument/newDocumentUploadDisabled) so this is defensive.
-      if (savedUserId) {
-        e.target.value = "";
-        return;
-      }
+      // new one via the auto-create action, triggered here instead of only on mount.
+      // createTemporaryDocument resolves the owner itself (signed-in user or temporary session),
+      // so this works the same for both.
       setIsCreating(true);
       try {
         const newDoc = await createTemporaryDocument(DEFAULT_DOCUMENT_TITLE);
@@ -964,9 +961,6 @@ function WorkspacePageContent() {
   // "add a page" to "start a new document" instead of disappearing.
   const canOfferNewDocument = !hasActiveIntakeRoom && (!effectiveIntake || effectiveIntake.status !== "IN_PROGRESS");
   const showUploadBox = hasActiveIntakeRoom || canOfferNewDocument;
-  // "Start a new document" is guest-only for now: createTemporaryDocument doesn't yet resolve an
-  // authenticated owner (a known, pre-existing gap), so it's disabled for signed-in users.
-  const newDocumentUploadDisabled = canOfferNewDocument && !hasActiveIntakeRoom && !!savedUserId;
 
   return (
     <div style={{ backgroundColor: 'var(--color-background-subtle)' }}>
@@ -1137,13 +1131,13 @@ function WorkspacePageContent() {
                 </h2>
                 <div className="flex items-center justify-center w-full">
                   <label
-                    className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg ${newDocumentUploadDisabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
+                    className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer"
                     style={{
                       borderColor: 'var(--color-border-default)',
                       backgroundColor: 'var(--color-background-subtle)',
                       borderRadius: 'var(--radius-md)'
                     }}
-                    onMouseEnter={(e) => { if (!newDocumentUploadDisabled) e.currentTarget.style.backgroundColor = 'var(--color-border-subtle)'; }}
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--color-border-subtle)'; }}
                     onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--color-background-subtle)'}
                   >
                     <div className="flex flex-col items-center justify-center pt-5 pb-6">
@@ -1188,18 +1182,10 @@ function WorkspacePageContent() {
                       {...PAGE_IMAGE_FILE_INPUT_PROPS}
                       multiple
                       onChange={handleFileUpload}
-                      disabled={isUploading || newDocumentUploadDisabled}
+                      disabled={isUploading}
                     />
                   </label>
                 </div>
-                {newDocumentUploadDisabled && (
-                  <p
-                    className="mt-2 text-center"
-                    style={{ fontSize: 'var(--font-size-caption)', color: 'var(--color-text-meta)' }}
-                  >
-                    Starting a new document isn&apos;t available for signed-in accounts yet.
-                  </p>
-                )}
                 {isUploading && (
                   <div className="mt-4 flex items-center justify-center">
                     <div 
