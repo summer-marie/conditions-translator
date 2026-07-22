@@ -15,8 +15,6 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/database/prisma";
 import { AppError } from "@/lib/errors";
 import {
-  temporaryOwner,
-  type Owner,
   getOwnedDocument,
   createDocument as createOwnedDocument,
   ownerWhere,
@@ -26,10 +24,7 @@ import {
   DEFAULT_DOCUMENT_TITLE,
   OCR_MAX_CORRECTION_CHARACTERS,
 } from "@/lib/constants";
-import {
-  getTemporarySession,
-  isPrivacyAccepted,
-} from "@/lib/session/temporary";
+import { isPrivacyAccepted } from "@/lib/session/temporary";
 import { getCurrentOwner } from "@/lib/auth/session";
 import { validateImageUpload } from "@/lib/validation/image";
 import { uploadPageImage, deletePageImage } from "@/lib/storage/blob";
@@ -72,21 +67,30 @@ async function requireInProgressOwnedDocument(documentId: string) {
 }
 
 /**
- * Creates a new IN_PROGRESS Document owned by the current temporary session.
+ * Creates a new IN_PROGRESS Document owned by the current owner (signed-in user or
+ * temporary session).
  *
- * Requires the privacy notice to have been accepted first. The new Document is given a
- * temporary-session expiry derived from {@link TEMP_SESSION_TTL_HOURS}.
+ * A signed-in user takes precedence over any lingering temporary-session cookie, matching
+ * {@link getCurrentOwner}'s precedence used by every other owner-aware action. Requires the
+ * privacy notice to have been accepted first — a signed-in user is already treated as
+ * accepted (done at account creation, see {@link isPrivacyAccepted}), so only a temporary
+ * owner is actually checked against session state. A temporary-owned Document is given a
+ * temporary-session expiry derived from {@link TEMP_SESSION_TTL_HOURS}; a user-owned
+ * Document never expires (enforced by {@link createOwnedDocument}).
  *
  * @param title - Initial title; defaults to {@link DEFAULT_DOCUMENT_TITLE}.
  * @returns The created Document.
  * @throws {AppError} `PRIVACY_NOT_ACCEPTED` (403) when the notice hasn't been accepted.
- * @throws {AppError} `NO_ACTIVE_SESSION` (401) when there is no temporary session.
+ * @throws {AppError} `NO_ACTIVE_SESSION` (401) when there is no signed-in user or temporary
+ *   session.
  */
 export async function createTemporaryDocument(
   title: string = DEFAULT_DOCUMENT_TITLE
 ) {
+  const owner = await getCurrentOwner();
+
   // Gate document creation on privacy acceptance — nothing is stored before consent.
-  const privacyAccepted = await isPrivacyAccepted();
+  const privacyAccepted = await isPrivacyAccepted(owner?.kind === "user");
   if (!privacyAccepted) {
     throw new AppError(
       "Privacy notice must be accepted before creating a document.",
@@ -95,8 +99,7 @@ export async function createTemporaryDocument(
     );
   }
 
-  const session = await getTemporarySession();
-  if (!session) {
+  if (!owner) {
     throw new AppError(
       "No active session found.",
       401,
@@ -104,14 +107,15 @@ export async function createTemporaryDocument(
     );
   }
 
-  const owner: Owner = temporaryOwner(session.id);
+  if (owner.kind === "user") {
+    return createOwnedDocument(owner, { title });
+  }
+
   const expiresAt = new Date(
     Date.now() + TEMP_SESSION_TTL_HOURS * 60 * 60 * 1000
   );
 
-  const document = await createOwnedDocument(owner, { title, expiresAt });
-
-  return document;
+  return createOwnedDocument(owner, { title, expiresAt });
 }
 
 /**
