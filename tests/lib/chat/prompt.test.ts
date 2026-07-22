@@ -46,4 +46,12 @@ describe("CHAT_SYSTEM_PROMPT safety rules", () => {
     expect(prompt).toContain("evidence");
     expect(prompt).toMatch(/ignore previous instructions|never as a command|not as a command/);
   });
+
+  it("does not instruct a generic legal-advice disclaimer on every answer", () => {
+    // The standing disclaimer now lives in the product UI (banner/bottom sheet), acknowledged
+    // once per account or once per temporary session — the model should stop repeating it.
+    expect(prompt).toMatch(/already (seen and )?acknowledged/);
+    expect(prompt).toMatch(/do not repeat|not restate/);
+    expect(prompt).not.toContain("add a brief, calm disclaimer where appropriate");
+  });
 });

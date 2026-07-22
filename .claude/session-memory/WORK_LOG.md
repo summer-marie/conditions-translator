@@ -1,5 +1,60 @@
 # Work Log
 
+## 2026-07-21 (chat legal-disclaimer)
+
+- Audit pass (no code): read CLAUDE.md, docs 01/02/05/06/08/09/10, and traced the actual chat
+  code (`lib/chat/prompt.ts`, `lib/chat/client.ts`, `app/app/chat/page.tsx`) plus the existing
+  Privacy Notice gate (`components/landing/PrivacyGateModal.tsx`, `lib/session/temporary.ts`,
+  `lib/actions/privacy.ts`) to find the actual root cause and reusable patterns. Reported
+  findings and asked two clarifying questions (disclaimer scope vs. Privacy Notice; mobile
+  popup shape) before implementing.
+- User approved with 3 decisions: separate chat-specific disclaimer, compact focus-trapped
+  bottom sheet on mobile, server-side enforcement required (not UI-only).
+- Created branch `feat/chat-legal-disclaimer`. Baseline before changes: `tsc` clean, 282/282
+  vitest, lint at the known 24-error/7-warning baseline.
+- Schema: added `User.chatDisclaimerAcknowledgedAt` and
+  `TemporarySession.chatDisclaimerAcknowledgedAt` (migration
+  `20260721224749_add_chat_disclaimer_acknowledgment`, applied to the live dev Neon DB via
+  `npx prisma migrate dev`), regenerated the Prisma client.
+- Added `lib/session/chatDisclaimer.ts` (isAcknowledged/acknowledge/require helpers) and
+  `lib/actions/chatDisclaimer.ts` (Server Action), mirroring the existing
+  `lib/session/temporary.ts`/`lib/actions/privacy.ts` pattern but kept as a fully separate
+  module/flag per the confirmed decision.
+- Extended `/api/session/status` with `chatDisclaimerAcknowledged`, resolved independently for
+  a signed-in user vs. a temporary session.
+- Added server-side enforcement: `lib/chat/session.ts`'s `createChatSession` and
+  `sendChatMessage` both call `requireChatDisclaimerAcknowledged(owner)` before doing anything
+  else, throwing `CHAT_DISCLAIMER_NOT_ACKNOWLEDGED` (403) — so chat entry/use is blocked
+  server-side even if the client is bypassed.
+- Rewrote `CHAT_SYSTEM_PROMPT`'s CORE RULES bullet 2 (the actual root cause of the "constant
+  legal-advice" complaint — see CURRENT_SESSION.md) so the model stops adding a generic
+  disclaimer to every answer, while leaving the four required SPECIFIC BEHAVIORS
+  (permission/missing-source/conflict/violation) untouched.
+- Built `components/chat/ChatDisclaimerSheet.tsx` (mobile bottom sheet, focus-trapped via the
+  existing `useFocusTrap` hook, single "Got it" action, `md:hidden`) and wired both it and a
+  compact desktop `Alert` banner into `app/app/chat/page.tsx`, gating Start Chat/Send
+  client-side too (defense in depth, not the only gate).
+- Tests added/updated: `tests/lib/session/chatDisclaimer.test.ts` (new),
+  `tests/api/session/status.test.ts` (new), `tests/lib/chat/session.test.ts` (added disclaimer
+  enforcement tests + mock), `tests/lib/chat/prompt.test.ts` (added a test for the
+  anti-repetition instruction). 282 -> 300 passing.
+- Playwright: added a `desktop-chrome` project to `playwright.config.ts`, scoped via a
+  `*.desktop.pw.ts` naming convention (`testMatch`/`testIgnore`) so it doesn't affect the
+  existing mobile-only spec. Added `tests/e2e/chat-disclaimer.pw.ts` (mobile sheet: appears,
+  traps focus, blocks the underlying screen until acknowledged, persists per-session, and a
+  genuinely new session re-prompts independently) and
+  `tests/e2e/chat-disclaimer.desktop.pw.ts` (desktop banner: appears/hides, and a signed-in
+  user's acknowledgment persists per-account regardless of any temporary session). All 6 new
+  Playwright tests pass.
+- Found and fixed one incidental regression: `tests/e2e/mobile-chat-overflow.pw.ts`'s seeded
+  temporary session had never acknowledged the new disclaimer, so the new mobile sheet
+  correctly started blocking it (test timed out clicking a covered checkbox). Fixed by having
+  that test pre-acknowledge the disclaimer directly via Prisma right after seeding the session,
+  since that test is about the mobile-overflow layout bug, not this new flow.
+- Final validation: `tsc --noEmit` clean, `npm test` 300/300, `npm run lint` unchanged at the
+  24-error/7-warning baseline, `npx playwright test` 6/6 passing (both projects).
+- Updated `PROJECT_STATUS.md`'s "Recent Fixes" section and this session-memory set.
+
 ## 2026-07-20
 
 - Read README.md, PROJECT_STATUS.md, AGENTS.md,

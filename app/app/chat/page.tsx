@@ -14,12 +14,14 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import { startChat, sendMessage } from "@/lib/actions/chat";
+import { acknowledgeChatDisclaimer } from "@/lib/actions/chatDisclaimer";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
 import { Alert } from "@/components/ui/Alert";
 import { DocumentInspector } from "@/components/chat/DocumentInspector";
+import { ChatDisclaimerSheet } from "@/components/chat/ChatDisclaimerSheet";
 
 /** A document's lifecycle status, as returned by the documents API. */
 type DocumentStatus =
@@ -85,6 +87,11 @@ export default function ChatPage() {
   // Set to the account id once the workspace is owned by a signed-in user (Phase 7); null while
   // the workspace is still temporary.
   const [savedUserId, setSavedUserId] = useState<string | null>(null);
+  // Chat-specific "not legal advice" disclaimer acknowledgment (lib/session/chatDisclaimer.ts) —
+  // separate from the Privacy Notice gate. `null` while unknown (status still loading), so the
+  // banner/sheet and the Start Chat gating below never flash before the real value is known.
+  const [disclaimerAcknowledged, setDisclaimerAcknowledged] = useState<boolean | null>(null);
+  const [isAcknowledgingDisclaimer, setIsAcknowledgingDisclaimer] = useState(false);
 
   const [chatSessionId, setChatSessionId] = useState<string | null>(null);
   const [activeDocuments, setActiveDocuments] = useState<{ documentId: string; title: string }[]>(
@@ -120,6 +127,7 @@ export default function ChatPage() {
         const statusRes = await fetch("/api/session/status");
         const status = await statusRes.json();
         setSavedUserId(status.userId ?? null);
+        setDisclaimerAcknowledged(!!status.chatDisclaimerAcknowledged);
         // Either a temporary session or a signed-in account (Phase 7) can own READY documents;
         // bail out only when neither is present.
         if (!status.sessionId && !status.userId) {
@@ -162,6 +170,28 @@ export default function ChatPage() {
       }
       return [...prev, id];
     });
+  }
+
+  /**
+   * Acknowledges the chat-specific disclaimer for the current owner, persisting it server-side
+   * (`lib/actions/chatDisclaimer.ts`) so the banner/sheet does not reappear until the next
+   * temporary session (or, for a signed-in user, never again).
+   */
+  async function handleAcknowledgeDisclaimer() {
+    setIsAcknowledgingDisclaimer(true);
+    setError(null);
+    try {
+      await acknowledgeChatDisclaimer();
+      setDisclaimerAcknowledged(true);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "We couldn't save your acknowledgment. Please try again."
+      );
+    } finally {
+      setIsAcknowledgingDisclaimer(false);
+    }
   }
 
   /**
@@ -261,6 +291,35 @@ export default function ChatPage() {
           documents you choose.
         </p>
 
+        {disclaimerAcknowledged === false && (
+          <Alert
+            tone="processing"
+            role="status"
+            bordered={false}
+            padding="sm"
+            className="hidden md:flex md:items-center md:justify-between md:gap-3 mb-4"
+          >
+            <p className="text-sm" style={{ color: 'var(--color-accent-processing)' }}>
+              This assistant explains your documents in plain language. It is not legal advice —
+              for compliance questions, talk to your supervising officer or an attorney.
+            </p>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={handleAcknowledgeDisclaimer}
+              isLoading={isAcknowledgingDisclaimer}
+            >
+              Got it
+            </Button>
+          </Alert>
+        )}
+        <ChatDisclaimerSheet
+          open={disclaimerAcknowledged === false}
+          onAcknowledge={handleAcknowledgeDisclaimer}
+          isSubmitting={isAcknowledgingDisclaimer}
+        />
+
         {error && (
           <Alert tone="destructive" role="alert" bordered={false} padding="sm" className="mb-4">
             <p
@@ -353,7 +412,7 @@ export default function ChatPage() {
 
             <Button
               onClick={handleStartChat}
-              disabled={selectedIds.length === 0}
+              disabled={selectedIds.length === 0 || disclaimerAcknowledged !== true}
               isLoading={isStarting}
               fullWidth
               variant="primary"
@@ -407,6 +466,35 @@ export default function ChatPage() {
           </Badge>
         ))}
       </div>
+
+      {disclaimerAcknowledged === false && (
+        <Alert
+          tone="processing"
+          role="status"
+          bordered={false}
+          padding="sm"
+          className="hidden md:flex md:items-center md:justify-between md:gap-3 mb-3"
+        >
+          <p className="text-sm" style={{ color: 'var(--color-accent-processing)' }}>
+            This assistant explains your documents in plain language. It is not legal advice —
+            for compliance questions, talk to your supervising officer or an attorney.
+          </p>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={handleAcknowledgeDisclaimer}
+            isLoading={isAcknowledgingDisclaimer}
+          >
+            Got it
+          </Button>
+        </Alert>
+      )}
+      <ChatDisclaimerSheet
+        open={disclaimerAcknowledged === false}
+        onAcknowledge={handleAcknowledgeDisclaimer}
+        isSubmitting={isAcknowledgingDisclaimer}
+      />
 
       <Card
         variant="default"
@@ -540,13 +628,13 @@ export default function ChatPage() {
             }}
             aria-label="Ask a question"
             placeholder="Ask a question…"
-            disabled={isSending}
+            disabled={isSending || disclaimerAcknowledged !== true}
             fullWidth={false}
             className="flex-1"
           />
           <Button
             onClick={handleSend}
-            disabled={!input.trim()}
+            disabled={!input.trim() || disclaimerAcknowledged !== true}
             isLoading={isSending}
             variant="primary"
           >

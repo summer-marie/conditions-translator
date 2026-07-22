@@ -1,5 +1,16 @@
 # Open Questions
 
+## Still open — real model-output disclaimer frequency not independently verified (2026-07-21)
+
+The chat legal-disclaimer work (`feat/chat-legal-disclaimer`) rewrote `CHAT_SYSTEM_PROMPT` so
+the model should stop repeating a generic "not legal advice" disclaimer on every answer. This
+is validated only via `tests/lib/chat/prompt.test.ts`'s static assertions on the prompt text —
+whether real live chat answers actually repeat less is not Playwright-testable without a real,
+billed OpenAI call, and none was made. Recommend a manual spot-check against a handful of live
+chat turns (ideally using `docs/06_AI_Safety_and_Persona.md` §7's Edge Case Test Library
+scenarios) before merging, per `docs/09_Coding_Risk_Register.md` R-001's prompt-change testing
+guidance. Not yet done as of this pass.
+
 ## RESOLVED — how to validate the mobile chat overflow fix with Playwright (2026-07-21)
 
 User chose "live-DB seed + DOM injection." Implemented as `tests/e2e/mobile-chat-overflow.pw.ts` +

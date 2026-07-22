@@ -4,6 +4,55 @@ Durable decisions made during Claude Code sessions on this project.
 Formal architecture ADRs belong in docs/Decision_Log.md, not here — this
 file is for smaller working decisions worth remembering across sessions.
 
+## 2026-07-21 — Chat legal-disclaimer: separate flag, not a Privacy Notice extension
+
+Confirmed by the user during the approval step (not assumed): the new chat-specific "not
+legal advice" disclaimer is a genuinely separate acknowledgment from the existing Privacy
+Notice gate (`components/landing/PrivacyGateModal.tsx` / `TemporarySession.noticeAcceptedAt`),
+which covers data retention/handling and is shown before first upload, not legal-advice
+framing. Implemented as its own fields (`User.chatDisclaimerAcknowledgedAt`,
+`TemporarySession.chatDisclaimerAcknowledgedAt`) and its own module
+(`lib/session/chatDisclaimer.ts`), not a reuse/extension of `lib/session/temporary.ts`'s
+existing privacy-acceptance flag.
+
+**Why:** cleaner separation of concerns per the user's explicit reasoning — the two notices
+cover genuinely different content, and merging them would have conflated "we don't keep your
+data forever" with "this isn't legal advice."
+**How to apply:** any future notice/disclaimer/consent gate on this project should default to
+its own flag+module unless the user explicitly asks for reuse — don't assume acknowledgment
+flags are interchangeable just because the acceptance UX pattern (modal/sheet + timestamp
+column) looks similar.
+
+## 2026-07-21 — Mobile disclaimer UX: focus-trapped bottom sheet, not a toast
+
+Confirmed by the user: the mobile chat disclaimer is a compact, focus-trapped bottom sheet
+(`components/chat/ChatDisclaimerSheet.tsx`) rather than an auto-dismissing toast/snackbar.
+
+**Why:** an explicit "Got it" tap gives real acknowledgment semantics for legal-adjacent copy;
+a passive tap-away/auto-dismiss toast would be a weaker signal that the user actually saw and
+agreed to the disclaimer, and this codebase had no existing toast component to reuse anyway
+(the closest precedent, `PrivacyGateModal`, is already a focus-trapped dialog, just full-screen
+instead of a bottom sheet).
+**How to apply:** future mandatory (not merely informational) mobile acknowledgments on this
+project should default to a focus-trapped sheet/dialog with an explicit confirm action, not a
+toast — reserve toasts for non-mandatory, purely informational feedback (which doesn't exist
+in this codebase yet either).
+
+## 2026-07-21 — Chat disclaimer server-side enforcement: check in lib/chat/session.ts, not lib/actions/chat.ts
+
+Enforcement (`requireChatDisclaimerAcknowledged`) was added as the first line of
+`createChatSession`/`sendChatMessage` in `lib/chat/session.ts`, not in `lib/actions/chat.ts`'s
+`requireOwner()`.
+
+**Why:** `requireOwner()` only resolves *who* the owner is; it's shared by `loadChat` too,
+which must keep working to refresh an already-started session's state even if acknowledgment
+bookkeeping were ever in an inconsistent state — gating belongs at the chat *entry/action*
+points (start a session, send a message), matching where message-limit enforcement already
+lives in the same file.
+**How to apply:** any future chat-specific gate (rate limits, additional consent, etc.) should
+default to the same choke points in `lib/chat/session.ts` rather than the thin Server Action
+wrappers in `lib/actions/chat.ts`.
+
 ## 2026-07-20 — Trimmed .env.local and env.example to actual codebase usage
 
 Audited every var in env.example/.env.local against real reads in the

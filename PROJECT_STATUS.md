@@ -84,6 +84,51 @@ separately when work resumes.
 
 ## Recent Fixes (Post-Phase, Unscoped)
 
+- **Chat legal-disclaimer UX + prompt de-repetition (2026-07-21, branch
+  `feat/chat-legal-disclaimer`, not yet merged).** The chat system prompt
+  (`lib/chat/prompt.ts`) previously instructed the model to "add a brief, calm disclaimer
+  where appropriate" on every substantive answer, on top of four SPECIFIC BEHAVIORS
+  categories (permission/missing-source/conflict/violation questions) that each separately
+  encode a hedge — since real supervision questions land in one of those categories almost
+  every time, this produced constant "not legal advice"-style boilerplate. Root cause fixed
+  by moving the standing "not legal advice" disclaimer into the product UI (acknowledged
+  once) and rewriting CORE RULES to tell the model not to repeat a generic disclaimer per
+  answer, restricting inline caveats to the four behaviors and only when actually triggered.
+  All four required safety behaviors (`docs/06_AI_Safety_and_Persona.md` §4) are unchanged.
+
+  Added a new, separate chat-specific disclaimer acknowledgment (deliberately distinct from
+  the existing Privacy Notice gate — `components/landing/PrivacyGateModal.tsx` /
+  `noticeAcceptedAt` — which covers data retention, not legal-advice framing):
+  `User.chatDisclaimerAcknowledgedAt` (once per account, never re-prompted) and
+  `TemporarySession.chatDisclaimerAcknowledgedAt` (once per temporary session — a new session
+  always re-prompts) via a new migration
+  (`20260721224749_add_chat_disclaimer_acknowledgment`), `lib/session/chatDisclaimer.ts`, and
+  `lib/actions/chatDisclaimer.ts`. `/api/session/status` now also reports
+  `chatDisclaimerAcknowledged`. Desktop shows a compact `Alert` banner at the top of the chat
+  box (`app/app/chat/page.tsx`); mobile shows a new focus-trapped, non-full-screen bottom
+  sheet (`components/chat/ChatDisclaimerSheet.tsx`, `md:hidden`). Enforcement is
+  defense-in-depth, not UI-only: `createChatSession`/`sendChatMessage`
+  (`lib/chat/session.ts`) call `requireChatDisclaimerAcknowledged` server-side and throw
+  `CHAT_DISCLAIMER_NOT_ACKNOWLEDGED` (403) regardless of client state; the UI additionally
+  disables Start Chat/Send until acknowledged.
+
+  Validated: `tsc --noEmit` clean; `npm run lint` at the pre-existing 24-error/7-warning
+  baseline (unrelated files); full `npm test` 300/300 (18 new: chat-disclaimer helper,
+  extended chat-session enforcement tests, extended prompt tests, new `/api/session/status`
+  tests); and 6 new Playwright tests across both a new `desktop-chrome` project (Desktop
+  Chrome viewport, scoped via a `*.desktop.pw.ts` naming convention so it doesn't affect the
+  existing mobile-only spec) and the existing `mobile-chrome` project — covering: the mobile
+  sheet appears, traps focus, and blocks the underlying screen until acknowledged; a new
+  temporary session is prompted independently of another session's acknowledgment; the
+  desktop banner appears/hides correctly; and a signed-in user's acknowledgment persists
+  per-account regardless of any temporary session. Fixed one incidental regression this
+  surfaced: `tests/e2e/mobile-chat-overflow.pw.ts`'s seeded session now pre-acknowledges the
+  new disclaimer directly via Prisma, since that test is about layout, not this flow. Real
+  model-output frequency (whether live answers actually repeat less) is not
+  Playwright-testable without a real billed OpenAI call — validated via the prompt's static
+  test assertions only; recommend a manual spot-check against a few live chat turns before
+  merge.
+
 - **Mobile chat layout overflow (2026-07-21, branch `fix/mobile-chat-scroll-overflow`, not yet
   merged).** On mobile, a long assistant response in `/app/chat` grew past the viewport instead of
   scrolling inside the message log, making the composer unreachable. Root cause: the chat screen's

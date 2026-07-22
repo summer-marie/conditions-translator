@@ -22,6 +22,7 @@ import {
 } from "@/lib/constants";
 import { assembleChatContext } from "@/lib/chat/context";
 import { generateChatAnswer, type ChatHistoryMessage } from "@/lib/chat/client";
+import { requireChatDisclaimerAcknowledged } from "@/lib/session/chatDisclaimer";
 
 /** A resolved citation attached to an assistant message, ready for display. */
 export interface ChatSourceView {
@@ -158,12 +159,17 @@ function computeLimits(userMessageCount: number, totalMessageCount: number): Cha
  * @param owner - The owner the session belongs to.
  * @param documentIds - Ids of the READY documents to ground the chat in.
  * @returns The initial {@link ChatSessionState} (no messages, zeroed limits).
+ * @throws {AppError} `CHAT_DISCLAIMER_NOT_ACKNOWLEDGED` (403) when the owner hasn't
+ *   acknowledged the chat disclaimer yet — enforced server-side so chat entry never relies
+ *   on client state alone.
  * @throws {AppError} Propagated from `assembleChatContext` for any invalid selection.
  */
 export async function createChatSession(
   owner: Owner,
   documentIds: string[]
 ): Promise<ChatSessionState> {
+  await requireChatDisclaimerAcknowledged(owner);
+
   // Validates ownership/READY/limits and throws clearly on any problem (never truncates).
   const context = await assembleChatContext(owner, documentIds);
 
@@ -273,6 +279,9 @@ export async function getChatSessionState(
  * @param userMessage - The user's raw question text.
  * @returns The persisted assistant {@link ChatMessageView} and post-turn {@link ChatLimits}.
  * @throws {AppError} `EMPTY_MESSAGE` (400) when the message is blank.
+ * @throws {AppError} `CHAT_DISCLAIMER_NOT_ACKNOWLEDGED` (403) when the owner hasn't
+ *   acknowledged the chat disclaimer yet — enforced server-side so chat use never relies on
+ *   client state alone (defense in depth alongside the same check in {@link createChatSession}).
  * @throws {AppError} `CHAT_SESSION_NOT_FOUND` (404) when the session is unowned or expired.
  * @throws {AppError} `CHAT_LIMIT_REACHED` (429) when the session's message budget is exhausted.
  * @throws {AppError} Propagated from context assembly or the model call on failure.
@@ -286,6 +295,8 @@ export async function sendChatMessage(
   if (!trimmed) {
     throw new AppError("Message cannot be empty.", 400, "EMPTY_MESSAGE");
   }
+
+  await requireChatDisclaimerAcknowledged(owner);
 
   const chatSession = await requireOwnedChatSession(owner, chatSessionId);
 
