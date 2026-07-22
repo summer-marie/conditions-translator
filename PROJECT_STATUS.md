@@ -84,6 +84,22 @@ separately when work resumes.
 
 ## Recent Fixes (Post-Phase, Unscoped)
 
+- **Mobile footer/CTA overflow (2026-07-21, branch `fix/mobile-footer-cta-overflow`, not yet
+  merged).** On mobile widths, the sticky footer/CTA bar's (`components/landing/FooterCTA.tsx`)
+  "get started" button rendered at its intrinsic content width instead of shrinking to the
+  available row width, overflowing past the right edge of the viewport — visually the button
+  text was clipped (e.g. "Add your first document" cut off to "d your first document").
+  Confirmed via before/after Playwright screenshots at 320/375/390px. Fixed by giving the CTA
+  row's vertical gap `gap-3` -> `gap-4` (more breathing room between the links row and the CTA
+  on mobile; desktop unaffected, already overridden by the existing `sm:gap-4`) and adding
+  `w-full sm:w-auto` to the `GetStartedCTA`'s className so the button fills the row's width on
+  mobile only, reverting to its normal auto width at the `sm` breakpoint and up. No changes to
+  `GetStartedCTA`/`Button` components themselves — both already supported the needed props.
+  Validated: `tsc --noEmit` clean; `npm run lint` unchanged at the pre-existing 24-error/6-warning
+  baseline (unrelated files); manually verified via Playwright screenshots at 320px/375px/390px
+  that the button no longer overflows and fills the row width correctly. No automated regression
+  test added (styling-only Tailwind change, no behavior/logic to assert against).
+
 - **Workspace upload queue (2026-07-21, branch `fix/workspace-upload-queue`, not yet merged).**
   `handleFileUpload` (`app/app/workspace/page.tsx`) previously disabled the page-image file
   input for the entire duration of a batch's upload+OCR cycle, so users could not select more
