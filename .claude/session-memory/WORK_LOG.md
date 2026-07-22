@@ -1,5 +1,36 @@
 # Work Log
 
+## 2026-07-22 (Conditions Translator -> Verity rename, last remaining string)
+
+- User requested a full audit of "Conditions Translator" -> "Verity" rename status. First-pass
+  grep for the literal phrase across `app/`/`components/` found zero hits, and I incorrectly
+  concluded no changes were needed. User asked for a stricter re-audit; re-checked
+  `app/app/workspace/page.tsx`, `app/app/start/page.tsx`, `app/layout.tsx` directly and found the
+  workspace banner's "Conditions Translator assists with transcription..." text was wrapped
+  across two JSX source lines — a single-line-only grep pattern couldn't match across the
+  newline, even though the rendered text is one contiguous phrase (JSX collapses the wrap to a
+  space at render time). A whitespace-tolerant (`Conditions\s+Translator`, multiline) search
+  confirmed this was the only real remaining occurrence in `app/`/`components/`.
+  **Takeaway**: default single-line grep patterns can miss real user-facing hits when JSX text
+  wraps across source lines — use a whitespace-tolerant/multiline pattern for prose-string
+  audits, not just an exact-phrase grep.
+- User approved implementing the fix, explicitly said to stay on the current branch
+  (`fix/badge-text-centering`) rather than opening a new one for this unrelated rename fix —
+  a deviation from CLAUDE.md's default one-branch-per-fix rule, done on direct instruction.
+- `app/app/workspace/page.tsx`: added `APP_NAME` to the `@/lib/constants` import; replaced the
+  literal text with `{APP_NAME}` interpolation (matching `start/page.tsx`'s and
+  `FooterCTA.tsx`'s existing pattern, not a hardcoded "Verity" string).
+- Caught own regression during manual verification: `{APP_NAME}` immediately followed by text on
+  the next JSX source line rendered "Verityassists" — no space. Root cause: JSX only preserves a
+  single space for wrapped *plain static text* across a line break; when one side of the break is
+  an `{expression}` container, the adjacent newline+indentation is trimmed to literally nothing.
+  Fixed with an explicit `{" "}` right after `{APP_NAME}`.
+- Validated: `tsc --noEmit` clean, `npm run lint` unchanged at the 24-error/6-warning baseline,
+  `npm test` 301/301. Manual: throwaway (not committed) live-DB Playwright script asserted the
+  banner's real `textContent` reads correctly spaced, screenshot-confirmed too; deleted the temp
+  test and `test-results/` output afterward.
+- Updated `PROJECT_STATUS.md`'s "Recent Fixes" section with this entry.
+
 ## 2026-07-22 (badge text centering)
 
 - User shared a screenshot of the mobile workspace page: the "Ready to accept" status badge

@@ -39,8 +39,40 @@ wraps (like the two-word "Ready to accept" `statusLabel()` result at
   Tailwind utility addition) — screenshot confirms both wrapped lines now sit centered in the
   pill, matching the user-supplied screenshot's reported issue.
 
+## Task 2 — COMPLETE (same branch, per explicit user instruction "stay in this branch")
+
+Rename follow-up: a check-only audit (this same session) of the "Conditions Translator" →
+"Verity" rename found one real remaining user-facing string in `app/app/workspace/page.tsx`'s
+page-review warning banner — missed by an earlier, less careful audit pass because the phrase
+was wrapped across two JSX source lines and a naive single-line grep didn't catch it.
+
+### What was built
+
+- `app/app/workspace/page.tsx`: added `APP_NAME` to the existing `@/lib/constants` import, and
+  replaced the literal "Conditions Translator" text with `{APP_NAME}` interpolation — matching
+  the pattern already used in `app/app/start/page.tsx` and `components/landing/FooterCTA.tsx`,
+  rather than hardcoding "Verity" directly.
+- Self-caught regression: after the first edit, `{APP_NAME}` followed by text starting on the
+  next source line rendered as "Verityassists" (no space) — JSX trims the newline between an
+  expression container and immediately-following text to nothing, unlike plain wrapped static
+  text (which collapses to a single space). Fixed with an explicit `{" "}` after `{APP_NAME}`.
+
+### Validation
+
+- `tsc --noEmit` clean, `npm run lint` unchanged at the 24-error/6-warning baseline, `npm test`
+  301/301.
+- Manual: throwaway (not committed) live-DB Playwright script rendered the banner and asserted
+  its `textContent` — confirmed "...before accepting it. Verity assists with transcription..."
+  with correct single-space spacing; screenshot-confirmed visually too. Deleted the temp test
+  and `test-results/` output after use.
+- Confirmed via a whitespace-tolerant repo search that this was the only remaining user-facing
+  occurrence in `app/`/`components/` — `start/page.tsx` and `layout.tsx` already used
+  `{APP_NAME}`/"Verity" correctly.
+
 ## Next steps
 
-None outstanding. Branch `fix/badge-text-centering` is not pushed; user pushes/merges per
-CLAUDE.md's git workflow rules. Purely a shared UI-primitive style fix — no schema/server
-changes.
+None outstanding on either task. Branch `fix/badge-text-centering` carries both the badge-
+centering fix and this rename fix (kept on the same branch per explicit user instruction, not
+CLAUDE.md's usual one-branch-per-fix default — worth flagging back to the user before push/merge
+in case they'd rather split it). Not pushed; user pushes/merges per CLAUDE.md's git workflow
+rules. No schema/server changes in either task.

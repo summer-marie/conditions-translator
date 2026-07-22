@@ -84,6 +84,27 @@ separately when work resumes.
 
 ## Recent Fixes (Post-Phase, Unscoped)
 
+- **Last "Conditions Translator" user-facing string renamed to Verity (2026-07-22, same branch
+  `fix/badge-text-centering` per explicit user instruction to stay on it, not yet merged).**
+  Follow-up to a same-day audit pass. The workspace page's page-review warning banner
+  (`app/app/workspace/page.tsx`) hardcoded "Conditions Translator assists with transcription..."
+  — the one real user-facing occurrence of the old product name left in `app/`/`components/`.
+  A prior naive single-line `grep` for the exact phrase had missed it because the phrase was
+  wrapped across two source lines in JSX; a corrected whitespace-tolerant search caught it and
+  confirmed it as the only remaining instance. Fixed by importing `APP_NAME` from
+  `lib/constants.ts` (already the app's existing pattern — used the same way in
+  `app/app/start/page.tsx` and `components/landing/FooterCTA.tsx`) and interpolating
+  `{APP_NAME}` in place of the literal text, rather than hardcoding "Verity" directly. Caught and
+  fixed one self-introduced regression during manual verification: JSX trims the newline between
+  a `{expression}` and immediately-following text on the next source line to nothing (not a
+  single space, unlike plain wrapped static text), which rendered as "Verityassists" with no
+  space — fixed with an explicit `{" "}`. Validated: `tsc --noEmit` clean; `npm run lint`
+  unchanged at the pre-existing 24-error/6-warning baseline; full `npm test` 301/301 unaffected;
+  manually confirmed via a throwaway (not committed) live-DB Playwright screenshot that the
+  banner now reads "...before accepting it. Verity assists with transcription..." with correct
+  spacing. No other `app/`/`components/` files needed changes — `app/app/start/page.tsx` and
+  `app/layout.tsx` already used `{APP_NAME}`/"Verity" correctly.
+
 - **Badge text centering (2026-07-22, branch `fix/badge-text-centering`, not yet merged).**
   On narrow mobile widths, a page's status `Badge` (e.g. "Ready to accept" in
   `app/app/workspace/page.tsx`'s page list) wraps its label onto two lines. `components/ui/
