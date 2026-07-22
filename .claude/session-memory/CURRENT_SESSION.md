@@ -1,75 +1,78 @@
 # Current Session
 
 **Date:** 2026-07-22
-**Branch:** feat/shared-nav-signout (new branch off main, not yet merged)
+**Branch:** fix/badge-text-centering (new branch off main, not yet merged)
 
 ## Task — COMPLETE, awaiting user review/push/merge
 
-Follow-up implementation to a same-day check-only audit (user reported: "no way to logout from
-the mobile version of the app... no logo in navbar or dropdown menu"). Moved sign-out from two
-duplicated page-level implementations into the shared nav shell.
+Surgical fix: on mobile, the "Ready to accept" status badge in the workspace page list wraps to
+two lines ("Ready to" / "accept"), and the second line rendered flush-left instead of centered
+in the pill.
 
-### Root cause (from the audit)
+### Root cause
 
-Sign-out worked correctly wherever it was rendered, but it was never added to
-`components/layout/AppNav.tsx` (the component owning the mobile hamburger menu, mobile top/bottom
-bars, and desktop sidebar). Instead it existed only inline in two page bodies:
-`AccountActionsBar` in `app/app/dashboard/page.tsx` and an inline button in
-`app/app/workspace/page.tsx` — both gated on `savedUserId`, neither reachable from Chat, and
-neither present during Dashboard's loading/error states (which return before reaching that JSX).
+`components/ui/Badge.tsx`'s `baseStyles` was `"inline-flex items-center px-2.5 py-0.5
+rounded-full font-medium"` — `items-center` only centers the flex container's cross-axis
+(vertical) alignment; with no `text-align` set, wrapped multi-line text defaults to
+browser/Tailwind-reset left-alignment. Single-line badge usages never revealed this (pill width
+== content width, so left vs. center is indistinguishable for one line), but any label that
+wraps (like the two-word "Ready to accept" `statusLabel()` result at
+`app/app/workspace/page.tsx:238`, used unmodified on a `Badge` with no explicit className at
+~line 1364) shows the gap on narrow viewports.
 
 ### What was built
 
-- `components/layout/AppNav.tsx`: added `userId`/`isSigningOut` state; a new effect fetching
-  `/api/session/status` once (mirrors the existing `finishedDocuments` fetch pattern exactly —
-  same `if (HIDDEN_ROUTES.includes(pathname)) return` guard, same cancelled-flag cleanup); a
-  `handleSignOut` function (`signOut()` from `lib/actions/auth` then `router.push("/")`, same
-  pattern the removed page-level copies used); a new `SignOutIcon` (door + arrow glyph, matches
-  the file's existing icon style exactly: 20x20 viewBox, `stroke="currentColor"`,
-  `strokeWidth="1.5"`). Rendered the sign-out control in two places: the desktop sidebar (new
-  bottom section inside `<aside>`, below the nav `<nav>`, respecting `collapsed` state the same
-  way nav items do) and the mobile hamburger dropdown (new section inside `<nav
-  id="mobile-nav-menu">`, below the Documents section, bordered-top like it). Both gated on
-  `userId` only.
-- `app/app/dashboard/page.tsx`: removed `signOut` import, `isSigningOut` state, `handleSignOut`,
-  and the now-fully-unused `useRouter`/`router` (confirmed via grep — its only use was inside the
-  removed `handleSignOut`; delete-account uses `window.location.href`, not `router`). Narrowed
-  `AccountActionsBar` (was a 2-button "Sign out"/"Delete account" row) to a new
-  single-button `DeleteAccountButton` — kept, since account deletion is a separate,
-  dashboard-specific feature explicitly out of this fix's scope. Updated both call sites (empty
-  state, main state).
-- `app/app/workspace/page.tsx`: removed `signOut` import, `isSigningOut` state, and
-  `handleSignOut`. Simplified the `savedUserId ? (...) : (...)` block: kept the `"Saved to your
-  account"` `Badge` (signed-in) and the `"Log in"`/`"Save workspace"` links (signed-out)
-  untouched, dropped only the inline sign-out `<button>`.
+- `components/ui/Badge.tsx`: added `text-center` to `baseStyles`. One line, component-level —
+  fixes every current and future wrapped-label badge in the app, inert for single-line usages
+  (confirmed via grep: no other `Badge` call site passes an explicit width class that could
+  make this visible in an unexpected way).
 
 ### Validation
 
 - `tsc --noEmit`: clean.
-- `npm run lint`: unchanged at the pre-existing 24-error/6-warning baseline (unrelated files).
+- `npm run lint`: unchanged at the pre-existing 24-error/6-warning baseline.
 - `npm test`: 301/301.
-- Manual (throwaway, not committed, live-DB Playwright — deleted after use along with
-  `test-results/` output):
-  - Desktop sidebar: signed-in test user's "Sign out" button visible and clicking it actually
-    signs out and redirects to `/`.
-  - Mobile hamburger: same, reached via `#mobile-nav-menu` (had to scope locators past a
-    same-`aria-label="Main navigation"` collision across the sidebar/hamburger/bottom-tab-bar
-    `<nav>` elements — `getByRole("navigation", {name:...})` alone is ambiguous when more than
-    one is simultaneously in the accessibility tree).
-  - Chat page (desktop): "Sign out" visible via the shared sidebar — proves Chat reachability
-    without any Chat-specific code, since it's the same shared `AppNav`.
-  - Dashboard forced into its error state (mocked `/api/documents` to 500): "Sign out" still
-    visible via the shared nav, proving the nav-level control is decoupled from the page's own
-    loading/error branches.
-  - Temporary (signed-out) session: zero "Sign out" matches anywhere in the nav, mobile or
-    desktop.
-  - Screenshot-confirmed: mobile hamburger shows Dashboard/Workspace/Chat then a divider then
-    "Sign out"; desktop sidebar shows it pinned at the bottom; Workspace's page header renders
-    cleanly with just the "Saved to your account" badge, no leftover gap; Dashboard's header
-    shows a lone "Delete account" link with no orphaned spacing.
+- Manual: throwaway (not committed) live-DB Playwright script seeded a real `IN_PROGRESS`
+  Document + `OCR_COMPLETE` Page + non-blocking-quality `OcrResult` (so `statusLabel()` genuinely
+  resolves to "Ready to accept"), screenshotted the workspace page list at 375px width.
+  Before/after not separately diffed via stash this time (the fix is a single well-understood
+  Tailwind utility addition) — screenshot confirms both wrapped lines now sit centered in the
+  pill, matching the user-supplied screenshot's reported issue.
+
+## Task 2 — COMPLETE (same branch, per explicit user instruction "stay in this branch")
+
+Rename follow-up: a check-only audit (this same session) of the "Conditions Translator" →
+"Verity" rename found one real remaining user-facing string in `app/app/workspace/page.tsx`'s
+page-review warning banner — missed by an earlier, less careful audit pass because the phrase
+was wrapped across two JSX source lines and a naive single-line grep didn't catch it.
+
+### What was built
+
+- `app/app/workspace/page.tsx`: added `APP_NAME` to the existing `@/lib/constants` import, and
+  replaced the literal "Conditions Translator" text with `{APP_NAME}` interpolation — matching
+  the pattern already used in `app/app/start/page.tsx` and `components/landing/FooterCTA.tsx`,
+  rather than hardcoding "Verity" directly.
+- Self-caught regression: after the first edit, `{APP_NAME}` followed by text starting on the
+  next source line rendered as "Verityassists" (no space) — JSX trims the newline between an
+  expression container and immediately-following text to nothing, unlike plain wrapped static
+  text (which collapses to a single space). Fixed with an explicit `{" "}` after `{APP_NAME}`.
+
+### Validation
+
+- `tsc --noEmit` clean, `npm run lint` unchanged at the 24-error/6-warning baseline, `npm test`
+  301/301.
+- Manual: throwaway (not committed) live-DB Playwright script rendered the banner and asserted
+  its `textContent` — confirmed "...before accepting it. Verity assists with transcription..."
+  with correct single-space spacing; screenshot-confirmed visually too. Deleted the temp test
+  and `test-results/` output after use.
+- Confirmed via a whitespace-tolerant repo search that this was the only remaining user-facing
+  occurrence in `app/`/`components/` — `start/page.tsx` and `layout.tsx` already used
+  `{APP_NAME}`/"Verity" correctly.
 
 ## Next steps
 
-None outstanding on this task. Branch `feat/shared-nav-signout` is not pushed; user
-pushes/merges per CLAUDE.md's git workflow rules. No schema/server changes — purely client-side
-nav + two page components.
+None outstanding on either task. Branch `fix/badge-text-centering` carries both the badge-
+centering fix and this rename fix (kept on the same branch per explicit user instruction, not
+CLAUDE.md's usual one-branch-per-fix default — worth flagging back to the user before push/merge
+in case they'd rather split it). Not pushed; user pushes/merges per CLAUDE.md's git workflow
+rules. No schema/server changes in either task.

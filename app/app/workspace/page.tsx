@@ -25,6 +25,7 @@ import {
   deletePage,
 } from "@/lib/actions/document";
 import {
+  APP_NAME,
   DEFAULT_DOCUMENT_TITLE,
   isDefaultDocumentTitle,
   OCR_MAX_CORRECTION_CHARACTERS,
@@ -1288,8 +1289,8 @@ function WorkspacePageContent() {
                       color: 'var(--color-accent-warning)'
                     }}
                   >
-                    You are responsible for reviewing each page before accepting it. Conditions
-                    Translator assists with transcription but does not verify legal accuracy —
+                    You are responsible for reviewing each page before accepting it. {APP_NAME}{" "}
+                    assists with transcription but does not verify legal accuracy —
                     correct any mistakes so the text matches your document.
                   </p>
                 </Alert>

@@ -84,6 +84,43 @@ separately when work resumes.
 
 ## Recent Fixes (Post-Phase, Unscoped)
 
+- **Last "Conditions Translator" user-facing string renamed to Verity (2026-07-22, same branch
+  `fix/badge-text-centering` per explicit user instruction to stay on it, not yet merged).**
+  Follow-up to a same-day audit pass. The workspace page's page-review warning banner
+  (`app/app/workspace/page.tsx`) hardcoded "Conditions Translator assists with transcription..."
+  — the one real user-facing occurrence of the old product name left in `app/`/`components/`.
+  A prior naive single-line `grep` for the exact phrase had missed it because the phrase was
+  wrapped across two source lines in JSX; a corrected whitespace-tolerant search caught it and
+  confirmed it as the only remaining instance. Fixed by importing `APP_NAME` from
+  `lib/constants.ts` (already the app's existing pattern — used the same way in
+  `app/app/start/page.tsx` and `components/landing/FooterCTA.tsx`) and interpolating
+  `{APP_NAME}` in place of the literal text, rather than hardcoding "Verity" directly. Caught and
+  fixed one self-introduced regression during manual verification: JSX trims the newline between
+  a `{expression}` and immediately-following text on the next source line to nothing (not a
+  single space, unlike plain wrapped static text), which rendered as "Verityassists" with no
+  space — fixed with an explicit `{" "}`. Validated: `tsc --noEmit` clean; `npm run lint`
+  unchanged at the pre-existing 24-error/6-warning baseline; full `npm test` 301/301 unaffected;
+  manually confirmed via a throwaway (not committed) live-DB Playwright screenshot that the
+  banner now reads "...before accepting it. Verity assists with transcription..." with correct
+  spacing. No other `app/`/`components/` files needed changes — `app/app/start/page.tsx` and
+  `app/layout.tsx` already used `{APP_NAME}`/"Verity" correctly.
+
+- **Badge text centering (2026-07-22, branch `fix/badge-text-centering`, not yet merged).**
+  On narrow mobile widths, a page's status `Badge` (e.g. "Ready to accept" in
+  `app/app/workspace/page.tsx`'s page list) wraps its label onto two lines. `components/ui/
+  Badge.tsx`'s base styles were `inline-flex items-center` only — `items-center` centers the
+  cross-axis (vertical) alignment, but with no `text-align` set, wrapped multi-line text defaults
+  to left-aligned, so a shorter second line (e.g. "accept" under "Ready to") sat flush-left
+  instead of centered under the line above, reading as off-center within the rounded pill. Fixed
+  by adding `text-center` to the component's `baseStyles`. Component-level, one-line change —
+  every single-line `Badge` usage in the app is visually unaffected (their pill width already
+  matches content width, so left- vs. center-alignment is indistinguishable for one line); only
+  labels that wrap gain correct centering. Validated: `tsc --noEmit` clean; `npm run lint`
+  unchanged at the pre-existing 24-error/6-warning baseline; full `npm test` 301/301 unaffected.
+  Manually verified via a throwaway (not committed) live-DB Playwright screenshot at 375px width,
+  seeding a real OCR-complete page so "Ready to accept" genuinely wraps — confirmed both lines
+  now sit centered in the pill.
+
 - **Shared-nav sign-out (2026-07-22, branch `feat/shared-nav-signout`, not yet merged).**
   Follow-up to a check-only audit (same day) that found sign-out was implemented twice,
   page-locally (`AccountActionsBar` in `app/app/dashboard/page.tsx`, an inline button in
