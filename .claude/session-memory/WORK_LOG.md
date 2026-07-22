@@ -1,5 +1,33 @@
 # Work Log
 
+## 2026-07-21 (mobile footer/CTA overflow fix)
+
+- Task described a squeezed/cramped mobile footer "shown in the screenshot" — no image was
+  actually attached to the conversation. Proceeded from code inspection instead of asking,
+  since the description was specific enough to locate a real, verifiable bug.
+- Read `components/landing/FooterCTA.tsx` (renders footer links + `GetStartedCTA` in a fixed
+  bottom bar, `flex-col` on mobile / `flex-row` on `sm:+`), `components/landing/GetStartedCTA.tsx`,
+  and `components/ui/Button.tsx` to confirm both already support a `className`/`fullWidth` seam
+  without needing component changes.
+- Started `next dev` and wrote a throwaway (not committed) Playwright script to screenshot the
+  fixed-position footer bar at 320/375/390px after scrolling to trigger its mobile
+  slide-in (`IntersectionObserver`-driven `nearBottom` state).
+- Found the real root cause empirically: `git stash`'d the fix to screenshot the *original*
+  code, which showed the CTA button clipped/overflowing past the right edge of the viewport
+  ("Add your first document" cut to "d your first document") — not just tight spacing as
+  initially guessed from the code alone. `git stash pop` restored the fix afterward.
+- Fix: `components/landing/FooterCTA.tsx` — bar container's `gap-3` -> `gap-4` (mobile-only
+  effective change; `sm:gap-4` already existed for desktop) and `GetStartedCTA`'s className
+  `"shrink-0"` -> `"w-full shrink-0 sm:w-auto"` so the button is full-width only below the `sm`
+  breakpoint.
+- Re-screenshotted after restoring the fix: confirmed no overflow/clipping at all three widths.
+- Validated: `tsc --noEmit` clean; `npm run lint` unchanged at the pre-existing
+  24-error/6-warning baseline (unrelated files). No new automated test — pure Tailwind
+  class change, no new logic branch.
+- Updated `PROJECT_STATUS.md`'s "Recent Fixes" section with this entry.
+- Created branch `fix/mobile-footer-cta-overflow` off `main`. Not yet committed/pushed —
+  committing next per CLAUDE.md's staging/commit discipline.
+
 ## 2026-07-21 (workspace upload queue fix)
 
 - Audit pass (no code, earlier in this same conversation): user reported being unable to
