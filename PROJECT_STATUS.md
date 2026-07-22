@@ -84,6 +84,22 @@ separately when work resumes.
 
 ## Recent Fixes (Post-Phase, Unscoped)
 
+- **Badge text centering (2026-07-22, branch `fix/badge-text-centering`, not yet merged).**
+  On narrow mobile widths, a page's status `Badge` (e.g. "Ready to accept" in
+  `app/app/workspace/page.tsx`'s page list) wraps its label onto two lines. `components/ui/
+  Badge.tsx`'s base styles were `inline-flex items-center` only — `items-center` centers the
+  cross-axis (vertical) alignment, but with no `text-align` set, wrapped multi-line text defaults
+  to left-aligned, so a shorter second line (e.g. "accept" under "Ready to") sat flush-left
+  instead of centered under the line above, reading as off-center within the rounded pill. Fixed
+  by adding `text-center` to the component's `baseStyles`. Component-level, one-line change —
+  every single-line `Badge` usage in the app is visually unaffected (their pill width already
+  matches content width, so left- vs. center-alignment is indistinguishable for one line); only
+  labels that wrap gain correct centering. Validated: `tsc --noEmit` clean; `npm run lint`
+  unchanged at the pre-existing 24-error/6-warning baseline; full `npm test` 301/301 unaffected.
+  Manually verified via a throwaway (not committed) live-DB Playwright screenshot at 375px width,
+  seeding a real OCR-complete page so "Ready to accept" genuinely wraps — confirmed both lines
+  now sit centered in the pill.
+
 - **Shared-nav sign-out (2026-07-22, branch `feat/shared-nav-signout`, not yet merged).**
   Follow-up to a check-only audit (same day) that found sign-out was implemented twice,
   page-locally (`AccountActionsBar` in `app/app/dashboard/page.tsx`, an inline button in

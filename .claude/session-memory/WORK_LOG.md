@@ -1,5 +1,33 @@
 # Work Log
 
+## 2026-07-22 (badge text centering)
+
+- User shared a screenshot of the mobile workspace page: the "Ready to accept" status badge
+  wraps to two lines and the second line ("accept") sits flush-left instead of centered in the
+  pill. Asked for a surgical fix.
+- Read `components/ui/Badge.tsx`: `baseStyles = "inline-flex items-center px-2.5 py-0.5
+  rounded-full font-medium"` — `items-center` is cross-axis (vertical) only; no `text-align` set
+  anywhere, so wrapped multi-line text defaults to left. Traced the label itself to
+  `statusLabel()` in `app/app/workspace/page.tsx` (`"Ready to accept"` for a non-blocking
+  `OCR_COMPLETE` page), rendered via a plain `<Badge>` with no explicit className — confirmed via
+  grep that no other `Badge` call site anywhere passes an explicit width class either, so a
+  component-level fix is safe and won't visibly affect any single-line usage.
+- Created branch `fix/badge-text-centering` off `main`.
+- Fix: added `text-center` to `Badge.tsx`'s `baseStyles`. One line.
+- Validated: `tsc --noEmit` clean, `npm run lint` unchanged at the 24-error/6-warning baseline,
+  `npm test` 301/301.
+- Manual verification: needed a real page in `OCR_COMPLETE` status with non-blocking quality
+  warnings to genuinely reproduce the "Ready to accept" wrap (not just guess from code), so wrote
+  a throwaway (not committed) live-DB Playwright script seeding `TemporarySession` +
+  `noticeAcceptedAt` (privacy gate) + `Document` + `Page` (`OCR_COMPLETE`) + `OcrResult` (`warnings:
+  {blurry:false, cutOff:false, unreadable:false}`, long enough `extractedText`), screenshotted the
+  workspace page list at 375px. First attempt hung on the `/app/start` privacy gate — fixed by
+  also setting `noticeAcceptedAt` on the seeded session (same pattern needed as `tmp_session`
+  cookie tests always need care about which gates are pre-satisfied). Confirmed both wrapped
+  lines now render centered in the pill. Deleted the temp test file and `test-results/` output
+  after use.
+- Updated `PROJECT_STATUS.md`'s "Recent Fixes" section with this entry.
+
 ## 2026-07-22 (shared-nav sign-out, follow-up to check-only audit)
 
 - Earlier in this conversation (check-only, no code): user reported no way to sign out on
