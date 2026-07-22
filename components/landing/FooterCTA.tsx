@@ -97,7 +97,7 @@ export function FooterCTA({
           paddingBottom: "env(safe-area-inset-bottom)",
         }}
       >
-        <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-6 lg:px-8">
+        <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-6 lg:px-8">
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
             <p
               className="hidden md:block"
@@ -126,7 +126,7 @@ export function FooterCTA({
             >
               {message}
             </p>
-            <GetStartedCTA label={ctaLabel} size="md" className="shrink-0" />
+            <GetStartedCTA label={ctaLabel} size="md" className="w-full shrink-0 sm:w-auto" />
             <p
               className="hidden sm:block shrink-0"
               style={{ fontSize: "var(--font-size-caption)", color: "var(--color-text-meta)" }}
