@@ -65,12 +65,22 @@ project's own status docs — see WORK_LOG.md 2026-07-20 entry.
       PROJECT_STATUS.md still says "remains unimplemented" (was already
       wrong even when that doc was last edited).
 
+## RESOLVED — signed-in users could not create documents (2026-07-21)
+
+Root cause: `createTemporaryDocument` (`lib/actions/document.ts:85`) resolved ownership only
+via `getTemporarySession()`, never `getCurrentOwner()`, so a signed-in user always hit
+`NO_ACTIVE_SESSION`. The workspace UI (`app/app/workspace/page.tsx`) papered over this with a
+disabled upload control and the message "Starting a new document isn't available for signed-in
+accounts yet." Fixed on branch `fix/signed-in-new-document`: `createTemporaryDocument` now
+resolves via `getCurrentOwner()` (same precedence as every other owner-aware action) and passes
+`isAuthenticated` into `isPrivacyAccepted()`; the UI bailouts were removed; workspace
+initialization now auto-creates an intake document for a zero-document signed-in user too
+(previously only guests got this, so a fresh signed-in account with zero documents landed on
+the separate "Unable to load workspace" dead end). See PROJECT_STATUS.md's "Recent Fixes" entry
+and WORK_LOG.md for full detail.
+
 ## Still genuinely open (verified against current code 2026-07-20)
 
-- [ ] `createTemporaryDocument` (`lib/actions/document.ts:85`) still only
-      resolves a temporary session and throws `NO_ACTIVE_SESSION`
-      otherwise — no signed-in-user path exists. Confirmed by reading the
-      current function body.
 - [ ] `[ocr-diag]` diagnostic logging confirmed still present in
       `lib/ocr/client.ts` and the OCR route.
 - [ ] Real Vercel Cron invocation on a deployed environment — not

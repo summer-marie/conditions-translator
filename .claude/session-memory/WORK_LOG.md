@@ -1,5 +1,49 @@
 # Work Log
 
+## 2026-07-21 (signed-in "start new document" fix)
+
+- Audit pass (no code): user reported that on mobile, a signed-in account trying to
+  add/start a new document got told it "isn't available for signed-in accounts yet." Traced
+  the message to `app/app/workspace/page.tsx`'s `newDocumentUploadDisabled` guard, which was
+  masking a real gap in `lib/actions/document.ts`'s `createTemporaryDocument`: it resolved
+  ownership only via `getTemporarySession()`, never `getCurrentOwner()`, so a signed-in user
+  always hit `NO_ACTIVE_SESSION`. Confirmed via `PROJECT_STATUS.md`, `OPEN_QUESTIONS.md`, and
+  `WORK_LOG.md` that this was already a known, tracked limitation (not a regression or
+  feature flag) — the UI-side gap-masking was the unfinished part. Also found a second,
+  worse dead end: a brand-new signed-in account with zero documents never got an
+  auto-created intake document (`initializeWorkspace`'s `else if (!status.userId)` branch
+  excluded signed-in users), so it fell through to a separate "Unable to load workspace"
+  state. Reported both, plus the smallest safe fix (resolve via `getCurrentOwner()`, the
+  same precedence every other action in the file already uses), and got approval.
+- Created branch `fix/signed-in-new-document` off `main` (after `feat/chat-legal-disclaimer`
+  merged via PR #38, commit `8429dee`).
+- `lib/actions/document.ts`: rewrote `createTemporaryDocument` to resolve `getCurrentOwner()`
+  once, branch on `owner.kind` (`"user"` -> `createOwnedDocument(owner, { title })`, no
+  expiry; `"temporary"` -> same as before with a computed `expiresAt`), and pass
+  `owner?.kind === "user"` into `isPrivacyAccepted()` so a signed-in caller's already-accepted
+  status is honored instead of being checked against a nonexistent temporary session. Dropped
+  the now-unused `temporaryOwner`/`getTemporarySession` imports.
+- `app/app/workspace/page.tsx`: removed the three signed-in-only bailouts —
+  `initializeWorkspace`'s `else if (!status.userId)` (now just `else`, so a zero-document
+  signed-in user also gets an auto-created intake document), `handleFileUpload`'s
+  `if (savedUserId) { return; }` early exit, and the `newDocumentUploadDisabled` flag plus
+  its three render-time usages (disabled input, disabled cursor/hover styling, and the
+  "isn't available for signed-in accounts yet" caption).
+- Tests: rewrote the `createTemporaryDocument` describe block in
+  `tests/lib/actions/document.test.ts` to mock `getCurrentOwner` instead of
+  `getTemporarySession`/`temporaryOwner`, added a dedicated signed-in-creation test and a
+  privacy-flag pass-through assertion (`isPrivacyAccepted` called with `true`/`false`
+  matching owner kind). Added `tests/e2e/signed-in-new-document.pw.ts` (live-DB Playwright,
+  mirrors the `chat-disclaimer.desktop.pw.ts` sign-in pattern): a zero-document signed-in
+  user reaches a usable workspace instead of "Unable to load workspace," and a signed-in
+  user with one existing READY document can start a second one (upload control enabled, old
+  message absent).
+- Updated `PROJECT_STATUS.md` ("Recent Fixes" entry added, the matching "Known Limitations"
+  bullet removed) and `OPEN_QUESTIONS.md` (moved the item to RESOLVED).
+- Final validation: `tsc --noEmit` clean, `npm run lint` unchanged at the 24-error/7-warning
+  baseline, `npm test` 301/301 (was 300/300 before this session), `npx playwright test` 8/8
+  passing (both projects, including the 2 new specs).
+
 ## 2026-07-21 (chat legal-disclaimer)
 
 - Audit pass (no code): read CLAUDE.md, docs 01/02/05/06/08/09/10, and traced the actual chat

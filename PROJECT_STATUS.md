@@ -84,6 +84,22 @@ separately when work resumes.
 
 ## Recent Fixes (Post-Phase, Unscoped)
 
+- **Signed-in "start/add new document" fix (2026-07-21, branch
+  `fix/signed-in-new-document`, not yet merged).** `createTemporaryDocument`
+  (`lib/actions/document.ts`) previously resolved ownership only via `getTemporarySession()`,
+  so a signed-in user could never create a document — the workspace UI (`app/app/workspace/page.tsx`)
+  papered over this with a disabled upload control and the message "Starting a new document
+  isn't available for signed-in accounts yet." Root cause fixed by resolving ownership through
+  `getCurrentOwner()` (the same precedence used by every other owner-aware action) and passing
+  the resolved `isAuthenticated` state into `isPrivacyAccepted()`. Also fixed workspace
+  initialization so a signed-in user with zero documents no longer lands on the dead-end
+  "Unable to load workspace" state — an intake document is now auto-created for both owner
+  kinds, not just guests. The signed-in-only UI bailouts (`newDocumentUploadDisabled` and two
+  early-return guards) were removed since the action now supports both owner kinds directly.
+  Regression coverage: `tests/lib/actions/document.test.ts` (signed-in creation path, privacy-flag
+  pass-through) and a new live-DB Playwright spec `tests/e2e/signed-in-new-document.pw.ts`
+  (zero-document signed-in init, and starting a second document after one is already finished).
+
 - **Chat legal-disclaimer UX + prompt de-repetition (2026-07-21, branch
   `feat/chat-legal-disclaimer`, not yet merged).** The chat system prompt
   (`lib/chat/prompt.ts`) previously instructed the model to "add a brief, calm disclaimer
@@ -183,8 +199,6 @@ remain true limitations or deferred work. Pick up as a newly-scoped phase when r
 - Remaining `docs/USABILITY_UI_AUDIT.md` findings (2026-07-18, deferred items — see that
   document). **Not re-verified since that audit** — confirm each against current code before
   treating any specific one as still open.
-- `createTemporaryDocument` (`lib/actions/document.ts`) cannot create a document for a signed-in
-  user — confirmed still true by reading current code as of 2026-07-20.
 - The temporary `[ocr-diag]` diagnostic logging (added 2026-07-14 to investigate a real OCR 502 on
   phone photos) is still in place as of 2026-07-20 — that investigation remains open.
 - Any device that already installed the PWA under the old (missing-`start_url`) manifest cached
