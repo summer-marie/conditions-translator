@@ -4,8 +4,10 @@
  * Wraps `/app/*` page content in `app/app/layout.tsx`. Hides itself on `/app/save` and
  * `/app/start`, which are single-task entry/onboarding screens rather than persistent app
  * destinations (see `dashboard-spec.md` "Navigation Rules" and `login-spec.md`). Also owns
- * the theme toggle, sidebar collapse state, the per-document overflow actions, and the
- * delete-document confirmation modal.
+ * the theme toggle, sidebar collapse state, the per-document overflow actions, the
+ * delete-document confirmation modal, and the sign-out control (signed-in users only) —
+ * shared here rather than duplicated per-page so it's reachable from every `/app/*` screen,
+ * including Chat and Dashboard's loading/error states.
  *
  * @module components/layout/AppNav
  */
@@ -18,6 +20,7 @@ import Image from "next/image";
 import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { APP_NAME, DOCUMENTS_CHANGED_EVENT } from "@/lib/constants";
+import { signOut } from "@/lib/actions/auth";
 import { Button } from "@/components/ui/Button";
 
 /** Fixed top-level nav destinations, in display order. */
@@ -78,8 +81,9 @@ export function AppNav({ children }: { children: React.ReactNode }) {
  * The stateful body of the nav shell (rendered inside {@link AppNav}'s Suspense boundary).
  *
  * Manages: the mobile menu open state (focus-trapped), the per-document overflow
- * menu/sheet, the delete-document modal, the theme, and the sidebar collapse preference. It
- * also fetches the current owner's finished documents for the extra sidenav links.
+ * menu/sheet, the delete-document modal, the theme, the sidebar collapse preference, and
+ * sign-out. It also fetches the current owner's finished documents for the extra sidenav
+ * links, and the session status (signed-in user id) that gates the sign-out control.
  *
  * @param props - Component props.
  * @param props.children - The page content to render in the main region.
@@ -90,6 +94,10 @@ function AppNavContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [finishedDocuments, setFinishedDocuments] = useState<FinishedDocument[]>([]);
+  // Account id once viewed by a signed-in user (Phase 7); null for a temporary session, so the
+  // sign-out control only ever appears for signed-in owners.
+  const [userId, setUserId] = useState<string | null>(null);
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
   const mobileMenuRef = useRef<HTMLElement | null>(null);
@@ -271,6 +279,41 @@ function AppNavContent({ children }: { children: React.ReactNode }) {
     };
   }, [pathname]);
 
+  // Resolves whether the current owner is a signed-in user, so the shared sign-out control
+  // (desktop sidebar + mobile hamburger menu) only renders for signed-in owners, never for a
+  // temporary session.
+  useEffect(() => {
+    if (HIDDEN_ROUTES.includes(pathname)) return;
+    let cancelled = false;
+    async function loadSessionStatus() {
+      try {
+        const res = await fetch("/api/session/status");
+        if (!res.ok) return;
+        const status = await res.json();
+        if (cancelled) return;
+        setUserId(status.userId ?? null);
+      } catch {
+        // Non-fatal: the sign-out control simply stays hidden this load.
+      }
+    }
+    loadSessionStatus();
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname]);
+
+  /** Signs the current user out and returns to the public landing page. */
+  async function handleSignOut() {
+    setIsSigningOut(true);
+    try {
+      await signOut();
+      router.push("/");
+    } catch (error) {
+      console.error("Failed to sign out:", error);
+      setIsSigningOut(false);
+    }
+  }
+
   if (HIDDEN_ROUTES.includes(pathname)) {
     return <main id="main-content">{children}</main>;
   }
@@ -399,6 +442,24 @@ function AppNavContent({ children }: { children: React.ReactNode }) {
             </div>
           )}
         </nav>
+
+        {userId && (
+          <div className={`border-t border-white/10 ${collapsed ? "px-2 py-2" : "p-2"}`}>
+            <button
+              type="button"
+              onClick={handleSignOut}
+              disabled={isSigningOut}
+              aria-label={collapsed ? "Sign out" : undefined}
+              title={collapsed ? "Sign out" : undefined}
+              className={`flex h-9 w-full items-center gap-3 rounded-md text-sm font-medium text-(--color-surface-nav-foreground) hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-surface-nav-foreground) disabled:opacity-50 ${
+                collapsed ? "justify-center px-0" : "px-3"
+              }`}
+            >
+              <SignOutIcon />
+              {!collapsed && (isSigningOut ? "Signing out…" : "Sign out")}
+            </button>
+          </div>
+        )}
       </aside>
 
       {/* Mobile top bar (navy nav chrome) */}
@@ -499,6 +560,20 @@ function AppNavContent({ children }: { children: React.ReactNode }) {
                     </div>
                   );
                 })}
+              </div>
+            )}
+
+            {userId && (
+              <div className="mt-2 border-t border-white/10 pt-2">
+                <button
+                  type="button"
+                  onClick={handleSignOut}
+                  disabled={isSigningOut}
+                  className="flex h-10 w-full items-center gap-3 rounded-md px-3 text-left text-sm font-medium text-(--color-surface-nav-foreground) hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-surface-nav-foreground) disabled:opacity-50"
+                >
+                  <SignOutIcon />
+                  {isSigningOut ? "Signing out…" : "Sign out"}
+                </button>
               </div>
             )}
           </nav>
@@ -801,6 +876,23 @@ function DocumentActionsMenu({
         </button>
       </div>
     </>
+  );
+}
+
+/** Decorative door-and-arrow glyph for the sign-out control. */
+function SignOutIcon() {
+  return (
+    <svg
+      className="h-5 w-5 shrink-0"
+      aria-hidden="true"
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+    >
+      <path d="M8 3H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h3" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M13 14l4-4-4-4M17 10H8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }
 

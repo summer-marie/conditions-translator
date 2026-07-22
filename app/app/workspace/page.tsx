@@ -24,7 +24,6 @@ import {
   reuploadPage,
   deletePage,
 } from "@/lib/actions/document";
-import { signOut } from "@/lib/actions/auth";
 import {
   DEFAULT_DOCUMENT_TITLE,
   isDefaultDocumentTitle,
@@ -340,7 +339,6 @@ function WorkspacePageContent() {
   const reuploadInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   // Account id once the workspace is owned by a signed-in user (Phase 7); null while temporary.
   const [savedUserId, setSavedUserId] = useState<string | null>(null);
-  const [isSigningOut, setIsSigningOut] = useState(false);
 
   /**
    * Bootstraps the workspace on mount: resolves the owner, the active intake document (creating
@@ -910,18 +908,6 @@ function WorkspacePageContent() {
     }
   };
 
-  /** Signs the user out and returns to the public landing page. */
-  const handleSignOut = async () => {
-    setIsSigningOut(true);
-    try {
-      await signOut();
-      router.push("/");
-    } catch (error) {
-      console.error("Failed to sign out:", error);
-      setIsSigningOut(false);
-    }
-  };
-
   // Keep viewedDocumentIdRef current for drainUploadQueue's async loop (see its declaration).
   useEffect(() => {
     viewedDocumentIdRef.current = document?.id ?? null;
@@ -1146,22 +1132,7 @@ function WorkspacePageContent() {
               </Badge>
 
               {savedUserId ? (
-                <>
-                  <Badge variant="success">Saved to your account</Badge>
-                  <button
-                    onClick={handleSignOut}
-                    disabled={isSigningOut}
-                    className="shrink-0 font-medium disabled:opacity-50"
-                    style={{
-                      color: 'var(--color-text-body)',
-                      fontSize: 'var(--font-size-body)'
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.color = 'var(--color-text-heading)'}
-                    onMouseLeave={(e) => e.currentTarget.style.color = 'var(--color-text-body)'}
-                  >
-                    {isSigningOut ? "Signing out..." : "Sign out"}
-                  </button>
-                </>
+                <Badge variant="success">Saved to your account</Badge>
               ) : (
                 <>
                   {/* TODO(cleanup): "Log in" and "Save workspace" both land on /app/save and

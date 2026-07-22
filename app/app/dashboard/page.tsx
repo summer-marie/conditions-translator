@@ -14,8 +14,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { signOut, deleteAccountAction } from "@/lib/actions/auth";
+import { deleteAccountAction } from "@/lib/actions/auth";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
@@ -74,15 +73,15 @@ interface SectionsModalState {
  *
  * State & side effects:
  * - Fetches the owner's documents on mount, and the session status to decide whether to show
- *   the sign-out / delete-account affordances (signed-in users only).
+ *   the delete-account affordance (signed-in users only). Sign-out itself lives in the shared
+ *   nav shell (`components/layout/AppNav.tsx`), not on this page.
  * - Manages three modals (delete document, view sections, delete account), each focus-trapped
  *   and Escape-dismissable.
- * - Performs deletes/sign-out/account-deletion and navigates accordingly.
+ * - Performs deletes/account-deletion and navigates accordingly.
  *
  * @returns The rendered dashboard.
  */
 export default function DashboardPage() {
-  const router = useRouter();
   const [state, setState] = useState<DashboardState>({
     documents: [],
     isLoading: true,
@@ -90,7 +89,6 @@ export default function DashboardPage() {
   });
   // Account id when viewed by a signed-in user (Phase 7); null while the workspace is temporary.
   const [savedUserId, setSavedUserId] = useState<string | null>(null);
-  const [isSigningOut, setIsSigningOut] = useState(false);
   const [deleteModal, setDeleteModal] = useState<{
     isOpen: boolean;
     document: Document | null;
@@ -169,25 +167,13 @@ export default function DashboardPage() {
         }
       })
       .catch(() => {
-        // Non-fatal: on failure the sign-out / account affordances simply stay hidden.
+        // Non-fatal: on failure the delete-account affordance simply stays hidden.
       });
 
     return () => {
       isMounted = false;
     };
   }, []);
-
-  /** Signs the user out and returns to the public landing page. */
-  const handleSignOut = async () => {
-    setIsSigningOut(true);
-    try {
-      await signOut();
-      router.push("/");
-    } catch (error) {
-      console.error("Failed to sign out:", error);
-      setIsSigningOut(false);
-    }
-  };
 
   /** Opens the delete-document confirmation modal for the given document. */
   const handleDeleteClick = (document: Document) => {
@@ -457,11 +443,7 @@ export default function DashboardPage() {
       <div className="min-h-screen bg-(--color-background-page) flex flex-col p-4 sm:p-6">
         {savedUserId && (
           <div className="flex justify-end mb-4">
-            <AccountActionsBar
-              isSigningOut={isSigningOut}
-              onSignOut={handleSignOut}
-              onDeleteAccountClick={handleDeleteAccountClick}
-            />
+            <DeleteAccountButton onClick={handleDeleteAccountClick} />
           </div>
         )}
         <div className="flex-1 flex items-center justify-center">
@@ -506,10 +488,8 @@ export default function DashboardPage() {
             </p>
           </div>
           {savedUserId && (
-            <AccountActionsBar
-              isSigningOut={isSigningOut}
-              onSignOut={handleSignOut}
-              onDeleteAccountClick={handleDeleteAccountClick}
+            <DeleteAccountButton
+              onClick={handleDeleteAccountClick}
               className="self-start sm:self-auto"
             />
           )}
@@ -786,47 +766,29 @@ export default function DashboardPage() {
 }
 
 /**
- * The "Sign out" / "Delete account" action row, shared across all dashboard states.
- *
- * Extracted so the loading/error/empty/main states render the identical row (and the
- * delete-account modal) instead of each duplicating it. Before extraction the empty state had
- * no way to reach Sign out or Delete account, since that JSX only existed inline in the main
- * (has-documents) return.
+ * The "Delete account" trigger, shared across the dashboard's empty and main (has-documents)
+ * states. Sign-out itself moved to the shared nav shell (`components/layout/AppNav.tsx`), so
+ * this page only needs the destructive, dashboard-specific delete-account action.
  *
  * @param props - Component props.
- * @param props.isSigningOut - Whether a sign-out is in flight (disables the button).
- * @param props.onSignOut - Called when "Sign out" is pressed.
- * @param props.onDeleteAccountClick - Called when "Delete account" is pressed.
- * @param props.className - Extra classes appended to the row container.
- * @returns The rendered account-actions row.
+ * @param props.onClick - Called when "Delete account" is pressed.
+ * @param props.className - Extra classes appended to the button.
+ * @returns The rendered delete-account button.
  */
-function AccountActionsBar({
-  isSigningOut,
-  onSignOut,
-  onDeleteAccountClick,
+function DeleteAccountButton({
+  onClick,
   className = "",
 }: {
-  isSigningOut: boolean;
-  onSignOut: () => void;
-  onDeleteAccountClick: () => void;
+  onClick: () => void;
   className?: string;
 }) {
   return (
-    <div className={`flex items-center gap-4 ${className}`}>
-      <button
-        onClick={onSignOut}
-        disabled={isSigningOut}
-        className="text-sm font-medium text-(--color-text-body) hover:text-(--color-text-heading) disabled:opacity-50"
-      >
-        {isSigningOut ? "Signing out..." : "Sign out"}
-      </button>
-      <button
-        onClick={onDeleteAccountClick}
-        className="text-sm font-medium text-(--color-accent-destructive) hover:underline"
-      >
-        Delete account
-      </button>
-    </div>
+    <button
+      onClick={onClick}
+      className={`text-sm font-medium text-(--color-accent-destructive) hover:underline ${className}`}
+    >
+      Delete account
+    </button>
   );
 }
 
