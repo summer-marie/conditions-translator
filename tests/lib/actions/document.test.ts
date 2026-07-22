@@ -53,14 +53,14 @@ vi.mock("@/lib/session/temporary", () => ({
   isPrivacyAccepted: vi.fn(),
 }));
 
-// Mock owner resolution (used by requireInProgressOwnedDocument: acceptPage/reuploadPage/deletePage).
+// Mock owner resolution (used by createTemporaryDocument and requireInProgressOwnedDocument:
+// finishDocument/retryDocumentProcessing/updateDocumentTitle/acceptPage/reuploadPage/deletePage).
 vi.mock("@/lib/auth/session", () => ({
   getCurrentOwner: vi.fn(),
 }));
 
 // Mock ownership functions
 vi.mock("@/lib/permissions/ownership", () => ({
-  temporaryOwner: vi.fn(),
   getOwnedDocument: vi.fn(),
   createDocument: vi.fn(),
   ownerWhere: vi.fn(),
@@ -86,14 +86,7 @@ describe("createTemporaryDocument", () => {
     vi.clearAllMocks();
   });
 
-  it("should create an IN_PROGRESS document with temporary session ownership", async () => {
-    const mockSession = {
-      id: "session-123",
-      token: "token-abc",
-      noticeAcceptedAt: new Date(),
-      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-    };
-
+  it("creates an IN_PROGRESS document with temporary session ownership", async () => {
     const mockDocument = {
       id: "doc-123",
       title: "Test Document",
@@ -107,29 +100,65 @@ describe("createTemporaryDocument", () => {
     };
 
     const { isPrivacyAccepted } = await import("@/lib/session/temporary");
-    const { getTemporarySession } = await import("@/lib/session/temporary");
-    const { temporaryOwner } = await import("@/lib/permissions/ownership");
+    const { getCurrentOwner } = await import("@/lib/auth/session");
     const { createDocument } = await import("@/lib/permissions/ownership");
 
+    vi.mocked(getCurrentOwner).mockResolvedValue({ kind: "temporary", temporarySessionId: "session-123" });
     vi.mocked(isPrivacyAccepted).mockResolvedValue(true);
-    vi.mocked(getTemporarySession).mockResolvedValue(mockSession);
-    vi.mocked(temporaryOwner).mockReturnValue({ kind: "temporary", temporarySessionId: "session-123" });
     vi.mocked(createDocument).mockResolvedValue(mockDocument as any);
 
     const result = await createTemporaryDocument("Test Document");
 
     expect(result).toEqual(mockDocument);
-    expect(isPrivacyAccepted).toHaveBeenCalled();
-    expect(getTemporarySession).toHaveBeenCalled();
+    // A temporary owner's acceptance must be checked against session state, not assumed.
+    expect(isPrivacyAccepted).toHaveBeenCalledWith(false);
     expect(createDocument).toHaveBeenCalledWith(
       { kind: "temporary", temporarySessionId: "session-123" },
       { title: "Test Document", expiresAt: expect.any(Date) }
     );
   });
 
+  // Regression coverage for the bug where document creation only ever resolved a temporary
+  // session, so a signed-in user could never start a document (see PROJECT_STATUS.md "Known
+  // Limitations and Backlog" prior to this fix).
+  it("creates an IN_PROGRESS document owned by a signed-in user", async () => {
+    const mockDocument = {
+      id: "doc-123",
+      title: "Test Document",
+      status: "IN_PROGRESS",
+      userId: "user-123",
+      temporarySessionId: null,
+      expiresAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      deletionState: "ACTIVE",
+    };
+
+    const { isPrivacyAccepted } = await import("@/lib/session/temporary");
+    const { getCurrentOwner } = await import("@/lib/auth/session");
+    const { createDocument } = await import("@/lib/permissions/ownership");
+
+    vi.mocked(getCurrentOwner).mockResolvedValue({ kind: "user", userId: "user-123" });
+    vi.mocked(isPrivacyAccepted).mockResolvedValue(true);
+    vi.mocked(createDocument).mockResolvedValue(mockDocument as any);
+
+    const result = await createTemporaryDocument("Test Document");
+
+    expect(result).toEqual(mockDocument);
+    // A signed-in user is already treated as accepted (done at account creation).
+    expect(isPrivacyAccepted).toHaveBeenCalledWith(true);
+    // No expiresAt for a user-owned document — createDocument forces it to null.
+    expect(createDocument).toHaveBeenCalledWith(
+      { kind: "user", userId: "user-123" },
+      { title: "Test Document" }
+    );
+  });
+
   it("should throw error if privacy not accepted", async () => {
     const { isPrivacyAccepted } = await import("@/lib/session/temporary");
+    const { getCurrentOwner } = await import("@/lib/auth/session");
 
+    vi.mocked(getCurrentOwner).mockResolvedValue({ kind: "temporary", temporarySessionId: "session-123" });
     vi.mocked(isPrivacyAccepted).mockResolvedValue(false);
 
     await expect(createTemporaryDocument()).rejects.toThrow(
@@ -137,24 +166,17 @@ describe("createTemporaryDocument", () => {
     );
   });
 
-  it("should throw error if no session found", async () => {
+  it("should throw error if no signed-in user or temporary session found", async () => {
     const { isPrivacyAccepted } = await import("@/lib/session/temporary");
-    const { getTemporarySession } = await import("@/lib/session/temporary");
+    const { getCurrentOwner } = await import("@/lib/auth/session");
 
+    vi.mocked(getCurrentOwner).mockResolvedValue(null);
     vi.mocked(isPrivacyAccepted).mockResolvedValue(true);
-    vi.mocked(getTemporarySession).mockResolvedValue(null);
 
     await expect(createTemporaryDocument()).rejects.toThrow("No active session found");
   });
 
   it("should use default title if not provided", async () => {
-    const mockSession = {
-      id: "session-123",
-      token: "token-abc",
-      noticeAcceptedAt: new Date(),
-      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-    };
-
     const mockDocument = {
       id: "doc-123",
       title: DEFAULT_DOCUMENT_TITLE,
@@ -168,13 +190,11 @@ describe("createTemporaryDocument", () => {
     };
 
     const { isPrivacyAccepted } = await import("@/lib/session/temporary");
-    const { getTemporarySession } = await import("@/lib/session/temporary");
-    const { temporaryOwner } = await import("@/lib/permissions/ownership");
+    const { getCurrentOwner } = await import("@/lib/auth/session");
     const { createDocument } = await import("@/lib/permissions/ownership");
 
+    vi.mocked(getCurrentOwner).mockResolvedValue({ kind: "temporary", temporarySessionId: "session-123" });
     vi.mocked(isPrivacyAccepted).mockResolvedValue(true);
-    vi.mocked(getTemporarySession).mockResolvedValue(mockSession);
-    vi.mocked(temporaryOwner).mockReturnValue({ kind: "temporary", temporarySessionId: "session-123" });
     vi.mocked(createDocument).mockResolvedValue(mockDocument as any);
 
     const result = await createTemporaryDocument();
