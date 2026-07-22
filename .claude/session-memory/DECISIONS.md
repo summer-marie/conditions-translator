@@ -4,6 +4,60 @@ Durable decisions made during Claude Code sessions on this project.
 Formal architecture ADRs belong in docs/Decision_Log.md, not here — this
 file is for smaller working decisions worth remembering across sessions.
 
+## 2026-07-21 — Workspace upload queue: keep upload+OCR bundled per item, decouple only the picker
+
+User explicitly requested (`fix/workspace-upload-queue`) a client-side queue that lets users
+keep selecting photos while earlier ones OCR-process, but instructed: "keep actual upload + OCR
+processing strictly serial," "do not add true parallel uploads," and "do not change server-side
+ordering, DB constraints, or OCR architecture unless strictly required." Implemented exactly
+that: `drainUploadQueue` processes one queued file's upload-then-OCR as a single unit before
+starting the next; only the *picker* (file input's `disabled`) was decoupled from
+`isUploading`.
+
+This surfaced a real trade-off during implementation: because OCR still blocks the next queue
+item, a queue item whose own `POST .../pages` has already succeeded (and is thus already
+reflected in `pageCount`) can still sit in the queue for a few more seconds while its OCR call
+runs. The 10-page cap check needed a way to not double-count that item (once via `pageCount`,
+once via the queue) — solved with a per-item `uploaded: boolean` flag rather than by decoupling
+OCR from the serial gate (which would have violated the explicit "keep it bundled" instruction).
+
+**Why:** `Page.order` is assigned server-side from a `prisma.page.count()` read at request time
+(`@@unique([documentId, order])`), so only the *upload* half genuinely needs serialization to
+avoid a collision — OCR calls are independently keyed by `pageId` and could technically run
+concurrently. Decoupling them was a live option, but the user's instruction was explicit about
+keeping the existing bundled sequence, and the narrow double-counting edge case was fixable
+without touching that.
+**How to apply:** if a future task asks to also parallelize OCR (not just uploads), that's a
+separate, larger decision — flag it rather than assuming today's serial-bundle choice extends.
+The `uploaded` flag pattern (mark an item "no longer needs counting toward pending state" as
+soon as the part that changes committed state succeeds, independent of when it's fully dequeued)
+is reusable for any future queue-plus-committed-count design here.
+
+## 2026-07-21 — E2E-testing a slow/synchronous server route: intercept with page.route(), don't call it for real
+
+`tests/e2e/workspace-upload-queue.pw.ts` needed to prove behavior during a still-in-flight OCR
+call, but `POST .../pages/[pageId]/ocr` makes a real, synchronous, billed OpenAI Vision call
+server-side with no existing test seam (see [[project-test-infrastructure-gap]]). Rather than
+seeding a real page and letting a real OCR call run (cost, and no control over its timing), both
+`POST .../pages` and `POST .../pages/[pageId]/ocr` were intercepted client-side via Playwright's
+`page.route()` with fake JSON responses (one with an artificial `setTimeout` delay to create a
+real "still processing" window). No real Blob storage or OpenAI call happens; the only live-DB
+cost is the seeded owner/document/page rows, same as the project's existing live-DB specs.
+
+**Why:** this is the first Playwright spec in the project to use `page.route()` — prior specs
+(`mobile-chat-overflow.pw.ts`) avoided a billed call by injecting content directly into the DOM
+instead, which works for one-shot display but can't simulate an in-flight *request* with
+controlled timing the way this test needed.
+**How to apply:** prefer `page.route()` interception (over real calls or DOM injection) whenever
+a future E2E test needs to control the *timing* of a slow/billed server call, not just its
+eventual displayed result. Two gotchas worth carrying forward: (1) if the mocked response
+payload gets merged into existing client state (e.g. `{...prev, ...data.field}`), every field in
+the mock must be correct, not just the ones the test cares about — a stray hardcoded field
+silently overwrites real state; (2) `getByText()` is substring-matching by default, so numbered
+per-item UI text (e.g. "Page 9") needs `{exact: true}` if the same number can also appear inside
+a longer string elsewhere in the DOM (even inside a closed `<dialog>`, which still counts for
+locator matching despite not being visible).
+
 ## 2026-07-21 — Chat legal-disclaimer: separate flag, not a Privacy Notice extension
 
 Confirmed by the user during the approval step (not assumed): the new chat-specific "not

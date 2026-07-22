@@ -84,8 +84,32 @@ separately when work resumes.
 
 ## Recent Fixes (Post-Phase, Unscoped)
 
+- **Workspace upload queue (2026-07-21, branch `fix/workspace-upload-queue`, not yet merged).**
+  `handleFileUpload` (`app/app/workspace/page.tsx`) previously disabled the page-image file
+  input for the entire duration of a batch's upload+OCR cycle, so users could not select more
+  photos while earlier ones were still being OCR-processed (OCR runs synchronously server-side
+  in `app/api/documents/[documentId]/pages/[pageId]/ocr/route.ts`). Fixed with a client-side
+  queue: newly selected files enqueue and the handler returns immediately; a single serial
+  worker (`drainUploadQueue`) still sends exactly one upload/OCR request pair to the server at a
+  time, since page `order` is assigned server-side from the current page count
+  (`prisma/schema.prisma`'s `@@unique([documentId, order])`) and concurrent requests could
+  otherwise collide. The input is now only disabled while creating a brand-new intake document,
+  not while the queue drains. The 10-page cap check now also accounts for files already queued
+  (but not yet uploaded) for the same document, not just the committed page count, with a
+  per-item `uploaded` flag to avoid double-counting an item whose upload already landed while its
+  OCR is still pending. No server-side, schema, or ownership changes.
+
+  Regression coverage: `tests/e2e/workspace-upload-queue.pw.ts` (new, live-DB Playwright) —
+  the picker stays enabled and a second file queues while the first is still OCR-processing with
+  no overlapping upload/OCR requests; the 10-page cap correctly rejects a selection that would
+  overflow once already-queued-but-unsaved files are counted. Both upload endpoints are
+  intercepted with fake responses, so no real Blob storage or billed OpenAI call is involved.
+  Validated: `tsc --noEmit` clean; `npm run lint` at the pre-existing 24-error baseline
+  (unrelated file); full `npm test` 301/301; `npx playwright test` 10/10 (both projects,
+  including the 2 new specs).
+
 - **Signed-in "start/add new document" fix (2026-07-21, branch
-  `fix/signed-in-new-document`, not yet merged).** `createTemporaryDocument`
+  `fix/signed-in-new-document`, merged to `main` via PR #39).** `createTemporaryDocument`
   (`lib/actions/document.ts`) previously resolved ownership only via `getTemporarySession()`,
   so a signed-in user could never create a document — the workspace UI (`app/app/workspace/page.tsx`)
   papered over this with a disabled upload control and the message "Starting a new document
@@ -101,7 +125,7 @@ separately when work resumes.
   (zero-document signed-in init, and starting a second document after one is already finished).
 
 - **Chat legal-disclaimer UX + prompt de-repetition (2026-07-21, branch
-  `feat/chat-legal-disclaimer`, not yet merged).** The chat system prompt
+  `feat/chat-legal-disclaimer`, merged to `main` via PR #38).** The chat system prompt
   (`lib/chat/prompt.ts`) previously instructed the model to "add a brief, calm disclaimer
   where appropriate" on every substantive answer, on top of four SPECIFIC BEHAVIORS
   categories (permission/missing-source/conflict/violation questions) that each separately
@@ -145,8 +169,8 @@ separately when work resumes.
   test assertions only; recommend a manual spot-check against a few live chat turns before
   merge.
 
-- **Mobile chat layout overflow (2026-07-21, branch `fix/mobile-chat-scroll-overflow`, not yet
-  merged).** On mobile, a long assistant response in `/app/chat` grew past the viewport instead of
+- **Mobile chat layout overflow (2026-07-21, branch `fix/mobile-chat-scroll-overflow`, merged to
+  `main` via PR #37).** On mobile, a long assistant response in `/app/chat` grew past the viewport instead of
   scrolling inside the message log, making the composer unreachable. Root cause: the chat screen's
   inner flex column (`app/app/chat/page.tsx`) was missing `min-h-0`, so it kept CSS flexbox's
   default `min-height: auto` and refused to shrink below its content's intrinsic height inside the

@@ -288,7 +288,26 @@ function WorkspacePageContent() {
   // `document` is showing a finished document browsed from the sidenav.
   const [intakeDocument, setIntakeDocument] = useState<Document | null>(null);
   const [isLoadingViewedDocument, setIsLoadingViewedDocument] = useState(false);
+  // True while drainUploadQueue is actively working through uploadQueueRef (upload+OCR for one
+  // file at a time). Drives the progress spinner only — the file picker is no longer disabled
+  // by this, so more files can be queued while it's true (see drainUploadQueue's docstring for
+  // why the actual network work still has to stay serial).
   const [isUploading, setIsUploading] = useState(false);
+  // Files picked while drainUploadQueue is already running are queued here instead of blocking
+  // the picker. The ref is the source of truth (mutated synchronously so enqueue/cap-check logic
+  // never races React's async state batching); queuedFileCount just mirrors its length for
+  // render (spinner text, 10-page-cap math). `uploaded` flips true once an item's own `POST
+  // .../pages` call succeeds (before its OCR call, which can still be pending) — at that point
+  // it's already reflected in `pageCount`, so the cap check below must stop counting it via the
+  // queue too, or it would double-count and reject batches that actually still fit.
+  const uploadQueueRef = useRef<{ file: File; targetId: string; uploaded: boolean }[]>([]);
+  const [queuedFileCount, setQueuedFileCount] = useState(0);
+  const isDrainingQueueRef = useRef(false);
+  // Mirrors `document?.id` for drainUploadQueue's async loop, which can span multiple renders
+  // (and the user navigating to a different document) — a plain closure over `document` would
+  // go stale, wrongly appending a late-finishing upload's page into whatever document happens to
+  // be shown by the time it completes.
+  const viewedDocumentIdRef = useRef<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   const [isFinishing, setIsFinishing] = useState(false);
@@ -592,8 +611,11 @@ function WorkspacePageContent() {
   };
 
   /**
-   * Handles a page-image file selection: uploads each file to the intake document (creating one
-   * in temporary mode if needed), enforces the 10-page cap, and runs OCR on each new page.
+   * Handles a page-image file selection: resolves/creates the target intake document, enforces
+   * the 10-page cap (counting both already-saved pages and files already queued but not yet
+   * uploaded), then enqueues the files for background processing and returns. Does not wait for
+   * the actual upload/OCR work — see {@link drainUploadQueue}, which is what makes it safe to
+   * pick another batch of files while earlier ones are still processing.
    *
    * @param e - The file-input change event.
    */
@@ -614,7 +636,8 @@ function WorkspacePageContent() {
       // No usable active intake document (none yet, or the previous one just finished) — start a
       // new one via the auto-create action, triggered here instead of only on mount.
       // createTemporaryDocument resolves the owner itself (signed-in user or temporary session),
-      // so this works the same for both.
+      // so this works the same for both. Guarded by `isCreating` (disables the input, see
+      // render) so a second selection can't race this and create two intake documents.
       setIsCreating(true);
       try {
         const newDoc = await createTemporaryDocument(DEFAULT_DOCUMENT_TITLE);
@@ -636,9 +659,17 @@ function WorkspacePageContent() {
     }
 
     const targetId = targetDocument.id;
-    const newPageCount = targetDocument.pageCount + files.length;
+    // Count files already queued (but not yet uploaded) for this same document so rapid-fire
+    // selections can't add up to more than 10 pages before any of them have actually landed
+    // server-side. Items already uploaded (only their OCR is still pending) are excluded — they're
+    // already reflected in targetDocument.pageCount, so counting them here too would double-count.
+    const alreadyQueuedForTarget = uploadQueueRef.current.filter(
+      (item) => item.targetId === targetId && !item.uploaded
+    ).length;
+    const newPageCount = targetDocument.pageCount + alreadyQueuedForTarget + files.length;
     if (newPageCount > 10) {
-      alert(`Cannot upload ${files.length} page(s). Maximum is 10 pages per document. You can upload ${10 - targetDocument.pageCount} more page(s).`);
+      const remaining = Math.max(10 - targetDocument.pageCount - alreadyQueuedForTarget, 0);
+      alert(`Cannot upload ${files.length} page(s). Maximum is 10 pages per document. You can upload ${remaining} more page(s).`);
       e.target.value = "";
       return;
     }
@@ -651,37 +682,82 @@ function WorkspacePageContent() {
       setPages([]);
     }
 
+    // Enqueue rather than upload inline, so the picker stays usable while earlier pages are
+    // still uploading/OCR-processing. drainUploadQueue is the serial worker that actually does
+    // the network work.
+    uploadQueueRef.current = [
+      ...uploadQueueRef.current,
+      ...Array.from(files).map((file) => ({ file, targetId, uploaded: false })),
+    ];
+    setQueuedFileCount(uploadQueueRef.current.length);
+    // Clear the input so selecting the same file again still fires a change event.
+    e.target.value = "";
+
+    void drainUploadQueue();
+  };
+
+  /**
+   * Drains {@link uploadQueueRef} one file at a time: uploads it, then runs OCR before moving to
+   * the next queued file.
+   *
+   * Kept strictly serial (never concurrent) on purpose: a page's `order` is assigned server-side
+   * from the document's current page count (`prisma/schema.prisma`'s
+   * `@@unique([documentId, order])`), so two truly concurrent uploads for the same document could
+   * read the same count and collide. Queuing lets the user keep picking files without waiting;
+   * this worker is what still sends them to the server one at a time.
+   *
+   * Safe to call after every newly-queued batch — a call that finds a drain already running just
+   * returns immediately, since the running loop will pick up anything newly pushed onto the ref.
+   */
+  const drainUploadQueue = async () => {
+    if (isDrainingQueueRef.current) return;
+    isDrainingQueueRef.current = true;
     setIsUploading(true);
 
     try {
-      for (const file of files) {
-        const formData = new FormData();
-        formData.append("file", file);
+      while (uploadQueueRef.current.length > 0) {
+        const { file, targetId } = uploadQueueRef.current[0];
 
-        const response = await fetch(`/api/documents/${targetId}/pages`, {
-          method: "POST",
-          body: formData,
-        });
+        try {
+          const formData = new FormData();
+          formData.append("file", file);
 
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || "Failed to upload page");
+          const response = await fetch(`/api/documents/${targetId}/pages`, {
+            method: "POST",
+            body: formData,
+          });
+
+          if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || "Failed to upload page");
+          }
+
+          const data = await response.json();
+          // Flip before the (potentially slow) OCR call below, so a cap check running for a
+          // newly-selected batch in the meantime sees this page as already reflected in
+          // pageCount, not still "queued."
+          uploadQueueRef.current[0].uploaded = true;
+          // Only touch the visible page list if the user is still looking at this document — a
+          // queued file can finish long after they've navigated elsewhere via the sidenav.
+          setPages((prev) =>
+            viewedDocumentIdRef.current === targetId ? [...prev, { ...data.page, ocr: null }] : prev
+          );
+          setDocument((prev) => (prev && prev.id === targetId ? { ...prev, pageCount: prev.pageCount + 1 } : prev));
+          setIntakeDocument((prev) => (prev && prev.id === targetId ? { ...prev, pageCount: prev.pageCount + 1 } : prev));
+
+          await runOcrForPage(targetId, data.page.id);
+        } catch (error) {
+          // A failed file doesn't stop the rest of the queue — each queued file is independent.
+          console.error("Upload error:", error);
+          alert(error instanceof Error ? error.message : "Failed to upload pages");
+        } finally {
+          uploadQueueRef.current = uploadQueueRef.current.slice(1);
+          setQueuedFileCount(uploadQueueRef.current.length);
         }
-
-        const data = await response.json();
-        setPages((prev) => [...prev, { ...data.page, ocr: null }]);
-        setDocument((prev) => (prev && prev.id === targetId ? { ...prev, pageCount: prev.pageCount + 1 } : prev));
-        setIntakeDocument((prev) => (prev && prev.id === targetId ? { ...prev, pageCount: prev.pageCount + 1 } : prev));
-
-        await runOcrForPage(targetId, data.page.id);
       }
-    } catch (error) {
-      console.error("Upload error:", error);
-      alert(error instanceof Error ? error.message : "Failed to upload pages");
     } finally {
+      isDrainingQueueRef.current = false;
       setIsUploading(false);
-      // Clear the input so selecting the same file again still fires a change event.
-      e.target.value = "";
     }
   };
 
@@ -845,6 +921,11 @@ function WorkspacePageContent() {
       setIsSigningOut(false);
     }
   };
+
+  // Keep viewedDocumentIdRef current for drainUploadQueue's async loop (see its declaration).
+  useEffect(() => {
+    viewedDocumentIdRef.current = document?.id ?? null;
+  }, [document?.id]);
 
   // Bootstrap the workspace once on mount.
   useEffect(() => {
@@ -1182,28 +1263,30 @@ function WorkspacePageContent() {
                       {...PAGE_IMAGE_FILE_INPUT_PROPS}
                       multiple
                       onChange={handleFileUpload}
-                      disabled={isUploading}
+                      disabled={isCreating}
                     />
                   </label>
                 </div>
                 {isUploading && (
                   <div className="mt-4 flex items-center justify-center">
-                    <div 
-                      className="animate-spin rounded-full mr-2" 
-                      style={{ 
-                        width: '1.5rem', 
-                        height: '1.5rem', 
+                    <div
+                      className="animate-spin rounded-full mr-2"
+                      style={{
+                        width: '1.5rem',
+                        height: '1.5rem',
                         borderBottomColor: 'var(--color-accent-processing)',
                         marginRight: 'var(--spacing-2)'
                       }}
                     ></div>
-                    <span 
+                    <span
                       style={{
                         fontSize: 'var(--font-size-body)',
                         color: 'var(--color-text-body)'
                       }}
                     >
-                      Uploading...
+                      {queuedFileCount > 1
+                        ? `Uploading... (${queuedFileCount - 1} more waiting)`
+                        : "Uploading..."}
                     </span>
                   </div>
                 )}
