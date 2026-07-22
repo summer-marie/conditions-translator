@@ -84,6 +84,34 @@ separately when work resumes.
 
 ## Recent Fixes (Post-Phase, Unscoped)
 
+- **Shared-nav sign-out (2026-07-22, branch `feat/shared-nav-signout`, not yet merged).**
+  Follow-up to a check-only audit (same day) that found sign-out was implemented twice,
+  page-locally (`AccountActionsBar` in `app/app/dashboard/page.tsx`, an inline button in
+  `app/app/workspace/page.tsx`), and never added to the shared nav shell
+  (`components/layout/AppNav.tsx`) — so it was unreachable from Chat, from Dashboard's
+  loading/error states, and absent from the mobile hamburger menu entirely (the user's original
+  report). Fixed by moving sign-out into `AppNav.tsx` itself: a new `userId` state (fetched
+  once via `/api/session/status`, mirroring the existing `finishedDocuments` fetch pattern)
+  gates a "Sign out" control rendered in both the desktop sidebar (bottom, below the nav/document
+  list, respecting the collapsed/expanded width) and the mobile hamburger dropdown (below the
+  Documents section), each wired to the existing `signOut()` action
+  (`lib/actions/auth.ts`) followed by `router.push("/")` — the same pattern the page-level copies
+  already used. Because `AppNav` wraps every `/app/*` route uniformly, sign-out is now
+  automatically reachable from Chat and from Dashboard's loading/error states too, with no
+  page-specific wiring needed. Removed the duplicated page-level sign-out UI:
+  `dashboard/page.tsx`'s `AccountActionsBar` was narrowed to a single-purpose
+  `DeleteAccountButton` (the delete-account action is dashboard-specific and out of this fix's
+  scope, so it stays on the page); `workspace/page.tsx`'s inline sign-out button was removed
+  while keeping its "Saved to your account" badge and the signed-out "Log in"/"Save workspace"
+  links untouched. Validated: `tsc --noEmit` clean; `npm run lint` unchanged at the pre-existing
+  24-error/6-warning baseline; full `npm test` 301/301 unaffected. Manually verified via
+  throwaway (not committed) live-DB Playwright scripts covering: desktop-sidebar and
+  mobile-hamburger sign-out both actually sign a real signed-in test user out and redirect to
+  `/`; Chat and a forced Dashboard error state both still show "Sign out" via the shared nav;
+  a temporary (signed-out) session shows no sign-out control anywhere in the nav, mobile or
+  desktop; and the Workspace/Dashboard pages render with no leftover spacing gaps where the
+  removed controls used to sit — all screenshot-confirmed.
+
 - **In-thread chat "thinking" bubble (2026-07-22, branch `feat/chat-thinking-bubble`, not yet
   merged).** After sending a chat message, the only pending-state feedback was the Send
   button's spinner (`isLoading={isSending}`) — the message log itself (`app/app/chat/page.tsx`'s

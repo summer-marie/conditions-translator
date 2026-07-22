@@ -1,5 +1,53 @@
 # Work Log
 
+## 2026-07-22 (shared-nav sign-out, follow-up to check-only audit)
+
+- Earlier in this conversation (check-only, no code): user reported no way to sign out on
+  mobile — no logo/dropdown affordance. Audited `components/layout/AppNav.tsx` (mobile
+  hamburger, top bar, bottom tab bar, desktop sidebar), `app/app/dashboard/page.tsx`, and
+  `app/app/workspace/page.tsx`. Found sign-out worked wherever rendered but was never added to
+  the shared nav shell — it existed only inline in Dashboard's `AccountActionsBar` and
+  Workspace's inline button, both gated on `savedUserId`/loaded page state, so it was
+  unreachable from Chat and from Dashboard's loading/error states. Reported findings; no code
+  changed.
+- This session: user approved a surgical fix — move sign-out into `AppNav.tsx`, gate to
+  signed-in users, remove the page-level duplicates, keep the existing `signOut()` action and
+  keep `deleteAccountAction` untouched (out of scope).
+- Created branch `feat/shared-nav-signout` off `main`.
+- `components/layout/AppNav.tsx`: added `userId`/`isSigningOut` state, a new effect fetching
+  `/api/session/status` (same guard/cleanup pattern as the existing `finishedDocuments` effect),
+  `handleSignOut` (`signOut()` then `router.push("/")`), a new `SignOutIcon`. Rendered the
+  control in the desktop sidebar (new bottom section inside `<aside>`, collapse-aware) and the
+  mobile hamburger dropdown (new bordered-top section below Documents), both gated on `userId`.
+  Updated the file's top-of-file and `AppNavContent` docstrings to mention it now owns sign-out.
+- `app/app/dashboard/page.tsx`: removed `signOut` import, `isSigningOut` state, `handleSignOut`,
+  and the entirely-unused `useRouter`/`router` (its only call site was the removed handler;
+  confirmed via grep that delete-account uses `window.location.href` instead). Renamed/narrowed
+  `AccountActionsBar` to `DeleteAccountButton` (single button, `onClick` prop only) since
+  account deletion stays on this page — explicitly out of scope to touch. Updated both call
+  sites (empty state, main state) and the function-level docstring.
+- `app/app/workspace/page.tsx`: removed `signOut` import, `isSigningOut` state, `handleSignOut`.
+  Simplified the `savedUserId ? (...) : (...)` block to drop just the inline sign-out button,
+  keeping the "Saved to your account" `Badge` and the signed-out "Log in"/"Save workspace" links
+  exactly as they were.
+- Validated: `tsc --noEmit` clean, `npm run lint` unchanged at the 24-error/6-warning baseline,
+  `npm test` 301/301.
+- Manual verification needed a real signed-in user (not just a temporary session), so wrote
+  throwaway (not committed) live-DB Playwright scripts reusing the `signInAs` pattern from
+  `tests/e2e/chat-disclaimer.desktop.pw.ts` (seed a `User` + `AuthSession` row directly via
+  Prisma, attach the `auth_session` cookie). Hit one real gotcha: the sidebar, mobile hamburger,
+  and mobile bottom-tab-bar `<nav>` elements all share the literal `aria-label="Main
+  navigation"`, so `getByRole("navigation", {name: "Main navigation"})` is ambiguous whenever
+  more than one is simultaneously in the accessibility tree (e.g. hamburger open on mobile) —
+  fixed by scoping via `#mobile-nav-menu` / `getByRole("complementary")` (the `<aside>`'s
+  implicit landmark role) instead. Confirmed: desktop sidebar and mobile hamburger sign-out both
+  actually redirect to `/`; Chat and a forced Dashboard error state (mocked `/api/documents` to
+  500) both still show "Sign out" via the shared nav; a temporary session shows zero "Sign out"
+  matches anywhere; Workspace/Dashboard render with no leftover spacing where the removed
+  controls used to sit (screenshot-confirmed for all of the above). Deleted the temp test files
+  and `test-results/` output after use.
+- Updated `PROJECT_STATUS.md`'s "Recent Fixes" section with this entry.
+
 ## 2026-07-22 (chat in-thread thinking bubble)
 
 - Task: after sending a chat message, the log itself stayed static (only the Send button's own
