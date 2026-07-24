@@ -15,7 +15,7 @@ import {
   validateCorrectionText,
   PAGE_IMAGE_FILE_INPUT_PROPS,
   buildWorkspacePanelUrl,
-} from "@/app/app/workspace/page";
+} from "@/app/app/(gated)/workspace/page";
 import { OCR_MAX_CORRECTION_CHARACTERS } from "@/lib/constants";
 
 // Covers the Sections/Pages tab toggle added for the finished-document overflow-actions pass
